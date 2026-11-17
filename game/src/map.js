@@ -228,6 +228,6 @@ const MapGen = (() => {
     const a = m.hc[iy * r + ix], b = m.hc[iy * r + ix + 1], c = m.hc[(iy + 1) * r + ix], d = m.hc[(iy + 1) * r + ix + 1];
     return a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy;
   }
-  return { generate, tileH, T, N, NODE_KEY, MAXH };
+  return { generate, tileH, rng, T, N, NODE_KEY, MAXH };
 })();
 if (typeof module !== 'undefined') module.exports = MapGen;

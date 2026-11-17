@@ -1,0 +1,9 @@
+{
+  "name": "Fantasy Realm",
+  "about": "RTS Foundation's style pack: a bright storybook fantasy realm (Warcraft III's colour, AoE2's readability). Only the ground is made so far; buildings and units wait for briefs and blockouts (artkit/DESIGN_METHOD.md).",
+  "terrain": "terrain.json",
+  "tile_units": 128,
+  "tile_px": 128,
+  "game": { "tile_px": 64 },
+  "ground": [92, 132, 58]
+}

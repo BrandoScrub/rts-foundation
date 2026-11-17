@@ -20,7 +20,7 @@
     const dt = Math.min(0.25, (now - last) / 1000); last = now;
     if (!UI.st.paused) { acc += dt * UI.st.speed; let n = 0; while (acc >= STEP && n++ < 8) { world.step(STEP); acc -= STEP; } if (n >= 8) acc = 0; }
     UI.frame(dt);
-    Render.draw(UI.sel, UI.st);
+    Render.draw(UI.sel, UI.st, UI.st.paused ? 1 : Math.min(1, acc / STEP));
     Render.drawMini(); Render.blitMini(world.alerts, world.time);
     requestAnimationFrame(loop);
   }

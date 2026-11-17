@@ -1,0 +1,15 @@
+{
+ "procedural": [
+  "ground_realm_dirt.jpg",
+  "ground_realm_ford.jpg",
+  "ground_realm_forest.jpg",
+  "ground_realm_grass.jpg",
+  "ground_realm_meadow.jpg",
+  "ground_realm_rock.jpg",
+  "ground_realm_sand.jpg",
+  "ground_realm_water.jpg"
+ ],
+ "style": "fantasy_realm",
+ "tile": 1024,
+ "game_tiles_per_image": 16
+}

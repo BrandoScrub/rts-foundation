@@ -1,0 +1,27 @@
+{
+  "_about": "Ground for RTS Foundation. Each tile is a 1024 px seamless square = 16 game tiles, made by artkit/terrain/ground.py from the recipes below. The game maps them onto its height field, one land ('realm') with eight materials, one per ground type in game/src/map.js.",
+  "ground": {
+    "procedural": {
+      "quality": 80,
+      "lands": {
+        "realm": {
+          "grass": {"op": "grit", "seed": 12, "amt": [0.06, 0.09, 0.12], "of": {"op": "grassy", "seed": 11, "soil": [[78, 74, 44], [104, 96, 58]], "grass": [96, 136, 56], "dark": [62, 98, 40], "light": [146, 176, 82], "density": 1.0}},
+          "meadow": {"op": "grit", "seed": 22, "amt": [0.06, 0.09, 0.12], "of": {"op": "pebbles", "n": 260, "seed": 23, "r": [1, 2], "lo": [210, 200, 120], "hi": [240, 236, 200], "alpha": 0.8,
+                     "of": {"op": "grassy", "seed": 21, "soil": [[66, 64, 38], [90, 86, 52]], "grass": [82, 122, 50], "dark": [52, 86, 34], "light": [130, 164, 72], "density": 1.1}}},
+          "dirt": {"op": "grit", "seed": 33, "amt": [0.08, 0.12, 0.14], "of": {"op": "pebbles", "n": 1600, "seed": 32, "r": [1, 3.2], "lo": [110, 92, 66], "hi": [168, 148, 116], "alpha": 0.85,
+                   "of": {"op": "soil", "lo": [124, 98, 64], "hi": [158, 128, 88], "seed": 31}}},
+          "forest": {"op": "grit", "seed": 43, "amt": [0.08, 0.12, 0.16], "of": {"op": "pebbles", "n": 700, "seed": 42, "r": [1, 2.5], "lo": [70, 56, 36], "hi": [104, 84, 56], "alpha": 0.8,
+                     "of": {"op": "grassy", "seed": 41, "soil": [[52, 42, 28], [72, 58, 38]], "grass": [56, 82, 38], "dark": [36, 56, 28], "light": [86, 110, 52], "density": 0.5}}},
+          "rock": {"op": "grit", "seed": 54, "amt": [0.08, 0.12, 0.14], "of": {"op": "pebbles", "n": 2600, "seed": 53, "r": [1, 4], "lo": [96, 94, 86], "hi": [158, 154, 142], "alpha": 0.9,
+                   "of": {"op": "cracks", "seed": 52, "pts": 300, "width": 2.8, "col": [60, 58, 52], "amt": 0.75, "of": {"op": "soil", "lo": [110, 108, 98], "hi": [140, 136, 124], "seed": 51}}}},
+          "sand": {"op": "grit", "seed": 64, "amt": [0.05, 0.07, 0.1], "of": {"op": "pebbles", "n": 500, "seed": 63, "r": [1, 2.4], "lo": [150, 132, 96], "hi": [210, 196, 160], "alpha": 0.7,
+                   "of": {"op": "wind", "noise": [1.6, 62], "aspect": [1, 4], "base": 0.94, "amp": 0.12, "of": {"op": "soil", "lo": [184, 164, 116], "hi": [212, 194, 146], "seed": 61}}}},
+          "water": {"op": "grit", "seed": 74, "amt": [0.03, 0.05, 0.08], "of": {"op": "wind", "noise": [1.4, 72], "aspect": [1, 5], "base": 0.9, "amp": 0.22,
+                    "of": {"op": "soil", "lo": [36, 82, 128], "hi": [58, 112, 158], "seed": 71}}},
+          "ford": {"op": "grit", "seed": 84, "amt": [0.04, 0.06, 0.08], "of": {"op": "blend", "with": [70, 124, 150], "noise": [1.8, 82], "edge": [0.3, 0.7], "k": 0.75,
+                   "of": {"op": "pebbles", "n": 900, "seed": 83, "r": [1, 3], "lo": [120, 120, 104], "hi": [176, 170, 146], "alpha": 0.9, "of": {"op": "soil", "lo": [120, 128, 116], "hi": [150, 154, 138], "seed": 81}}}}
+        }
+      }
+    }
+  }
+}

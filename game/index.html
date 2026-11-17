@@ -62,7 +62,15 @@
   #help .layout-row { column-span: all; margin: 0 0 10px; }
 
   /* ---------- mobile interface (after Brass and Bone) ---------- */
-  body.mui #app { grid-template-rows: auto minmax(0, 1fr) auto; }
+  body.mui #app { grid-template-rows: auto minmax(0, 1fr); }
+  /* the map runs under the bottom panel; with nothing selected the panel folds away to just the minimap (Brass and Bone) */
+  body.mui #bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; background: linear-gradient(rgba(42,32,20,.94), rgba(26,19,12,.97)); border-top: 2px solid var(--edge); }
+  body.mui #mini-wrap { order: -1; }
+  body.mui.m-empty #cmds, body.mui.m-empty #info { display: none; }
+  body.mui.m-empty #bottom { background: none; border-top: 0; pointer-events: none; } body.mui.m-empty #mini-wrap { pointer-events: auto; }
+  body.mui.m-empty.m-mapoff #bottom { display: none; }
+  body.mui:not(.m-empty) #mrail { max-height: calc(100% - 128px - env(safe-area-inset-bottom, 0px)); }
+  body.mui.m-empty #msgs { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
   body.mui #top { flex-wrap: wrap; gap: 4px 8px; min-height: 40px; padding: calc(env(safe-area-inset-top, 0px) + 3px) max(6px, env(safe-area-inset-right, 0px)) 3px max(6px, env(safe-area-inset-left, 0px)); }
   body.mui #res { gap: 7px; flex-wrap: wrap; } body.mui .r { min-width: 0; gap: 3px; font-size: 12.5px; } body.mui .r small { display: none; } body.mui .r b { min-width: 0; }
   body.mui #top .sp { display: none; } body.mui #clock { margin-left: auto; }

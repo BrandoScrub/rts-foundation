@@ -6,13 +6,15 @@ if (typeof module !== 'undefined') { global.DATA = require('./data.js'); global.
 class World {
   constructor(seed = 7) {
     const m = this.map = MapGen.generate(seed);
-    this.W = m.W; this.H = m.H; this.time = 0; this.nextId = 1;
+    this.W = m.W; this.H = m.H; this.time = 0; this.tick = 0; this.nextId = 1;
+    this.rand = MapGen.rng(seed * 7919 + 13);   // every random choice in the simulation comes from here: same seed + same commands = same game
+    this.pending = []; this.log = []; this.pathBudget = 0;
     this.ents = []; this.byId = new Map(); this.fx = []; this.alerts = []; this.messages = [];
     this.occ = new Int32Array(this.W * this.H);
     Path.init(this.W, this.H);
     this.players = [0, 1, 2].map(id => ({ id, color: DATA.PLAYER_COLORS[id], res: Object.assign({}, DATA.START_RES),
       techs: new Set(), popCap: 0, pop: 0, gathered: { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 },
-      vis: new Uint8Array(this.W * this.H), explored: new Uint8Array(this.W * this.H), defeated: false }));
+      vis: new Uint8Array(this.W * this.H), explored: new Uint8Array(this.W * this.H), seen: new Map(), defeated: false }));
     this.players[2].res = {};
     this.camps = m.camps.map(c => Object.assign(c, { members: [], cleared: false }));
     this.state = 'playing';
@@ -44,7 +46,7 @@ class World {
   addUnit(type, owner, x, y) {
     const D = DATA.UNITS[type] || DATA.WILD[type];
     const u = this.add({ kind: 'unit', type, owner, x, y, D, hp: D.hp, maxHp: D.hp, r: D.r, order: null, queue: [],
-      path: null, cool: 0, carry: { res: null, amt: 0 }, facing: Math.random() * 6.28, moving: false, walkT: 0, stuck: 0, repathT: 0 });
+      path: null, cool: 0, carry: { res: null, amt: 0 }, facing: this.rand() * 6.28, moving: false, walkT: 0, stuck: 0, repathT: 0 });
     if (owner < 2 && this.players[owner].techs.has('loom') && type === 'villager') { u.maxHp += 15; u.hp += 15; }
     return u;
   }
@@ -155,17 +157,31 @@ class World {
   }
   setOrder(u, o) {
     u.order = o; u.path = null; u.stuck = 0; u.repathT = 0;
-    if (o && o.type !== 'gather' && o.type !== 'dropoff' && u.type === 'villager' && u.gatherMemo && o.type !== 'build') { /* keep memo */ }
   }
   nextOrder(u) { u.order = null; u.path = null; if (u.queue.length) this.setOrder(u, u.queue.shift()); }
 
   /* group move: spread units into a block around the point so they don't fight over one tile */
+  /* group move: one path for the group (found once, from the unit nearest the group's middle), shared by every
+     unit that stands near it; each unit ends at its own slot of a block around the point, so they don't fight
+     over one tile. Units far from the group path on their own. */
   groupMove(units, x, y, shift, attackMove = false) {
-    const n = units.length, cols = Math.ceil(Math.sqrt(n)), sp = 0.75;
+    units = units.filter(u => !u.dead && u.kind === 'unit'); const n = units.length; if (!n) return;
+    const cols = Math.ceil(Math.sqrt(n)), sp = 0.75;
+    let shared = null;
+    if (n >= 3 && !shift) {
+      const mx = units.reduce((a, u) => a + u.x, 0) / n, my = units.reduce((a, u) => a + u.y, 0) / n;
+      const lead = units.slice().sort((a, b) => Math.hypot(a.x - mx, a.y - my) - Math.hypot(b.x - mx, b.y - my))[0];
+      const tx = Math.floor(x), ty = Math.floor(y), walk = this.walkFn(lead.owner);
+      const r = Path.find(Math.floor(lead.x), Math.floor(lead.y), [tx, ty, tx, ty], walk, 0, 90000);
+      this.pathBudget -= r.n || 0;
+      shared = { from: [lead.x, lead.y], pts: Path.smooth(r.tiles, walk).slice(1).map(([a, b]) => [a + 0.5, b + 0.5]), reached: r.reached };
+    }
     const sorted = units.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
     sorted.forEach((u, k) => {
       const ox = n === 1 ? 0 : ((k % cols) - (cols - 1) / 2) * sp, oy = n === 1 ? 0 : (Math.floor(k / cols) - (Math.ceil(n / cols) - 1) / 2) * sp;
-      this.order(u, { type: attackMove ? 'amove' : 'move', x: x + ox, y: y + oy }, shift);
+      const o = { type: attackMove ? 'amove' : 'move', x: x + ox, y: y + oy };
+      if (shared && Math.hypot(u.x - shared.from[0], u.y - shared.from[1]) < 8) o.shared = shared;
+      this.order(u, o, shift);
     });
   }
 
@@ -192,13 +208,35 @@ class World {
   }
 
   /* ------------------------------------------------------------ movement */
-  goTo(u, rect, reach, finalPt) {
+  /* plan a path. Path searches share a budget of nodes per tick, so a big group order spreads over a few ticks
+     instead of freezing a frame; a unit whose search is deferred waits (returns false) and asks again next tick. */
+  goTo(u, rect, reach, finalPt, shared) {
     const sx = Math.max(0, Math.min(this.W - 1, Math.floor(u.x))), sy = Math.max(0, Math.min(this.H - 1, Math.floor(u.y)));
-    const walk = this.walkFn(u.owner), r = Path.find(sx, sy, rect, walk, reach);
+    const walk = this.walkFn(u.owner);
+    if (shared && shared.pts.length) {   // join the group's path: straight to its first corner if the way is clear
+      // join at the furthest corner of the group path in plain sight, or by a short search to its first corner
+      let join = -1;
+      for (let k = Math.min(shared.pts.length - 1, 3); k >= 0; k--) { const f = shared.pts[k]; if (Path.los(sx, sy, Math.floor(f[0]), Math.floor(f[1]), walk)) { join = k; break; } }
+      let lead = [];
+      if (join < 0) {   // go to where the group's path starts (a few tiles away), then follow it
+        const fx = Math.floor(shared.from[0]), fy = Math.floor(shared.from[1]);
+        if (Path.los(sx, sy, fx, fy, walk)) { lead = [shared.from.slice()]; join = 0; }
+        else { const r = Path.find(sx, sy, [fx, fy, fx, fy], walk, 0, 2000); this.pathBudget -= r.n;
+          if (r.reached) { lead = Path.smooth(r.tiles, walk).slice(1).map(([x, y]) => [x + 0.5, y + 0.5]); join = 0; } }
+      }
+      if (join >= 0) {
+        u.path = lead.concat(shared.pts.slice(join).map(p => p.slice())); if (finalPt && shared.reached) u.path[u.path.length - 1] = finalPt;
+        u.pathReached = shared.reached; u.repathT = 0.6; u.stuck = 0; u.pathFor = rect.join(','); return true;
+      }
+    }
+    if (this.pathBudget <= 0) { u.path = null; return false; }
+    const r = Path.find(sx, sy, rect, walk, reach, 90000);
+    this.pathBudget -= r.n;
     const tiles = Path.smooth(r.tiles, walk);
     u.path = tiles.slice(1).map(([x, y]) => [x + 0.5, y + 0.5]);
     if (finalPt && r.reached) { if (u.path.length) u.path[u.path.length - 1] = finalPt; else u.path.push(finalPt); }
     u.pathReached = r.reached; u.repathT = 0.6; u.stuck = 0; u.pathFor = rect.join(',');
+    return true;
   }
   /* approach an entity or tile until within `dist`; true when there */
   approach(u, e, dist, dt) {
@@ -209,7 +247,7 @@ class World {
     if (!u.path || (u.path.length === 0) || (u.pathFor !== key && u.repathT <= 0)) {
       if (u.repathT > 0 && u.path && u.path.length === 0) { u.moving = false; return false; }
       const bld = typeof e !== 'number' && e.kind === 'building';
-      this.goTo(u, rect, typeof e === 'number' ? 1 : bld ? (e.D.walk ? 0 : 1) : 0, typeof e === 'number' || bld ? null : [e.x, e.y]);
+      if (!this.goTo(u, rect, typeof e === 'number' ? 1 : bld ? (e.D.walk ? 0 : 1) : 0, typeof e === 'number' || bld ? null : [e.x, e.y])) { u.moving = false; return false; }
       if (!bld && typeof e !== 'number' && u.path.length) u.path[u.path.length - 1] = [e.x, e.y];
       if (!u.path.length && !bld && typeof e !== 'number') u.path.push([e.x, e.y]);
       if (!u.path.length) {   // already in the goal area but not close enough: step straight toward the nearest edge
@@ -227,6 +265,7 @@ class World {
     const [tx, ty] = u.path[0], dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
     const sp = u.D.speed * (u.artifact ? 0.8 : 1) * dt;
     if (d <= sp) { u.x = tx; u.y = ty; u.path.shift(); u.moving = true; return !u.path.length; }
+    if (u.path.length > 1 && d < 0.7) { u.path.shift(); return this.follow(u, dt); }   // a corner on the way: close is enough (a crowd can't all stand on it)
     let nx = u.x + dx / d * sp, ny = u.y + dy / d * sp;
     const ok = (x, y) => { const i = Math.floor(y) * this.W + Math.floor(x); return x > 0 && y > 0 && x < this.W && y < this.H && (this.walkable(i, u.owner) || i === Math.floor(u.y) * this.W + Math.floor(u.x)); };
     if (!ok(nx, ny)) { if (ok(nx, u.y)) ny = u.y; else if (ok(u.x, ny)) nx = u.x; else { nx = u.x; ny = u.y; } }
@@ -238,7 +277,9 @@ class World {
   /* ------------------------------------------------------------ the tick */
   step(dt) {
     if (this.state !== 'playing') return;
-    this.time += dt;
+    this.time += dt; this.tick++; this.pathBudget = 40000;
+    if (this.pending.length) { const cmds = this.pending; this.pending = []; for (const c of cmds) this.run(c); }
+    for (const e of this.ents) if (e.kind === 'unit') { e.px = e.x; e.py = e.y; }   // for smooth drawing between ticks
     for (const e of this.ents) {
       if (e.dead) continue;
       if (e.kind === 'unit' && !e.garrisoned && !e.carriedBy) this.unitTick(e, dt);
@@ -294,7 +335,6 @@ class World {
     const us = this.ents.filter(e => !e.dead && e.kind === 'unit' && !e.garrisoned && !e.carcass);
     for (const u of us) { const k = key(u.x | 0, u.y | 0); let a = cell.get(k); if (!a) cell.set(k, a = []); a.push(u); }
     for (const u of us) {
-      if (u.order && (u.order.type === 'gather' && u.atWork)) continue;
       const cx = u.x | 0, cy = u.y | 0;
       for (let y = cy - 1; y <= cy + 1; y++) for (let x = cx - 1; x <= cx + 1; x++) {
         const a = cell.get(key(x, y)); if (!a) continue;
@@ -309,9 +349,14 @@ class World {
     }
   }
   nudge(u, dx, dy) {
-    if (u.atWork) return;
     const x = u.x + dx, y = u.y + dy, i = Math.floor(y) * this.W + Math.floor(x);
-    if (x > 0 && y > 0 && x < this.W && y < this.H && this.walkable(i, u.owner)) { u.x = x; u.y = y; }
+    if (!(x > 0 && y > 0 && x < this.W && y < this.H && this.walkable(i, u.owner))) return;
+    if (u.atWork) {   // working units may shuffle around their job (several peasants on one tree spread out) but stay in reach
+      const w = u.workAt; if (!w) return;
+      const d = w.tile !== undefined ? this.distToTile({ x, y }, w.tile) : this.distTo({ x, y }, w.ent);
+      if (d > w.reach) return;
+    }
+    u.x = x; u.y = y;
   }
 
   /* ------------------------------------------------------------ units */
@@ -323,14 +368,14 @@ class World {
     if (!o) return this.idleTick(u, dt);
     switch (o.type) {
       case 'move': {
-        if (!u.path || u.pathTarget !== o) { this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y]); u.pathTarget = o; }
+        if (!u.path || u.pathTarget !== o) { if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
         if (this.follow(u, dt) && !u.moving) this.nextOrder(u);
         else if (!u.path || !u.path.length) this.nextOrder(u);
         break;
       }
       case 'amove': {
         if (!o.scan || this.time > o.scan) { o.scan = this.time + 0.4; const t = this.findEnemy(u, u.D.los); if (t) { u.queue.unshift(o); this.setOrder(u, { type: 'attack', id: t.id, auto: true }); break; } }
-        if (!u.path || u.pathTarget !== o) { this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y]); u.pathTarget = o; }
+        if (!u.path || u.pathTarget !== o) { if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
         if (this.follow(u, dt) || !u.path || !u.path.length) this.nextOrder(u);
         break;
       }
@@ -434,7 +479,7 @@ class World {
     if (u.D.creep) {
       const [hx, hy] = u.home, away = Math.hypot(u.x - hx, u.y - hy);
       if (u.returning) {
-        if (!u.path || u.pathTarget !== 'home') { this.goTo(u, [Math.floor(hx), Math.floor(hy), Math.floor(hx), Math.floor(hy)], 0, [hx, hy]); u.pathTarget = 'home'; }
+        if (!u.path || u.pathTarget !== 'home') { if (!this.goTo(u, [Math.floor(hx), Math.floor(hy), Math.floor(hx), Math.floor(hy)], 0, [hx, hy])) return; u.pathTarget = 'home'; }
         u.hp = Math.min(u.maxHp, u.hp + DATA.CREEP.regen * 3 * dt);
         if (this.follow(u, dt) || away < 0.3) { u.returning = false; u.path = null; u.order = null; }
         return;
@@ -457,7 +502,7 @@ class World {
     }
     if (o && o.type === 'attack') { const t = this.get(o.id); if (!t || Math.hypot(t.x - u.x, t.y - u.y) > 10) { u.order = null; return; } return this.attackTick(u, o, dt); }
     if (o && o.type === 'move') {
-      if (!u.path) this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y]);
+      if (!u.path && !this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y])) return;
       if (this.follow(u, dt) || !u.path || !u.path.length) { u.order = null; u.path = null; }
       return;
     }
@@ -495,7 +540,7 @@ class World {
     const isFarm = src && src.kind === 'building';
     const there = isFarm ? this.approach(u, src, 0.01, dt) : node >= 0 ? this.approach(u, node, 0.75, dt) : this.approach(u, src, u.r + 0.25, dt);
     if (!there) return;
-    u.atWork = true;
+    u.atWork = true; u.workAt = node >= 0 ? { tile: node, reach: 0.75 } : { ent: src, reach: isFarm ? 0.01 : u.r + 0.25 };
     if (isFarm) src.farmer = u.id;
     const tgt = node >= 0 ? [node % this.W + 0.5, ((node / this.W) | 0) + 0.5] : [src.x, src.y];
     if (!isFarm) u.facing = Math.atan2(tgt[1] - u.y, tgt[0] - u.x);
@@ -550,7 +595,7 @@ class World {
     const b = this.get(o.id);
     if (!b || b.built) return this.afterBuild(u, b);
     if (!this.approach(u, b, 0.8, dt)) return;
-    u.atWork = true; u.facing = Math.atan2(b.y - u.y, b.x - u.x);
+    u.atWork = true; u.workAt = { ent: b, reach: 0.8 }; u.facing = Math.atan2(b.y - u.y, b.x - u.x);
     b.builders++;
     const n = Math.max(1, b.lastBuilders || 1), rate = (n + 2) / (3 * b.D.time) / n;   // AoE2: n builders take 3T/(n+2)
     b.progress = Math.min(1, b.progress + rate * dt); b.hp = Math.min(b.maxHp, b.hp + b.maxHp * rate * dt);
@@ -574,7 +619,7 @@ class World {
     if (!b || b.hp >= b.maxHp) return this.nextOrder(u);
     if (!b.built) return this.setOrder(u, { type: 'build', id: b.id });
     if (!this.approach(u, b, 0.8, dt)) return;
-    u.atWork = true;
+    u.atWork = true; u.workAt = { ent: b, reach: 0.8 };
     // AoE2: 750 HP a minute, costs half the building's price spread over its HP
     const hp = Math.min(b.maxHp - b.hp, 12.5 * dt), cost = {};
     for (const k in b.D.cost) cost[k] = b.D.cost[k] * 0.5 * hp / b.maxHp;
@@ -608,7 +653,7 @@ class World {
         }
         if (t) {
           b.cool = A.reload; const n = 1 + b.garrison.filter(id => { const g = this.get(id); return g && g.type === 'villager'; }).length;
-          for (let k = 0; k < n; k++) { this.fx.push({ kind: 'arrow', x0: b.x, y0: b.y, z0: 2.5, x1: t.x + (Math.random() - 0.5) * 0.4, y1: t.y + (Math.random() - 0.5) * 0.4, t: -k * 0.08, life: 0.5 }); }
+          for (let k = 0; k < n; k++) { this.fx.push({ kind: 'arrow', x0: b.x, y0: b.y, z0: 2.5, x1: t.x + (this.rand() - 0.5) * 0.4, y1: t.y + (this.rand() - 0.5) * 0.4, t: -k * 0.08, life: 0.5 }); }
           for (let k = 0; k < n; k++) { if (t.hp > 0) this.hit(b, t, A.atk, true); }
         } else b.cool = 0.3;
       }
@@ -655,7 +700,7 @@ class World {
   losOf(e) { let l = e.D.los || 4; if (e.kind === 'building' && e.built && e.owner < 2 && this.players[e.owner].techs.has('town_watch')) l += 4; return l; }
   ungarrison(b) {
     for (const id of b.garrison) { const u = this.byId.get(id); if (!u || u.dead) continue; u.garrisoned = 0;
-      const sp = this.spawnPoint(b, b.rally ? [b.rally.x, b.rally.y] : null); u.x = sp[0] + (Math.random() - 0.5) * 0.5; u.y = sp[1] + (Math.random() - 0.5) * 0.5;
+      const sp = this.spawnPoint(b, b.rally ? [b.rally.x, b.rally.y] : null); u.x = sp[0] + (this.rand() - 0.5) * 0.5; u.y = sp[1] + (this.rand() - 0.5) * 0.5;
       if (u.belled) { u.belled = false; if (u.belledOrder) this.setOrder(u, u.belledOrder); u.belledOrder = null; } }
     b.garrison = [];
   }
@@ -686,7 +731,57 @@ class World {
             const dx = x + 0.5 - cx, dy = y + 0.5 - cy; if (dx * dx + dy * dy <= r2) { vis[y * W + x] = 1; P.explored[y * W + x] = 1; }
           }
       }
+      // fog memory: other players' buildings are shown as they were last seen, and stay until the spot is seen again
+      for (const e of this.ents) if (!e.dead && e.kind === 'building' && e.owner !== p && this.seesRect(P, e))
+        P.seen.set(e.id, { id: e.id, type: e.type, owner: e.owner, tx: e.tx, ty: e.ty, size: e.size, built: e.built, progress: e.progress, food: e.food, x: e.x, y: e.y, D: e.D, kind: 'building' });
+      for (const [id, m] of P.seen) { const e = this.byId.get(id); if ((!e || e.dead) && this.seesRect(P, m)) P.seen.delete(id); }
     }
+  }
+  seesRect(P, b) { for (let y = b.ty; y < b.ty + b.size; y++) for (let x = b.tx; x < b.tx + b.size; x++) if (P.vis[y * this.W + x]) return true; return false; }
+
+  /* ------------------------------------------------------------ commands
+     Every player action enters here as plain data and runs at the start of the next tick, the way an RTS keeps
+     games in lockstep: the UI, a future AI and a replay all speak this one language. this.log records them. */
+  issue(p, cmd) { const c = Object.assign({ p }, cmd); this.pending.push(c); this.log.push(Object.assign({ tick: this.tick + 1 }, c)); }
+  mine(p, ids) { return (ids || []).map(id => this.get(id)).filter(e => e && e.owner === p); }
+  run(c) {
+    const p = c.p, say = t => { if (p === 0) this.message(t); };
+    switch (c.c) {
+      case 'order': {   // the smart order (AoE2's right-click)
+        const units = this.mine(p, c.ids).filter(u => u.kind === 'unit' && !u.garrisoned), t = c.target ? this.get(c.target) : null;
+        const movers = units.filter(u => !this.smartOrder(u, t, c.node === undefined ? -1 : c.node, c.x, c.y, c.shift));
+        if (movers.length) this.groupMove(movers, c.x, c.y, c.shift, !!c.attack);
+        break; }
+      case 'move': this.groupMove(this.mine(p, c.ids).filter(u => u.kind === 'unit' && !u.garrisoned), c.x, c.y, c.shift, !!c.attack); break;
+      case 'stop': for (const u of this.mine(p, c.ids)) if (u.kind === 'unit') { u.queue = []; this.setOrder(u, null); } break;
+      case 'train': { let n = 0; for (const b of this.mine(p, c.ids)) if (b.built && (b.D.trains || []).includes(c.unit)) n += this.queueTrain(b, c.unit, c.n || 1);
+        if (!n) say(this.players[p].pop >= this.players[p].popCap ? 'Need more housing.' : 'Not enough resources.'); break; }
+      case 'research': { const b = this.mine(p, [c.id])[0]; if (!b || !this.queueTech(b, c.tech)) say('Cannot research that now.'); break; }
+      case 'cancel': { const b = this.mine(p, [c.id])[0]; if (b) this.cancel(b, c.i); break; }
+      case 'place': {   // one building, or a line of palisade tiles; the named peasants go and build
+        const D = DATA.BUILDINGS[c.type], builders = this.mine(p, c.ids).filter(u => u.type === 'villager'), placed = [];
+        if (D.needs && !this.has(p, D.needs)) { say(`Needs a ${DATA.BUILDINGS[D.needs].name} first.`); break; }
+        for (const [tx, ty] of c.tiles) { const b = this.place(c.type, p, tx, ty); if (b) placed.push(b); else if (!this.canAfford(p, D.cost)) break; }
+        if (!placed.length) { say(this.canAfford(p, D.cost) ? 'Cannot build there.' : 'Not enough resources.'); break; }
+        placed.forEach((b, k) => { for (const u of builders) this.order(u, { type: 'build', id: b.id }, c.shift || k > 0); });
+        break; }
+      case 'rally': for (const b of this.mine(p, c.ids)) if (b.kind === 'building' && b.D.trains) b.rally = { x: c.x, y: c.y, id: c.target || 0, node: c.node >= 0 ? c.node : undefined }; break;
+      case 'bell': this.townBell(p); say('Town Bell rung!'); break;
+      case 'allclear': this.allClear(p); break;
+      case 'ungarrison': for (const b of this.mine(p, c.ids)) if (b.kind === 'building') this.ungarrison(b); break;
+      case 'garrison': for (const u of this.mine(p, c.ids)) { if (u.kind !== 'unit' || !(u.type === 'villager' || (u.D.cls && u.D.cls.includes('infantry')))) continue;
+        const th = this.nearest(u, b => b.kind === 'building' && b.owner === p && b.type === 'town_hall' && b.built); if (th) this.order(u, { type: 'garrison', id: th.id }); } break;
+      case 'pickup': for (const u of this.mine(p, c.ids)) { if (!u.D.carries) continue;
+        const a = this.nearest(u, a => a.kind === 'artifact' && !a.carrier && (p !== 0 || this.players[0].vis[Math.floor(a.y) * this.W + Math.floor(a.x)])); if (a) this.order(u, { type: 'pickup', id: a.id }); } break;
+      case 'delete': for (const e of this.mine(p, c.ids)) { if (e.kind === 'building' && !e.built && e.progress === 0) this.pay(p, e.D.cost, -1); this.kill(e); } break;
+    }
+  }
+  /* a fingerprint of the game state, for determinism checks and, later, desync detection */
+  hash() {
+    let h = 2166136261; const mix = v => { h ^= Math.round(v * 1000) | 0; h = Math.imul(h, 16777619); };
+    for (const e of this.ents) if (!e.dead) { mix(e.id); mix(e.x); mix(e.y); mix(e.hp); }
+    for (const p of this.players) for (const k of DATA.RES) mix(p.res[k] || 0);
+    return (h >>> 0).toString(16);
   }
 }
 if (typeof module !== 'undefined') module.exports = World;

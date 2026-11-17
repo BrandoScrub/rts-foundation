@@ -7,13 +7,13 @@ const iso = (x, y, z = 0) => [(x - y) * TW / 2, (x + y) * TH / 2 - z * EL];
 
 const Render = (() => {
   let W, ctx, canvas, cam = { x: 0, y: 0, zoom: 1 }, vw = 0, vh = 0, dpr = 1;
-  const chunks = new Map(); const CHUNK_MAX = 60;
+  const chunks = new Map(); const CHUNK_MAX = 56;
   const TERR_COL = [[92, 132, 58], [80, 120, 50], [138, 110, 72], [62, 92, 44], [128, 124, 110], [190, 172, 120], [46, 92, 140], [96, 140, 150]];
 
   function init(world, cv) {
     W = world; canvas = cv;
     ctx = (typeof GLCanvas !== 'undefined' && !/[?&]gl=0/.test(location.search)) ? GLCanvas.create(canvas) : canvas.getContext('2d');
-    resize();
+    resize(); loadGround();
   }
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -43,33 +43,113 @@ const Render = (() => {
   }
 
   /* ---------------- terrain chunks ---------------- */
+  /* Ground: artkit's procedural tiles (styles/fantasy_realm/terrain.json -> tools/build_ground.py -> art/ground_*.jpg),
+     1024 px = 16 tiles, laid out top-down. Each chunk is first painted top-down, every ground type through a soft
+     bilinear mask so neighbours blend (masks sum to one, added with 'lighter'), then each tile is carried onto its
+     real corner heights as two affine-mapped triangles, then shaded by its slope (light from the upper left). */
+  const MATS = ['grass', 'meadow', 'dirt', 'forest', 'rock', 'sand', 'water', 'ford'], TP = 64, TEX = 1024;
+  const tex = []; let texReady = false;
+  function vnoise(x, y) {   // smooth value noise on the world grid, seamless across chunks
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  }
+  function loadGround(done) {
+    let left = MATS.length;
+    MATS.forEach((m, i) => { const im = new Image(); im.onload = im.onerror = () => { tex[i] = im.naturalWidth ? im : null; if (--left === 0) { texReady = true; chunks.clear(); done && done(); } }; im.src = `art/ground_realm_${m}.jpg`; });
+  }
+  let top = null, layer = null, maskCv = null;
+  function paintTop(x0, y0) {   // the chunk and a one-tile margin, top-down, 64 px a tile
+    const n = CH + 2, S = n * TP, m = W.map;
+    if (!top) { top = document.createElement('canvas'); top.width = top.height = S; layer = document.createElement('canvas'); layer.width = layer.height = S;
+      maskCv = document.createElement('canvas'); maskCv.width = maskCv.height = n; }
+    const g = top.getContext('2d'), lg = layer.getContext('2d'), mg = maskCv.getContext('2d');
+    g.globalCompositeOperation = 'source-over'; g.fillStyle = '#000'; g.fillRect(0, 0, S, S);
+    const present = new Set(), types = new Uint8Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = Math.max(0, Math.min(W.W - 1, x0 - 1 + i)), y = Math.max(0, Math.min(W.H - 1, y0 - 1 + j)), t = m.terr[y * W.W + x];
+      types[j * n + i] = t; present.add(t);
+    }
+    const ox = -(((x0 - 1) * TP) % TEX + TEX) % TEX, oy = -(((y0 - 1) * TP) % TEX + TEX) % TEX;   // keep the texture continuous across chunks
+    // blend weights at 16 px a tile: bilinear between tile centres, roughened by noise and sharpened (w^4, renormalised),
+    // so borders wander instead of following the tile grid; they still sum to one, so layers add up exactly
+    const MR = 16, M = n * MR, list = [...present], wts = list.map(() => new Float32Array(M * M));
+    for (let py = 0; py < M; py++) for (let px = 0; px < M; px++) {
+      const fx = (px + 0.5) / MR - 0.5, fy = (py + 0.5) / MR - 0.5, ix = Math.max(0, Math.min(n - 2, Math.floor(fx))), iy = Math.max(0, Math.min(n - 2, Math.floor(fy)));
+      const tx = Math.min(1, Math.max(0, fx - ix)), ty = Math.min(1, Math.max(0, fy - iy)), wx = x0 - 1 + px / MR, wy = y0 - 1 + py / MR;
+      let sum = 0;
+      for (let k = 0; k < list.length; k++) {
+        const t = list[k];
+        let w = (types[iy * n + ix] === t ? (1 - tx) * (1 - ty) : 0) + (types[iy * n + ix + 1] === t ? tx * (1 - ty) : 0) +
+                (types[(iy + 1) * n + ix] === t ? (1 - tx) * ty : 0) + (types[(iy + 1) * n + ix + 1] === t ? tx * ty : 0);
+        if (w > 0) { w *= 0.35 + vnoise(wx * 1.1 + t * 17.3, wy * 1.1 - t * 9.1) * 1.3; w = w * w; w = w * w; }
+        wts[k][py * M + px] = w; sum += w;
+      }
+      if (sum > 0) for (let k = 0; k < list.length; k++) wts[k][py * M + px] /= sum;
+    }
+    if (maskCv.width !== M) { maskCv.width = maskCv.height = M; }
+    list.forEach((t, k) => {
+      const img = mg.createImageData(M, M), w = wts[k];
+      for (let q = 0; q < M * M; q++) img.data[q * 4 + 3] = Math.round(w[q] * 255);
+      mg.putImageData(img, 0, 0);
+      lg.globalCompositeOperation = 'source-over'; lg.clearRect(0, 0, S, S);
+      if (tex[t]) { for (let yy = oy; yy < S; yy += TEX) for (let xx = ox; xx < S; xx += TEX) lg.drawImage(tex[t], xx, yy); }
+      else { const c = TERR_COL[t]; lg.fillStyle = `rgb(${c})`; lg.fillRect(0, 0, S, S); }
+      lg.globalCompositeOperation = 'destination-in'; lg.imageSmoothingEnabled = true; lg.imageSmoothingQuality = 'low';
+      lg.drawImage(maskCv, 0, 0, S, S);
+      g.globalCompositeOperation = list.length > 1 ? 'lighter' : 'source-over'; g.drawImage(layer, 0, 0);
+    });
+    g.globalCompositeOperation = 'source-over';
+    return top;
+  }
+  let buildBudget = 0;   // full chunk builds allowed this frame; the rest get a quick flat-colour stand-in, upgraded later
   function chunk(cx, cy) {
     const key = cx * 1000 + cy; let c = chunks.get(key);
-    if (c) { c.used = performance.now(); return c; }
-    if (chunks.size >= CHUNK_MAX) { let old = null; for (const [k, v] of chunks) if (!old || v.used < old[1].used) old = [k, v]; chunks.delete(old[0]); }
+    if (c && (!c.rough || buildBudget <= 0 || !texReady)) { c.used = performance.now(); return c; }
+    const full = texReady && buildBudget > 0; if (full) buildBudget--;
+    if (!c && chunks.size >= CHUNK_MAX) { let old = null; for (const [k, v] of chunks) if (!old || v.used < old[1].used) old = [k, v]; chunks.delete(old[0]); }
     const x0 = cx * CH, y0 = cy * CH, ox = (x0 - (y0 + CH)) * TW / 2, oy = (x0 + y0) * TH / 2 - MapGen.MAXH * EL;
-    const cv = document.createElement('canvas'); cv.width = CH * TW; cv.height = CH * TH + MapGen.MAXH * EL + 4;
-    const g = cv.getContext('2d'), m = W.map, R = W.W + 1;
-    for (let y = y0; y < Math.min(W.H, y0 + CH); y++) for (let x = x0; x < Math.min(W.W, x0 + CH); x++) {
-      const a = m.hc[y * R + x], b = m.hc[y * R + x + 1], c2 = m.hc[(y + 1) * R + x + 1], d = m.hc[(y + 1) * R + x];
-      const P = [iso(x, y, a), iso(x + 1, y, b), iso(x + 1, y + 1, c2), iso(x, y + 1, d)].map(([sx, sy]) => [sx - ox, sy - oy]);
-      const t = m.terr[y * W.W + x], base = TERR_COL[t], n = hash(x, y);
-      const gx = (b + c2 - a - d) / 2, gy = (d + c2 - a - b) / 2;
-      const light = 1 + gx * 0.24 + gy * 0.09 + (n - 0.5) * 0.06 + ((a + b + c2 + d) / 4) * 0.035;
-      g.fillStyle = `rgb(${base[0] * light | 0},${base[1] * light | 0},${base[2] * light | 0})`;
-      g.beginPath(); g.moveTo(P[0][0], P[0][1] - 0.5); g.lineTo(P[1][0] + 0.7, P[1][1]); g.lineTo(P[2][0], P[2][1] + 0.7); g.lineTo(P[3][0] - 0.7, P[3][1]); g.closePath(); g.fill();
-      // a little texture: blades, pebbles
-      const cxp = (P[0][0] + P[2][0]) / 2, cyp = (P[0][1] + P[2][1]) / 2;
-      for (let k = 0; k < 4; k++) {
-        const r1 = hash(x * 7 + k, y * 13 - k), r2 = hash(y * 5 + k, x * 3 + k * 7);
-        const px = cxp + (r1 - 0.5) * TW * 0.7, py = cyp + (r2 - 0.5) * TH * 0.7;
-        if (t === 6 || t === 7) { if (k < 2) { g.strokeStyle = 'rgba(200,230,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(px - 5, py); g.quadraticCurveTo(px, py - 2, px + 5, py); g.stroke(); } continue; }
-        const tone = t === 2 || t === 5 || t === 4 ? 0.82 : 1.18;
-        g.fillStyle = `rgba(${base[0] * tone | 0},${base[1] * tone | 0},${base[2] * tone | 0},0.8)`;
-        if (t === 0 || t === 1 || t === 3) g.fillRect(px, py, 1.5, 3); else g.fillRect(px, py, 2.5, 1.5);
+    const cv = c ? c.cv : document.createElement('canvas'); cv.width = CH * TW + 2; cv.height = CH * TH + MapGen.MAXH * EL + 4;
+    const g = cv.getContext('2d'), m = W.map, R = W.W + 1, x1 = Math.min(W.W, x0 + CH), y1 = Math.min(W.H, y0 + CH);
+    const P4 = (x, y) => { const a = m.hc[y * R + x], b = m.hc[y * R + x + 1], c2 = m.hc[(y + 1) * R + x + 1], d = m.hc[(y + 1) * R + x];
+      return [a, b, c2, d, [iso(x, y, a), iso(x + 1, y, b), iso(x + 1, y + 1, c2), iso(x, y + 1, d)].map(([sx, sy]) => [sx - ox + 1, sy - oy])]; };
+    const quad = (P, grow) => { g.moveTo(P[0][0], P[0][1] - grow); g.lineTo(P[1][0] + grow * 1.6, P[1][1]); g.lineTo(P[2][0], P[2][1] + grow); g.lineTo(P[3][0] - grow * 1.6, P[3][1]); g.closePath(); };
+    if (full) {
+      const src = paintTop(x0, y0), levels = new Map(), sloped = [];
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const q = P4(x, y); if (q[0] === q[1] && q[1] === q[2] && q[2] === q[3]) { let l = levels.get(q[0]); if (!l) levels.set(q[0], l = []); l.push(q[4]); } else sloped.push([x, y, q]);
       }
+      // flat tiles: one affine draw per height level, clipped to that level's tiles
+      for (const [h, list] of levels) {
+        g.save(); g.beginPath(); for (const P of list) quad(P, 0.6); g.clip();
+        // top-down (u, v) -> screen: tile (x, y) at u = (x - x0 + 1) * TP
+        const a = TW / 2 / TP, b = TH / 2 / TP, k0 = iso(x0 - 1, y0 - 1, h);
+        g.setTransform(a, b, -a, b, k0[0] - ox + 1, k0[1] - oy);
+        g.drawImage(src, 0, 0); g.restore();
+      }
+      for (const [x, y, q] of sloped) { const P = q[4], u = (x - x0 + 1) * TP, v = (y - y0 + 1) * TP; tri(g, src, u, v, P[0], P[1], P[2], 0); tri(g, src, u, v, P[0], P[2], P[3], 1); }
+    } else {
+      g.clearRect(0, 0, cv.width, cv.height);
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const q = P4(x, y), c = TERR_COL[m.terr[y * W.W + x]]; g.fillStyle = `rgb(${c})`; g.beginPath(); quad(q[4], 0.7); g.fill(); }
     }
-    c = { cv, ox, oy, used: performance.now() }; chunks.set(key, c); return c;
+    // slope shading (light from the upper left)
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const [a, b, c2, d, P] = P4(x, y), gx = (b + c2 - a - d) / 2, gy = (d + c2 - a - b) / 2;
+      const light = gx * 0.2 + gy * 0.07 + ((a + b + c2 + d) / 4) * 0.02;
+      if (Math.abs(light) > 0.01) { g.fillStyle = light > 0 ? `rgba(255,246,220,${Math.min(0.3, light * 0.8)})` : `rgba(10,16,30,${Math.min(0.45, -light)})`; g.beginPath(); quad(P, 0.4); g.fill(); }
+    }
+    if (!c) { c = { cv, ox: ox - 1, oy }; chunks.set(key, c); }
+    c.rough = !full; c.used = performance.now(); return c;
+  }
+  /* one textured triangle: the top-down square (u, v, TP) mapped onto screen points; k = 0 upper-right half, 1 lower-left */
+  function tri(g, src, u, v, p0, p1, p2, k) {
+    const s = TP, cx = (p0[0] + p1[0] + p2[0]) / 3, cy = (p0[1] + p1[1] + p2[1]) / 3, grow = p => { const dx = p[0] - cx, dy = p[1] - cy, l = Math.hypot(dx, dy) || 1; return [p[0] + dx / l * 0.8, p[1] + dy / l * 0.8]; };
+    let a, b, c, d;
+    if (k === 0) { a = (p1[0] - p0[0]) / s; b = (p1[1] - p0[1]) / s; c = (p2[0] - p1[0]) / s; d = (p2[1] - p1[1]) / s; }
+    else { c = (p2[0] - p0[0]) / s; d = (p2[1] - p0[1]) / s; a = (p1[0] - p2[0]) / s; b = (p1[1] - p2[1]) / s; }
+    const e = p0[0] - a * u - c * v, f = p0[1] - b * u - d * v, q0 = grow(p0), q1 = grow(p1), q2 = grow(p2);
+    g.save(); g.beginPath(); g.moveTo(q0[0], q0[1]); g.lineTo(q1[0], q1[1]); g.lineTo(q2[0], q2[1]); g.closePath(); g.clip();
+    g.setTransform(a, b, c, d, e, f); g.drawImage(src, u - 1, v - 1, s + 2, s + 2, u - 1, v - 1, s + 2, s + 2); g.restore();
   }
 
   /* ---------------- sprites (placeholders, cached at 2x) ---------------- */
@@ -251,18 +331,25 @@ const Render = (() => {
   }
 
   /* ---------------- frame ---------------- */
-  function draw(sel, ui) {
+  function draw(sel, ui, alpha = 1) {
+    // the canvas can change size without a window resize (the HUD reflowing on a phone): keep the backing store and
+    // the input maths in step, or taps land off from what is drawn
+    if (canvas.clientWidth !== vw || canvas.clientHeight !== vh || Math.min(2, window.devicePixelRatio || 1) !== dpr) resize();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, vw, vh);
     const [x0, y0, x1, y1] = viewTiles(), P = W.players[0], Wd = W.W;
     // terrain chunks
+    const T0 = performance.now(); buildBudget = 1;
     const cx0 = Math.floor(x0 / CH), cy0 = Math.floor(y0 / CH), cx1 = Math.floor(x1 / CH), cy1 = Math.floor(y1 / CH);
     for (let s = cx0 + cy0; s <= cx1 + cy1; s++) for (let cx = cx0; cx <= cx1; cx++) {
       const cy = s - cx; if (cy < cy0 || cy > cy1) continue;
-      const c = chunk(cx, cy), px = (c.ox - cam.x) * cam.zoom + vw / 2, py = (c.oy - cam.y) * cam.zoom + vh / 2;
-      if (px > vw || py > vh || px + c.cv.width * cam.zoom < 0 || py + c.cv.height * cam.zoom < 0) continue;
+      const x0c = cx * CH, y0c = cy * CH, cox = (x0c - (y0c + CH)) * TW / 2 - 1, coy = (x0c + y0c) * TH / 2 - MapGen.MAXH * EL;
+      const px = (cox - cam.x) * cam.zoom + vw / 2, py = (coy - cam.y) * cam.zoom + vh / 2;
+      if (px > vw || py > vh || px + (CH * TW + 2) * cam.zoom < 0 || py + (CH * TH + MapGen.MAXH * EL + 4) * cam.zoom < 0) continue;
+      const c = chunk(cx, cy);
       ctx.drawImage(c.cv, px, py, c.cv.width * cam.zoom, c.cv.height * cam.zoom);
     }
+    const T1 = performance.now();
     const k = cam.zoom, list = [];
     // static resources
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
@@ -280,14 +367,20 @@ const Render = (() => {
       if (e.dead || e.garrisoned || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * Wd + Math.floor(e.x);
       if (e.x < x0 - 3 || e.x > x1 + 3 || e.y < y0 - 3 || e.y > y1 + 3) continue;
-      if (e.owner !== 0) { if (e.kind === 'building' ? !P.explored[ti] : !P.vis[ti]) continue; }
+      if (e.owner !== 0) { if (e.kind === 'building' ? !W.seesRect(P, e) : !P.vis[ti]) continue; }
       list.push({ d: e.x + e.y + (e.kind === 'building' && e.D.walk ? -e.size : 0), e });
     }
+    // fog memory: other players' buildings as last seen
+    for (const g of P.seen.values()) if (!W.seesRect(P, g) && g.x > x0 - 3 && g.x < x1 + 3 && g.y > y0 - 3 && g.y < y1 + 3)
+      list.push({ d: g.x + g.y + (g.D.walk ? -g.size : 0), e: g, ghost: true });
     list.sort((a, b) => a.d - b.d);
     const selSet = sel.set;
     for (const it of list) {
       if (it.f) { it.f(); continue; }
-      const e = it.e, z = W.h(e.x, e.y), [sx, sy] = toScreen(e.x, e.y, z), team = W.players[e.owner].color;
+      const e = it.e, team = W.players[e.owner].color;
+      const ex = e.kind === 'unit' && e.px !== undefined ? e.px + (e.x - e.px) * alpha : e.x, ey = e.kind === 'unit' && e.py !== undefined ? e.py + (e.y - e.py) * alpha : e.y;   // between ticks
+      const z = W.h(ex, ey), [sx, sy] = toScreen(ex, ey, z);
+      if (it.ghost) { blit(buildingSprite(e, team), sx, sy); continue; }
       if (selSet.has(e.id) || ui.hoverId === e.id) {
         const r = e.kind === 'building' ? e.size * 0.75 : e.r * 1.6;
         ctx.strokeStyle = e.owner === 0 ? 'rgba(255,255,255,0.9)' : e.owner === 1 ? 'rgba(255,80,60,0.9)' : 'rgba(255,220,80,0.9)';
@@ -312,6 +405,7 @@ const Render = (() => {
         if (e.kind === 'building' && !e.built) { ctx.fillStyle = '#6fb0ff'; ctx.fillRect(sx - bw / 2, top + 4, bw * e.progress, 2); }
       }
     }
+    const T2 = performance.now();
     // effects
     for (const f of W.fx) {
       if (f.t < 0) continue;
@@ -341,7 +435,9 @@ const Render = (() => {
       }
       ctx.fill();
     };
+    const T3 = performance.now();
     fill(dim, 'rgba(0,0,0,0.42)'); fill(black, '#000');
+    prof.ground = T1 - T0; prof.objects = T2 - T1; prof.fogscan = T3 - T2; prof.fog = performance.now() - T3; prof.n = list.length; prof.chunks = chunks.size; prof.rough = [...chunks.values()].filter(c => c.rough).length; prof.vis = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
     // overlays: rally point, placement ghost, drag box
     for (const id of selSet) { const b = W.get(id); if (b && b.kind === 'building' && b.rally && b.owner === 0) {
       const [sx, sy] = toScreen(b.rally.x, b.rally.y, W.h(b.rally.x, b.rally.y));
@@ -380,9 +476,10 @@ const Render = (() => {
     }
     const dot = (x, y, s, col) => { for (let yy = y; yy < y + s; yy++) for (let xx = x; xx < x + s; xx++) { if (xx < 0 || yy < 0 || xx >= Wd || yy >= W.H) continue; const i = yy * Wd + xx; d[i * 4] = col[0]; d[i * 4 + 1] = col[1]; d[i * 4 + 2] = col[2]; } };
     const pc = [[80, 140, 255], [255, 70, 50], [235, 210, 90]];
+    for (const g of P.seen.values()) dot(g.tx, g.ty, g.size, pc[g.owner].map(v => v * 0.7));
     for (const e of W.ents) {
       if (e.dead || e.garrisoned) continue; const i = Math.floor(e.y) * Wd + Math.floor(e.x);
-      if (e.owner !== 0 && (e.kind === 'building' ? !P.explored[i] : !P.vis[i])) continue;
+      if (e.owner !== 0 && (e.kind === 'building' ? !W.seesRect(P, e) : !P.vis[i])) continue;
       if (e.kind === 'building') dot(e.tx, e.ty, e.size, pc[e.owner]);
       else if (e.kind === 'artifact') dot(Math.floor(e.x) - 1, Math.floor(e.y) - 1, 3, [255, 255, 255]);
       else if (!e.carcass) dot(Math.floor(e.x), Math.floor(e.y), 2, e.owner === 2 && e.D.creep ? [230, 60, 230] : pc[e.owner]);
@@ -403,5 +500,6 @@ const Render = (() => {
   }
   function miniToWorld(px, py) { const w = mini.width, h = mini.height, a = (px - w / 2) / (w / 2) * W.W, b = py / (h / 2) * W.H; return [(a + b) / 2, (b - a) / 2]; }
 
-  return { init, resize, draw, toScreen, toWorld, centerOn, clampCam, cam, initMini, drawMini, blitMini, miniToWorld, get vw() { return vw; }, get vh() { return vh; } };
+  const prof = {};
+  return { prof, init, resize, draw, toScreen, toWorld, centerOn, clampCam, cam, initMini, drawMini, blitMini, miniToWorld, get vw() { return vw; }, get vh() { return vh; } };
 })();

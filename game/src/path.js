@@ -46,7 +46,7 @@ const Path = (() => {
     const last = end >= 0 ? end : best;
     const out = []; for (let i = last; i >= 0; i = from[i]) out.push([i % W, (i / W) | 0]);
     out.reverse();
-    return { tiles: out, reached: end >= 0 };
+    return { tiles: out, reached: end >= 0, n };
   }
   function los(ax, ay, bx, by, walk) {   // can a unit walk straight between two tile centres?
     const dx = bx - ax, dy = by - ay, n = Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) * 2.5);

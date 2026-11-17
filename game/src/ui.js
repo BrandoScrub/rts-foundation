@@ -33,32 +33,62 @@ const UI = (() => {
   }
 
   /* ---------------- picking ---------------- */
+  /* Picking works in screen space against what is drawn: a unit by its body, a building by its silhouette (the
+     footprint and the same footprint raised to the roof), a tree or mine by its sprite. A finger gets more slack. */
+  const BH = { town_hall: 118, cottage: 40, mill: 62, lumber_camp: 34, mining_camp: 34, farm: 4, barracks: 52, palisade: 26, gate: 30, watchpost: 82 };
+  function inPoly(px, py, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c; } return c; }
+  function buildingHit(b, px, py, slop) {
+    const k = R.cam.zoom, s = b.size, z = W.h(b.x, b.y), H = (BH[b.type] || 40) * k;
+    const c = [[b.tx, b.ty], [b.tx + s, b.ty], [b.tx + s, b.ty + s], [b.tx, b.ty + s]].map(([x, y]) => R.toScreen(x, y, z));
+    const [T, Rt, B, L] = c, up = p => [p[0], p[1] - H];
+    const poly = [[B[0], B[1] + slop], [Rt[0] + slop, Rt[1]], up([Rt[0] + slop, Rt[1]]), up([T[0], T[1] - slop]), up([L[0] - slop, L[1]]), [L[0] - slop, L[1]]];
+    return inPoly(px, py, poly);
+  }
   function pickEntity(px, py, touch) {
-    let best = null, bd = 1e9; const k = R.cam.zoom, P = W.players[0], slop = touch ? 8 : 0;
+    const k = R.cam.zoom, P = W.players[0], slop = touch ? 10 : 2;
+    let best = null, bd = 1e9;
     for (const e of W.ents) {
       if (e.dead || e.garrisoned || e.kind === 'building' || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * W.W + Math.floor(e.x); if (e.owner !== 0 && !P.vis[ti]) continue;
-      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 52 : e.kind === 'artifact' ? 30 : 30) * k, half = (e.type === 'ogre' || e.type === 'scout' ? 16 : 11) * k;
-      if (px < sx - half - slop || px > sx + half + slop || py < sy - tall - slop || py > sy + 6 * k + slop) continue;
-      const d = Math.abs(px - sx) + Math.abs(py - (sy - tall / 2)) * 0.5 - (e.owner === 0 ? 4 : 0); if (d < bd) { bd = d; best = e; }
+      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 54 : e.type === 'scout' ? 30 : e.kind === 'artifact' ? 30 : 28) * k;
+      const half = (e.type === 'ogre' || e.type === 'scout' ? 15 : 10) * k + slop;
+      const cy = sy - tall / 2, dx = (px - sx) / half, dy = (py - cy) / (tall / 2 + slop);   // inside the body's ellipse
+      const d = dx * dx + dy * dy; if (d > 1) continue;
+      const score = d - (e.owner === 0 ? 0.15 : 0) - (e.x + e.y) * 0.002; if (score < bd) { bd = score; best = e; }
     }
     if (best) return best;
-    const [wx, wy] = R.toWorld(px, py);
-    for (const [ox, oy] of [[1, 1], [0, 0], [2, 2]]) {   // a building's walls rise above the tiles behind it
-      const tx = Math.floor(wx + ox), ty = Math.floor(wy + oy); if (tx < 0 || ty < 0 || tx >= W.W || ty >= W.H) continue;
-      const id = W.occ[ty * W.W + tx]; if (id) { const b = W.get(id); if (b && (b.owner === 0 || P.explored[ty * W.W + tx])) return b; }
+    let bb = null, bdep = -1e9;
+    for (const e of W.ents) {
+      if (e.dead || e.kind !== 'building') continue;
+      if (e.owner !== 0 && !W.seesRect(P, e) && !P.seen.has(e.id)) continue;
+      if (Math.abs(R.toScreen(e.x, e.y, 0)[0] - px) > (e.size * 40 + 40) * k) continue;
+      if (buildingHit(e, px, py, touch ? 6 : 0) && e.x + e.y > bdep) { bdep = e.x + e.y; bb = e; }
     }
-    return null;
+    return bb;
   }
-  function pickNode(px, py) {
-    const [wx, wy] = R.toWorld(px, py), P = W.players[0];
-    for (const [ox, oy] of [[1, 1], [0.5, 0.5], [0, 0]]) {
-      const tx = Math.floor(wx + ox), ty = Math.floor(wy + oy); if (tx < 0 || ty < 0 || tx >= W.W || ty >= W.H) continue;
-      const i = ty * W.W + tx; if (W.map.node[i] && P.explored[i]) return i;
+  /* what is under the pointer: a unit, else whichever of a building and a tree/mine is drawn in front */
+  function pickAt(px, py, touch) {
+    const t = pickEntity(px, py, touch), node = pickNode(px, py, touch);
+    if (t && t.kind === 'building' && node >= 0 && (node % W.W) + ((node / W.W) | 0) + 1 > t.x + t.y) return { t: null, node };
+    return t ? { t, node: -1 } : { t: null, node };
+  }
+  function pickNode(px, py, touch) {
+    const [wx, wy] = R.toWorld(px, py), P = W.players[0], k = R.cam.zoom, slop = touch ? 8 : 0;
+    let best = -1, dep = -1e9;
+    for (let ty = Math.floor(wy) - 1; ty <= Math.floor(wy) + 3; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 3; tx++) {
+      if (tx < 0 || ty < 0 || tx >= W.W || ty >= W.H) continue;
+      const i = ty * W.W + tx, n = W.map.node[i]; if (!n || !P.explored[i]) continue;
+      const [sx, sy] = R.toScreen(tx + 0.5, ty + 0.5, W.h(tx + 0.5, ty + 0.5)), tall = (n === 1 ? 52 : n === 6 ? 8 : 20) * k, half = (n === 1 ? 15 : 14) * k + slop;
+      if (px < sx - half || px > sx + half || py < sy - tall - slop || py > sy + 8 * k + slop) continue;
+      if (tx + ty > dep) { dep = tx + ty; best = i; }   // the front-most sprite under the finger
     }
-    return -1;
+    return best;
   }
   const own = e => e && e.owner === 0;
+  /* every action goes to the world as a command (world.issue); the HUD refreshes once the tick has run it */
+  function cmd(c) { W.issue(0, c); st.refreshAt = W.tick + 1; }
+  const ownIds = (all) => sel.list().filter(e => e.owner === 0 && (all || e.kind === 'unit')).map(e => e.id);
   const ownUnits = () => sel.list().filter(e => e.owner === 0 && e.kind === 'unit');
 
   /* ---------------- pointer: mouse and touch ----------------
@@ -129,13 +159,13 @@ const UI = (() => {
         return Mobile.pinTap(px, py);
       case 'amove': {
         if (P.touch && P.moved) return;
-        const [x, y] = R.toWorld(px, py); W.groupMove(ownUnits(), x, y, shift, true); mark(x, y, '#ff6040'); if (!shift) st.mode = null; refresh(); return; }
+        const [x, y] = R.toWorld(px, py); cmd({ c: 'move', ids: ownIds(), x, y, shift, attack: true }); mark(x, y, '#ff6040'); if (!shift) st.mode = null; refresh(); return; }
       case 'tap': if (!P.moved) tapAt(px, py); return;
       case 'box': {
         const box = st.box; st.box = null; if (P.touch) Mobile.box = false;
         if (!box) return;
         if (P.lpDone && !P.moved) {   // hold without dragging: toggle a unit, or deselect
-          const t = pickEntity(px, py, true);
+          const t = pickEntity(px, py, P.touch);
           if (t && t.owner === 0) { sel.set.has(t.id) ? sel.set.delete(t.id) : sel.set.add(t.id); } else sel.set.clear();
           st.menu = null; refresh(); return;
         }
@@ -152,7 +182,7 @@ const UI = (() => {
   }
   /* a tap on touch: select, or order what is selected (AoE2's right-click, on one finger) */
   function tapAt(px, py) {
-    const t = pickEntity(px, py, true), node = t ? -1 : pickNode(px, py), units = ownUnits();
+    const { t, node } = pickAt(px, py, true), units = ownUnits();
     const blds = sel.list().filter(e => e.owner === 0 && e.kind === 'building');
     if (units.length) {
       const vil = units.some(u => u.type === 'villager');
@@ -162,15 +192,15 @@ const UI = (() => {
       const selectable = t && t.owner === 0 && !orderTarget || (t && t.owner !== 0 && t.kind === 'building' && !units.length);
       if (selectable) return clickSelect(px, py, false, false);
       if (t && !orderTarget && t.owner === 2 && !(t.D && (t.D.creep || t.D.food))) return clickSelect(px, py, false, false);
-      if (!t && node < 0 && Mobile.tapOrder === 'amove') { const [x, y] = R.toWorld(px, py); W.groupMove(units, x, y, false, true); mark(x, y, '#ff6040'); return; }
+      if (!t && node < 0 && Mobile.tapOrder === 'amove') { const [x, y] = R.toWorld(px, py); cmd({ c: 'move', ids: ownIds(), x, y, attack: true }); mark(x, y, '#ff6040'); return; }
       return rightClick(px, py, false);
     }
     if (!t && blds.some(b => b.D.trains)) return rightClick(px, py, false);   // rally point
     clickSelect(px, py, false, false);
   }
   function clickSelect(px, py, shift, ctrl) {
-    const e = pickEntity(px, py), now = performance.now();
-    if (!e) { if (!shift) sel.set.clear(); const n = pickNode(px, py); st.nodeSel = n; st.menu = null; return refresh(); }
+    const pk = pickAt(px, py, P.touch), e = pk.t, now = performance.now();
+    if (!e) { if (!shift) sel.set.clear(); const n = pk.node; st.nodeSel = n; st.menu = null; return refresh(); }
     st.nodeSel = -1;
     const dbl = st.lastClick.id === e.id && now - st.lastClick.t < 350; st.lastClick = { id: e.id, t: now };
     if ((dbl || ctrl) && e.owner === 0) { if (!shift) sel.set.clear(); for (const u of onScreen(x => x.type === e.type && x.owner === 0)) sel.set.add(u.id); }
@@ -182,14 +212,13 @@ const UI = (() => {
     return W.ents.filter(e => !e.dead && !e.garrisoned && pred(e) && (() => { const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)); return sx > 0 && sy > 0 && sx < R.vw && sy < R.vh; })());
   }
   function rightClick(px, py, shift) {
-    const [x, y] = R.toWorld(px, py), t = pickEntity(px, py), node = t ? -1 : pickNode(px, py);
+    const [x, y] = R.toWorld(px, py), { t, node } = pickAt(px, py, P.touch);
     const units = ownUnits(), blds = sel.list().filter(e => e.owner === 0 && e.kind === 'building');
     if (units.length) {
-      const movers = units.filter(u => !W.smartOrder(u, t, node, x, y, shift));
-      if (movers.length) W.groupMove(movers, x, y, shift);
+      cmd({ c: 'order', ids: ownIds(), target: t ? t.id : 0, node, x, y, shift });
       mark(x, y, t && W.isHostile(units[0], t) ? '#ff4030' : node >= 0 || t ? '#ffd040' : '#40ff60');
     } else if (blds.length) {
-      for (const b of blds) if (b.D.trains) b.rally = { x, y, id: t ? t.id : 0, node: node >= 0 ? node : undefined };
+      cmd({ c: 'rally', ids: blds.map(b => b.id), x, y, target: t ? t.id : 0, node });
       mark(x, y, '#ffffff');
     }
   }
@@ -204,8 +233,8 @@ const UI = (() => {
   const MM = { drag: false, lp: 0 };
   function miniPt(e) { const m = $('mini'), r = m.getBoundingClientRect(), sx = m.width / r.width; return R.miniToWorld((e.clientX - r.left) * sx, (e.clientY - r.top) * sx); }
   function miniSend(x, y, shift) {
-    const us = ownUnits(); if (us.length) { W.groupMove(us, x, y, shift, Mobile.tapOrder === 'amove' && e2touch); mark(x, y, '#40ff60'); return true; }
-    let any = false; for (const b of sel.list()) if (b.owner === 0 && b.D.trains) { b.rally = { x, y }; any = true; } return any;
+    const us = ownUnits(); if (us.length) { cmd({ c: 'move', ids: ownIds(), x, y, shift, attack: Mobile.tapOrder === 'amove' && e2touch }); mark(x, y, '#40ff60'); return true; }
+    const bs = sel.list().filter(b => b.owner === 0 && b.D.trains); if (bs.length) cmd({ c: 'rally', ids: bs.map(b => b.id), x, y }); return bs.length > 0;
   }
   let e2touch = false;
   function miniDown(e) {
@@ -248,21 +277,18 @@ const UI = (() => {
   function builders() { return ownUnits().filter(u => u.type === 'villager'); }
   function placeAt(px, py, shift, tile) {
     const D = DATA.BUILDINGS[st.placing], [tx, ty] = tile || tileAt(px, py, D.size);
-    const b = W.place(st.placing, 0, tx, ty);
-    if (!b) return msg(W.canAfford(0, D.cost) ? 'Cannot build there.' : 'Not enough resources.');
-    for (const u of builders()) W.order(u, { type: 'build', id: b.id }, shift);
+    if (!W.canPlace(st.placing, 0, tx, ty)) return msg('Cannot build there.');
+    if (!W.canAfford(0, D.cost)) return msg('Not enough resources.');
+    cmd({ c: 'place', type: st.placing, tiles: [[tx, ty]], ids: builders().map(u => u.id), shift });
     Mobile.pin = null;
     if (!shift) { st.placing = null; st.ghost = null; st.menu = null; } else updateGhost(); refresh();
-    return b;
+    return true;
   }
   function placeWall(shift) {
-    const D = DATA.BUILDINGS[st.placing], tiles = wallLine(st.wallStart, tileAt(...st.mouse, 1)); st.wallStart = null;
-    const placed = []; for (const [tx, ty] of tiles) { const b = W.place(st.placing, 0, tx, ty); if (b) placed.push(b); }
-    if (!placed.length) msg('Cannot build there.');
-    const bs = builders();
-    placed.forEach((b, k) => { for (const u of bs) W.order(u, { type: 'build', id: b.id }, shift || k > 0); });
+    const tiles = wallLine(st.wallStart, tileAt(...st.mouse, 1)); st.wallStart = null;
+    cmd({ c: 'place', type: st.placing, tiles: tiles.filter(([tx, ty]) => W.canPlace(st.placing, 0, tx, ty)), ids: builders().map(u => u.id), shift });
     if (!shift) { st.placing = null; st.ghost = null; st.menu = null; }
-    void D; refresh();
+    refresh();
   }
   function cancelModes() { st.placing = null; st.ghost = null; st.wallStart = null; st.mode = null; Mobile.pin = null; refresh(); }
 
@@ -386,7 +412,7 @@ const UI = (() => {
     if (k === '.') return idleVillager();
     if (k === ',') return idleMilitary();
     if (k === ' ' ) { e.preventDefault(); const a = W.alerts[W.alerts.length - 1] || W.messages.filter(m => m.x !== undefined).pop(); if (a) R.centerOn(a.x, a.y); return; }
-    if (k === 'Delete') { for (const x of sel.list()) if (x.owner === 0) { if (x.kind === 'building' && !x.built) W.pay(0, x.D.cost, -1); W.kill(x); } sel.set.clear(); return refresh(); }
+    if (k === 'Delete') { cmd({ c: 'delete', ids: ownIds(true) }); sel.set.clear(); return refresh(); }
     if ((k === 'h' || k === 'H') && !e.ctrlKey && !st.menu) {
       const halls = W.ents.filter(b => !b.dead && b.owner === 0 && b.type === 'town_hall'); if (!halls.length) return;
       const cur = sel.list()[0], i = cur && cur.type === 'town_hall' ? (halls.indexOf(cur) + 1) % halls.length : 0;
@@ -454,31 +480,32 @@ const UI = (() => {
       } else {
         if (vils.length) add(button('Q', 'Build', '<b>Build</b><br>Economic and military buildings', () => { st.menu = 'build'; refresh(); }));
         if (units.some(u => u.type !== 'villager' && u.type !== 'sheep')) add(button('A', 'Attack-move', '<b>Attack-move</b><br>Click a destination; units fight anything on the way.', () => { st.mode = 'amove'; msg('Attack-move: click a destination.'); }));
-        add(button('S', 'Stop', '<b>Stop</b>', () => { for (const u of units) { u.queue = []; W.setOrder(u, null); } }));
+        add(button('S', 'Stop', '<b>Stop</b>', () => cmd({ c: 'stop', ids: ownIds() })));
         if (units.some(u => u.D.carries) && W.ents.some(a => !a.dead && a.kind === 'artifact' && !a.carrier && W.players[0].vis[Math.floor(a.y) * W.W + Math.floor(a.x)]))
-          add(button('D', 'Get artifact', '<b>Pick up the nearest visible artifact</b>', () => { for (const u of units.filter(u => u.D.carries)) { const a = W.nearest(u, a => a.kind === 'artifact' && !a.carrier && W.players[0].vis[Math.floor(a.y) * W.W + Math.floor(a.x)]); if (a) W.order(u, { type: 'pickup', id: a.id }); } }));
-        add(button('G', 'Garrison', '<b>Garrison</b> in the nearest Town Hall', () => { for (const u of units) { const th = W.nearest(u, b => b.kind === 'building' && b.owner === 0 && b.type === 'town_hall' && b.built); if (th && (u.type === 'villager' || u.D.cls && u.D.cls.includes('infantry'))) W.order(u, { type: 'garrison', id: th.id }); } }));
-        add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { for (const u of units) W.kill(u); sel.set.clear(); refresh(); }));
+          add(button('D', 'Get artifact', '<b>Pick up the nearest visible artifact</b>', () => cmd({ c: 'pickup', ids: ownIds() })));
+        add(button('G', 'Garrison', '<b>Garrison</b> in the nearest Town Hall', () => cmd({ c: 'garrison', ids: ownIds() })));
+        add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { cmd({ c: 'delete', ids: ownIds() }); sel.set.clear(); refresh(); }));
       }
     } else if (blds.length === 1 || (blds.length && blds.every(b => b.type === blds[0].type))) {
       const b = blds[0], D = b.D;
       if (b.built) {
         for (const t of D.trains || []) { const U = DATA.UNITS[t];
-          add(button(U.hotkey, `Train ${U.name}`, `<b>${U.name}</b> ${costHtml(U.cost)} · ${U.time}s<br>${U.tip}<br><em>Shift-click: 5</em>`, ev => { let n = 0; for (const x of blds) n += W.queueTrain(x, t, ev.shiftKey ? 5 : 1); if (!n) msg(W.players[0].pop >= W.players[0].popCap ? 'Need more housing.' : 'Not enough resources.'); refresh(); }, { cost: U.cost })); }
+          add(button(U.hotkey, `Train ${U.name}`, `<b>${U.name}</b> ${costHtml(U.cost)} · ${U.time}s<br>${U.tip}<br><em>Shift-click: 5</em>`, ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { cost: U.cost })); }
         for (const t of D.researches || []) { const T = DATA.TECHS[t], done = W.players[0].techs.has(t), busy = W.ents.some(e => !e.dead && e.kind === 'building' && e.owner === 0 && e.queue.some(q => q.what === t));
           if (done) continue;
-          add(button(T.hotkey, T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}`, () => { if (!W.queueTech(b, t)) msg('Cannot research that now.'); refresh(); }, { disabled: T.locked || busy, cls: T.locked ? 'locked' : '', cost: T.cost })); }
+          add(button(T.hotkey, T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}`, () => cmd({ c: 'research', id: b.id, tech: t }), { disabled: T.locked || busy, cls: T.locked ? 'locked' : '', cost: T.cost })); }
         if (b.type === 'town_hall') {
-          add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides; its arrows grow. (AoE2 Town Bell)', () => { W.townBell(0); msg('Town Bell rung!'); }));
-          add(button('N', 'All Clear', '<b>All Clear</b><br>Everyone back to work.', () => W.allClear(0)));
+          add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides; its arrows grow. (AoE2 Town Bell)', () => cmd({ c: 'bell' })));
+          add(button('N', 'All Clear', '<b>All Clear</b><br>Everyone back to work.', () => cmd({ c: 'allclear' })));
         }
-        if (b.garrison.length) add(button('U', 'Ungarrison', '<b>Ungarrison</b> all', () => { W.ungarrison(b); refresh(); }));
+        if (b.garrison.length) add(button('U', 'Ungarrison', '<b>Ungarrison</b> all', () => cmd({ c: 'ungarrison', ids: [b.id] })));
       }
-      add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { for (const x of blds) { if (!x.built) W.pay(0, x.D.cost, -1); W.kill(x); } sel.set.clear(); refresh(); }));
+      add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { cmd({ c: 'delete', ids: blds.map(x => x.id) }); sel.set.clear(); refresh(); }));
     }
     // order buttons in grid order
     const bs = [...cmds.children].sort((a, b) => GRID.indexOf(a.dataset.key) - GRID.indexOf(b.dataset.key));
     cmds.innerHTML = ''; for (const b of bs) cmds.appendChild(b);
+    document.body.classList.toggle('m-empty', !sel.set.size && st.menu !== 'build' && !st.placing && !(st.nodeSel >= 0));
     Mobile.rail(); Mobile.groups();
     info();
   }
@@ -521,7 +548,7 @@ const UI = (() => {
       }
     } else h += '<p>An artifact. Militia can carry it to your Town Hall for +0.5 crystal/s.</p>';
     const key = h; if (key !== infoKey) { el.innerHTML = h; infoKey = key;
-      el.querySelectorAll('.q').forEach(s => s.onclick = () => { W.cancel(e, +s.dataset.i); refresh(); }); }
+      el.querySelectorAll('.q').forEach(s => s.onclick = () => cmd({ c: 'cancel', id: e.id, i: +s.dataset.i })); }
   }
   function taskName(u) {
     const o = u.order; if (!o) return 'idle';
@@ -531,6 +558,7 @@ const UI = (() => {
 
   function frame(dt) {
     scroll(dt);
+    if (st.refreshAt && W.tick >= st.refreshAt) { st.refreshAt = 0; refresh(); }
     // drop dead entities from the selection
     let changed = false; for (const id of sel.set) if (!W.get(id) || W.get(id).garrisoned) { sel.set.delete(id); changed = true; }
     if (changed) refresh();
@@ -549,5 +577,5 @@ const UI = (() => {
     if (Mobile.on) { Mobile.rail(); Mobile.groups(); }
     if (W.state !== 'playing' && !st.ended) { st.ended = true; $('end').style.display = 'flex'; $('end-text').textContent = W.state === 'victory' ? 'Victory' : 'Defeat'; }
   }
-  return { init, frame, refresh, sel, st, msg, startPlacing, Mobile };
+  return { init, frame, refresh, sel, st, msg, startPlacing, Mobile, pickEntity, pickNode };
 })();

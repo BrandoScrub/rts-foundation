@@ -7,8 +7,9 @@ and no heroes. This build is **tier 1** (AoE2's Dark Age) only.
 |---|---|
 | `game/` | The playable build: `index.html`, `src/` (data, map, pathfinding, simulation, renderer, HUD), `lib/glcanvas.js` (artkit's WebGL renderer). |
 | `artkit/` | The art engine, a **pinned copy** of BrandoScrub/Game-Engine-System-Design (version in `artkit/VENDORED.json`). Never edited here. |
-| `tools/` | `update_artkit.py <engine checkout>` brings in a new engine version; `check_artkit.py` catches edits to the pinned copy. |
-| `tests/` | `node tests/sim_check.js`: the simulation without a browser. |
+| `styles/fantasy_realm/` | This game's art style pack (outside the engine): so far the ground recipes in `terrain.json`. |
+| `tools/` | `update_artkit.py <engine checkout>` brings in a new engine version; `check_artkit.py` catches edits to the pinned copy; `build_ground.py` renders the ground tiles through artkit into `game/art/`. |
+| `tests/` | `node tests/sim_check.js` (rules and economy) and `node tests/mechanics_check.js` (commands, determinism, replay, path budget, group paths, fog memory), both without a browser. |
 | `docs/design.md` | Every decision so far, how AoE2 was followed, and the open questions. |
 
 ## Play

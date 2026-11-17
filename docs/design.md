@@ -20,7 +20,8 @@ comes from in a comment.
 | Opponent (Nov 17) | Stays idle for now. |
 | River (Nov 17, built) | A river runs corner to corner between the players. Deep water blocks; five shallow fords cross it: the wide centre ford, held by the Ogre Stronghold and its crystal, and two pairs further out. Banks slope down into a valley. |
 | Fishing (Nov 17, built) | Shore fish only: schools along the river banks (AoE2 DE shore fish: 200 food, fisherman 0.43/s), gathered by peasants from the bank and dropped at a Mill or Town Hall. No Dock or boats. |
-| Art timing (Nov 17) | Not yet: placeholders stay while gameplay settles. |
+| Art timing (Nov 17) | Not yet for buildings and units; the **ground is made through the art engine now** (user, Nov 17): style pack `styles/fantasy_realm/` (terrain.json recipes) -> `python3 tools/build_ground.py` -> `game/art/ground_realm_*.jpg`, blended on the height field in the game. |
+| Structure first (Nov 17) | Mechanics and structure before content. See Foundations below. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)
@@ -41,6 +42,19 @@ comes from in a comment.
 - Fog: black where never seen, dim where explored but not in sight.
 - Artifacts: carried by Militia (AoE2: Monks, which come later), stored in a Town Hall, 0.5 crystal a second each
   (AoE2 relic: 0.5 gold a second).
+
+## Foundations (Nov 17)
+- **Commands.** Every player action is data (`world.issue(player, {c: ...})`), run at the start of the next tick and
+  logged. The HUD, a future AI and replays all use it; nothing in the UI changes the world directly.
+- **Determinism.** One seeded random source for the simulation, fixed 30 Hz ticks: the same seed and commands give
+  the same game (`world.hash()`), and the command log replays a game exactly. Groundwork for lockstep multiplayer.
+- **Pathing.** A* on the tile grid with a node budget per tick (a big order spreads over a few ticks instead of
+  freezing a frame); a group shares one path; corners on the way count as reached when close, so crowds flow.
+- **Work spots.** Peasants on the same tree, mine or building spread around it while staying in reach.
+- **Fog memory.** Other players' buildings show as last seen until the spot is seen again (AoE2).
+- **Drawing.** Units are drawn between ticks (interpolated), so movement is smooth at any frame rate.
+- **Picking.** In screen space against what is drawn: a unit's body, a building's silhouette, a tree's sprite; the
+  front-most wins; a finger gets more slack. The canvas re-measures itself every frame, so taps and drawing agree.
 
 ## Creep camps (Warcraft III style)
 Guards stand at home, attack anything that comes within 5 tiles, call the whole camp in when one is hit, chase up to

@@ -17,9 +17,13 @@ value beside the number in `game/src/data.js`.
   that repository (its CLAUDE.md), then `python3 tools/update_artkit.py <engine checkout>` here. `python3
   tools/check_artkit.py` must print OK before every commit. `game/lib/glcanvas.js` must equal
   `artkit/runtime/glcanvas.js`.
-- This game's art content (its style pack) will live in `styles/<pack>/`, outside the engine. Any new building, unit
+- Every player action goes through `world.issue()` as a command (see Foundations in `docs/design.md`); the UI never
+  changes the world directly, and the simulation uses only `world.rand`, never `Math.random`, so games stay
+  deterministic and replayable.
+- Ground tiles: recipes in `styles/fantasy_realm/terrain.json`, rendered by `python3 tools/build_ground.py`.
+- This game's art content (its style pack) lives in `styles/fantasy_realm/`, outside the engine. Any new building, unit
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 
 ## Before you commit
-`node tests/sim_check.js` prints only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
+`node tests/sim_check.js` and `node tests/mechanics_check.js` print only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
 browser and check the console is clean.
