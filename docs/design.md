@@ -14,6 +14,7 @@ comes from in a comment.
 | Factions | One shared faction for both players. |
 | Resources | Basic: food, wood, stone (the foundation of the early game). Premium: **iron** (military, takes AoE2 gold's role for soldiers and armour) and **crystal** (magic, age-ups and mystic techs from tier 2). |
 | Creep camps | Clearing a camp **unwards the deposit it guards** (crystal or iron you cannot mine before) and **drops artifacts** that work like AoE2 relics. No XP (no heroes). |
+| Mobile (Nov 17) | Touch controls copied from Brass and Bone: auto below 900 px wide (or a touch screen up to 1100), forced Mobile/Desktop in F1. Tap selects or orders, double-tap selects the type on screen, hold-drag boxes, hold toggles a unit, drag pans, pinch zooms; right-hand rail (Build, Box, Idle, Army, Screen, Move/Attack, Clear, Map); group slots 1-5; pinned building ghost with Place and Repeat; hold the minimap to send troops; hold a command button for its tooltip. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)

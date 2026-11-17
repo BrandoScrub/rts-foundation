@@ -16,7 +16,7 @@ and no heroes. This build is **tier 1** (AoE2's Dark Age) only.
 python3 -m http.server 8000 -d game
 ```
 then open http://localhost:8000/. `?seed=N` makes a different map, `?gl=0` uses plain Canvas 2D, `?reveal=1` shows the whole map (testing).
-Press **F1** in the game for every hotkey.
+Press **F1** in the game for every hotkey and the touch controls. Phones and narrow windows get the mobile interface (after Brass and Bone's); F1 can force Mobile or Desktop.
 
 ## Read first
 `CLAUDE.md` (rules for every chat working here) and `docs/design.md`.

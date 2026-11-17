@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>RTS Foundation: Tier 1</title>
 <style>
   :root { --panel: #2a2118; --edge: #6b5233; --text: #f0e6d2; --dim: #b5a68c; --gold: #e6c56a; }
@@ -50,6 +50,50 @@
   #help h2 { column-span: all; margin: 0 0 8px; color: var(--gold); font-weight: normal; }
   #help p { margin: 2px 0; break-inside: avoid; } kbd { color: var(--gold); font-family: inherit; }
   #end .card { columns: 1; text-align: center; } #end h1 { color: var(--gold); font-weight: normal; margin: 0 0 8px; }
+  /* desktop: cost lines live in tooltips */
+  #cmds .cst { display: none; }
+  #mrail, #mgroups { display: none; }
+  #view, #mini { touch-action: none; }
+  button { touch-action: manipulation; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  .seg { display: inline-flex; border: 1px solid var(--edge); border-radius: 3px; overflow: hidden; vertical-align: middle; }
+  .seg button { font: inherit; background: #3a2c1c; color: var(--text); border: 0; border-right: 1px solid var(--edge); padding: 4px 10px; cursor: pointer; }
+  .seg button:last-child { border-right: 0; } .seg button[aria-pressed="true"] { background: #7a5a2a; color: #fff; }
+  #help .touch { display: none; } body.mui #help .touch { display: block; } body.mui #help .keys { display: none; }
+  #help .layout-row { column-span: all; margin: 0 0 10px; }
+
+  /* ---------- mobile interface (after Brass and Bone) ---------- */
+  body.mui #app { grid-template-rows: auto minmax(0, 1fr) auto; }
+  body.mui #top { flex-wrap: wrap; gap: 4px 8px; min-height: 40px; padding: calc(env(safe-area-inset-top, 0px) + 3px) max(6px, env(safe-area-inset-right, 0px)) 3px max(6px, env(safe-area-inset-left, 0px)); }
+  body.mui #res { gap: 7px; flex-wrap: wrap; } body.mui .r { min-width: 0; gap: 3px; font-size: 12.5px; } body.mui .r small { display: none; } body.mui .r b { min-width: 0; }
+  body.mui #top .sp { display: none; } body.mui #clock { margin-left: auto; }
+  body.mui #top button { min-height: 32px; min-width: 36px; padding: 2px 7px; }
+  body.mui #mgroups { display: flex; gap: 3px; }
+  .mg { font: inherit; width: 36px; height: 34px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-size: 10.5px;
+        background: rgba(30,22,14,.85); color: var(--dim); border: 1px dashed var(--edge); border-radius: 3px; }
+  .mg b { font-size: 13px; } .mg.on { border-style: solid; border-color: var(--gold); color: var(--text); background: linear-gradient(#5a4630, #3a2c1c); } .mg.on b { color: var(--gold); }
+  body.mui #mrail { display: flex; flex-direction: column; gap: 4px; position: absolute; right: max(5px, env(safe-area-inset-right, 0px)); top: 6px; z-index: 4; max-height: calc(100% - 12px); flex-wrap: wrap-reverse; }
+  .rb { font: inherit; width: 52px; height: 44px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px;
+        background: linear-gradient(#5a4630, #2e2216); color: var(--text); border: 1px solid var(--edge); border-radius: 4px; box-shadow: 0 4px 12px #0008; }
+  .rb svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .rb.on { background: linear-gradient(#f0d07a, #b8902e); color: #1a1408; border-color: #f3d899; }
+  .rb.go2 { background: linear-gradient(#6e8a54, #3f5430); border-color: #93c476; color: #f2f6e8; } .rb.off { opacity: .42; }
+  body.mui #bottom { display: flex; align-items: stretch; gap: 0; padding: 0 max(4px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(4px, env(safe-area-inset-left, 0px)); max-height: 46vh; }
+  body.mui #cmds { grid-template-columns: repeat(5, 54px); grid-auto-rows: 50px; gap: 3px; padding: 5px; overflow-y: auto; max-height: 112px; flex: 0 0 auto; }
+  body.mui #cmds button { font-size: 10px; } body.mui #cmds .hk { display: none; }
+  body.mui #cmds .cst { display: block; font-size: 9px; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; }
+  body.mui #cmds .cst i { display: inline-block; width: 6px; height: 6px; margin: 0 1px 0 2px; }
+  body.mui #info { flex: 1 1 auto; min-width: 0; padding: 5px 8px; font-size: 11.5px; max-height: 112px; }
+  body.mui #info h3 { font-size: 14px; } body.mui .hp { width: 140px; } body.mui .multi { max-height: 70px; } body.mui .ic { width: 30px; height: 26px; line-height: 22px; }
+  body.mui #mini-wrap { flex: 0 0 auto; padding: 3px; } body.mui #mini { width: 160px; height: 80px; }
+  body.mui.m-mapoff #mini-wrap { display: none; }
+  body.mui #msgs { top: auto; bottom: calc(126px + env(safe-area-inset-bottom, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); font-size: 12px; max-width: calc(100% - 80px); }
+  body.mui #help .card { columns: 1; max-height: 86vh; overflow: auto; font-size: 12.5px; margin: 0 10px; }
+  @media (orientation: portrait) {
+    body.mui #bottom { flex-wrap: wrap; max-height: 55vh; }
+    body.mui #cmds { order: 3; flex: 1 1 100%; grid-template-columns: repeat(auto-fill, 54px); max-height: 108px; }
+    body.mui #info { flex: 1 1 0; } body.mui #mini { width: 140px; height: 70px; }
+    body.mui #msgs { bottom: calc(220px + env(safe-area-inset-bottom, 0px)); }
+  }
 </style>
 </head>
 <body>
@@ -57,13 +101,14 @@
   <div id="top">
     <div id="res"></div>
     <button id="btn-idle" title="Select an idle peasant (.)">Idle 0</button>
+    <div id="mgroups"></div>
     <div class="sp"></div>
     <span id="clock">00:00</span>
     <button id="btn-speed" title="Game speed (+ / -)">1.0x</button>
     <button id="btn-pause" title="Pause (F3)">❚❚</button>
     <button id="btn-help" title="Hotkeys (F1)">?</button>
   </div>
-  <div id="viewwrap"><canvas id="view"></canvas></div>
+  <div id="viewwrap"><canvas id="view"></canvas><div id="mrail"></div></div>
   <div id="bottom">
     <div id="cmds"></div>
     <div id="info"></div>
@@ -75,7 +120,24 @@
 <div id="paused">Paused</div>
 <div id="end"><div class="card"><h1 id="end-text"></h1><p>Refresh to play again.</p></div></div>
 <div id="help"><div class="card">
-  <h2>Controls (click anywhere to close)</h2>
+  <h2>Controls (tap anywhere to close)</h2>
+  <div class="layout-row">Interface: <span class="seg" id="layout"><button data-v="auto">Auto</button><button data-v="mobile">Mobile</button><button data-v="desktop">Desktop</button></span></div>
+  <div class="touch">
+  <p><kbd>Tap</kbd> select a unit or building</p>
+  <p><kbd>Tap</kbd> with units selected: send them. Tap a resource to gather, an enemy or creep to attack, your unfinished building to build, a farm to farm.</p>
+  <p><kbd>Tap the ground</kbd> with a Town Hall or Barracks selected: rally point</p>
+  <p><kbd>Double-tap</kbd> a unit: every one of that type on screen</p>
+  <p><kbd>Hold, then drag</kbd> draw a selection box (or turn on <b>Box</b>)</p>
+  <p><kbd>Hold a unit</kbd> add it to or remove it from the selection · <kbd>hold empty ground</kbd> deselect</p>
+  <p><kbd>Drag</kbd> move the map · <kbd>pinch</kbd> zoom</p>
+  <p><kbd>Rail</kbd> Build (picks the nearest peasant if none is selected), Box, Idle peasant, Army, Screen (your units on screen), Move/Attack (what a tap on the ground does), Clear, Map</p>
+  <p><kbd>Building</kbd> the ghost is pinned mid-screen: tap to move it, tap it again or <b>Place</b> to build, <b>Repeat</b> keeps placing. Palisades: drag a line.</p>
+  <p><kbd>Slots 1-5</kbd> tap an empty slot to save the selection, tap a full one to select it, twice to jump there, hold to overwrite</p>
+  <p><kbd>Minimap</kbd> tap or drag to look · hold to send the selection there</p>
+  <p><kbd>Hold a command button</kbd> see what it does</p>
+  </div>
+  <div class="keys">
+
   <p><kbd>Left-click / drag</kbd> select · <kbd>Shift</kbd> add/remove</p>
   <p><kbd>Double-click</kbd> or <kbd>Ctrl-click</kbd> all of that type on screen</p>
   <p><kbd>Right-click</kbd> move, gather, build, attack, drop off, garrison, pick up artifact</p>
@@ -91,6 +153,7 @@
   <p><kbd>Arrows</kbd>, screen edge or <kbd>middle-drag</kbd> scroll · <kbd>wheel</kbd> zoom</p>
   <p>Minimap: click to look · right-click to send units</p>
   <p><kbd>F3</kbd> pause · <kbd>+ / -</kbd> speed · <kbd>Esc</kbd> cancel</p>
+  </div>
   <p>Higher ground: +25% damage; lower: -25% (as in AoE2).</p>
   <p>Creep camps ward the crystal and iron beside them. Clear the camp to mine it and claim its artifacts.</p>
 </div></div>

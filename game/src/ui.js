@@ -16,26 +16,30 @@ const UI = (() => {
   function init(world, canvas) {
     W = world; R = Render; cv = canvas;
     cv.addEventListener('contextmenu', e => e.preventDefault());
-    cv.addEventListener('mousedown', down); window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    cv.addEventListener('pointerdown', down); cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') st.inside = false; });
+    window.addEventListener('mousemove', e => { if (e.target !== cv) st.inside = false; });
     cv.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('keydown', key); window.addEventListener('keyup', e => st.keys.delete(e.key));
     window.addEventListener('blur', () => st.keys.clear());
     const mini = $('mini'); mini.addEventListener('contextmenu', e => e.preventDefault());
-    mini.addEventListener('mousedown', miniDown); mini.addEventListener('mousemove', e => { if (e.buttons & 1) miniDown(e); });
+    mini.addEventListener('pointerdown', miniDown); mini.addEventListener('pointermove', miniMove);
+    mini.addEventListener('pointerup', miniUp); mini.addEventListener('pointercancel', miniUp);
+    window.addEventListener('resize', Mobile.apply);
     $('btn-pause').onclick = togglePause; $('btn-speed').onclick = () => setSpeed(st.speed >= 2 ? 0.5 : st.speed + 0.5);
     $('btn-idle').onclick = () => idleVillager(); $('btn-help').onclick = () => $('help').classList.toggle('show');
     $('help').onclick = () => $('help').classList.remove('show');
-    buildTop();
+    buildTop(); Mobile.init();
   }
 
   /* ---------------- picking ---------------- */
-  function pickEntity(px, py) {
-    let best = null, bd = 1e9; const k = R.cam.zoom, P = W.players[0];
+  function pickEntity(px, py, touch) {
+    let best = null, bd = 1e9; const k = R.cam.zoom, P = W.players[0], slop = touch ? 8 : 0;
     for (const e of W.ents) {
       if (e.dead || e.garrisoned || e.kind === 'building' || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * W.W + Math.floor(e.x); if (e.owner !== 0 && !P.vis[ti]) continue;
       const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 52 : e.kind === 'artifact' ? 30 : 30) * k, half = (e.type === 'ogre' || e.type === 'scout' ? 16 : 11) * k;
-      if (px < sx - half || px > sx + half || py < sy - tall || py > sy + 6 * k) continue;
+      if (px < sx - half - slop || px > sx + half + slop || py < sy - tall - slop || py > sy + 6 * k + slop) continue;
       const d = Math.abs(px - sx) + Math.abs(py - (sy - tall / 2)) * 0.5 - (e.owner === 0 ? 4 : 0); if (d < bd) { bd = d; best = e; }
     }
     if (best) return best;
@@ -57,39 +61,112 @@ const UI = (() => {
   const own = e => e && e.owner === 0;
   const ownUnits = () => sel.list().filter(e => e.owner === 0 && e.kind === 'unit');
 
-  /* ---------------- mouse ---------------- */
+  /* ---------------- pointer: mouse and touch ----------------
+     Touch follows Brass and Bone: tap selects (with units selected, tap orders them), double-tap selects that type
+     on screen, hold then drag draws a box, hold a unit adds/removes it, hold empty ground deselects, drag pans,
+     pinch zooms. Building on touch: tap pins the ghost, tap it again (or the rail's Place) builds. */
+  const P = { down: false, touches: new Map(), pinch: null };
+  const cpos = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
   function down(e) {
-    const [px, py] = [e.offsetX, e.offsetY]; st.mouse = [px, py];
-    if (e.button === 1) { st.mid = [px, py, R.cam.x, R.cam.y]; e.preventDefault(); return; }
-    if (e.button === 2) { if (st.placing || st.mode) { cancelModes(); return; } return rightClick(px, py, e.shiftKey); }
-    if (st.mode === 'amove') { const [x, y] = R.toWorld(px, py); W.groupMove(ownUnits(), x, y, e.shiftKey, true); mark(x, y, '#ff6040'); if (!e.shiftKey) st.mode = null; return; }
+    const [px, py] = cpos(e); st.mouse = [px, py]; hideTip();
+    try { cv.setPointerCapture(e.pointerId); } catch (_) { }
+    const touch = e.pointerType !== 'mouse';
+    if (touch) {
+      P.touches.set(e.pointerId, [px, py]);
+      if (P.touches.size === 2) { const [a, b] = [...P.touches.values()];
+        P.pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, z: R.cam.zoom, mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, cx: R.cam.x, cy: R.cam.y };
+        P.down = false; clearTimeout(P.lp); st.box = null; st.wallStart = null; return; }
+    }
+    Object.assign(P, { down: true, touch, sx: px, sy: py, moved: false, lpDone: false, camx: R.cam.x, camy: R.cam.y, shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey });
+    if (e.button === 1) { P.mode = 'pan'; e.preventDefault(); return; }
+    if (e.button === 2) { P.down = false; if (st.placing || st.mode) { cancelModes(); return; } return rightClick(px, py, e.shiftKey); }
     if (st.placing) {
       const D = DATA.BUILDINGS[st.placing];
-      if (D.wall || D.gate) { st.wallStart = tileAt(px, py, 1); return; }
-      return placeAt(px, py, e.shiftKey);
+      if (D.wall || D.gate) { P.mode = 'wall'; st.wallStart = tileAt(px, py, 1); updateGhost(); return; }
+      P.mode = 'place'; return;
     }
-    st.box = [px, py, px, py];
+    if (st.mode === 'amove') { P.mode = 'amove'; return; }
+    P.mode = touch ? (Mobile.box ? 'box' : 'tap') : 'box';
+    if (P.mode === 'box') st.box = [px, py, px, py];
+    clearTimeout(P.lp);
+    if (P.mode === 'tap') P.lp = setTimeout(() => {   // hold: becomes a selection box
+      if (P.down && P.mode === 'tap' && !P.moved && !P.pinch) { P.mode = 'box'; P.lpDone = true; st.box = [P.sx, P.sy, P.sx, P.sy];
+        try { navigator.vibrate && navigator.vibrate(12); } catch (_) { } const [x, y] = R.toWorld(P.sx, P.sy); mark(x, y, '#ffd76a'); }
+    }, 340);
   }
   function move(e) {
-    const r = cv.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top; st.mouse = [px, py]; st.inside = e.target === cv;
-    if (st.mid) { R.cam.x = st.mid[2] - (px - st.mid[0]) / R.cam.zoom; R.cam.y = st.mid[3] - (py - st.mid[1]) / R.cam.zoom; R.clampCam(); return; }
-    if (st.box) { st.box[2] = px; st.box[3] = py; }
-    const h = st.inside ? pickEntity(px, py) : null; st.hoverId = h ? h.id : 0;
-    updateGhost();
+    const [px, py] = cpos(e); st.mouse = [px, py];
+    if (e.pointerType === 'mouse') st.inside = true;
+    if (P.touches.has(e.pointerId)) {
+      P.touches.set(e.pointerId, [px, py]);
+      if (P.pinch && P.touches.size === 2) {
+        const [a, b] = [...P.touches.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, pc = P.pinch;
+        const nz = Math.max(0.5, Math.min(1.75, pc.z * d / pc.d));
+        R.cam.zoom = nz; R.cam.x = pc.cx + (pc.mx - R.vw / 2) / pc.z - (mx - R.vw / 2) / nz; R.cam.y = pc.cy + (pc.my - R.vh / 2) / pc.z - (my - R.vh / 2) / nz; R.clampCam();
+        return;
+      }
+    }
+    if (P.down) {
+      if (Math.hypot(px - P.sx, py - P.sy) > 7) P.moved = true;
+      const pan = P.mode === 'pan' || (P.mode === 'tap' && P.moved) || ((P.mode === 'place' || P.mode === 'amove') && P.touch && P.moved);
+      if (pan) { R.cam.x = P.camx - (px - P.sx) / R.cam.zoom; R.cam.y = P.camy - (py - P.sy) / R.cam.zoom; R.clampCam(); }
+      if (P.mode === 'box' && st.box) { st.box[2] = px; st.box[3] = py; }
+    }
+    if (e.pointerType === 'mouse') { const h = pickEntity(px, py); st.hoverId = h ? h.id : 0; }
+    if (!(P.touch && st.placing && P.mode !== 'wall')) updateGhost();
   }
   function up(e) {
-    if (e.button === 1) { st.mid = null; return; }
-    if (e.button !== 0) return;
-    if (st.wallStart && st.placing) { placeWall(e.shiftKey); return; }
-    if (!st.box) return;
-    const [a, b, c, d] = st.box; st.box = null;
-    if (Math.abs(c - a) < 5 && Math.abs(d - b) < 5) return clickSelect(a, b, e.shiftKey, e.ctrlKey);
-    const x0 = Math.min(a, c), x1 = Math.max(a, c), y0 = Math.min(b, d), y1 = Math.max(b, d);
-    const inBox = W.ents.filter(u => !u.dead && u.kind === 'unit' && u.owner === 0 && !u.garrisoned && u.type !== 'sheep' && (() => {
-      const [sx, sy] = R.toScreen(u.x, u.y, W.h(u.x, u.y)); return sx >= x0 && sx <= x1 && sy - 12 >= y0 - 10 && sy - 12 <= y1 + 10; })());
-    if (!e.shiftKey) sel.set.clear();
-    for (const u of inBox.slice(0, 60)) sel.set.add(u.id);   // AoE2 DE selection limit 60
-    st.menu = null; refresh();
+    if (P.touches.has(e.pointerId)) { P.touches.delete(e.pointerId); if (P.pinch) { if (P.touches.size < 2) P.pinch = null; P.down = false; return; } }
+    if (!P.down) return; P.down = false; clearTimeout(P.lp);
+    if (e.type === 'pointercancel') { st.box = null; return; }
+    const [px, py] = cpos(e), shift = e.shiftKey || P.shift;
+    switch (P.mode) {
+      case 'pan': return;
+      case 'wall': if (st.placing) placeWall(shift || (P.touch && Mobile.repeat)); return;
+      case 'place':
+        if (!P.touch) return placeAt(px, py, shift);
+        if (P.moved) return;
+        return Mobile.pinTap(px, py);
+      case 'amove': {
+        if (P.touch && P.moved) return;
+        const [x, y] = R.toWorld(px, py); W.groupMove(ownUnits(), x, y, shift, true); mark(x, y, '#ff6040'); if (!shift) st.mode = null; refresh(); return; }
+      case 'tap': if (!P.moved) tapAt(px, py); return;
+      case 'box': {
+        const box = st.box; st.box = null; if (P.touch) Mobile.box = false;
+        if (!box) return;
+        if (P.lpDone && !P.moved) {   // hold without dragging: toggle a unit, or deselect
+          const t = pickEntity(px, py, true);
+          if (t && t.owner === 0) { sel.set.has(t.id) ? sel.set.delete(t.id) : sel.set.add(t.id); } else sel.set.clear();
+          st.menu = null; refresh(); return;
+        }
+        const [a, b, c, d] = box;
+        if (Math.abs(c - a) < 5 && Math.abs(d - b) < 5) return clickSelect(a, b, shift, P.ctrl);
+        const x0 = Math.min(a, c), x1 = Math.max(a, c), y0 = Math.min(b, d), y1 = Math.max(b, d);
+        const inBox = W.ents.filter(u => !u.dead && u.kind === 'unit' && u.owner === 0 && !u.garrisoned && u.type !== 'sheep' && (() => {
+          const [sx, sy] = R.toScreen(u.x, u.y, W.h(u.x, u.y)); return sx >= x0 && sx <= x1 && sy - 12 >= y0 - 10 && sy - 12 <= y1 + 10; })());
+        if (!shift) sel.set.clear();
+        for (const u of inBox.slice(0, 60)) sel.set.add(u.id);   // AoE2 DE selection limit 60
+        st.menu = null; refresh(); return;
+      }
+    }
+  }
+  /* a tap on touch: select, or order what is selected (AoE2's right-click, on one finger) */
+  function tapAt(px, py) {
+    const t = pickEntity(px, py, true), node = t ? -1 : pickNode(px, py), units = ownUnits();
+    const blds = sel.list().filter(e => e.owner === 0 && e.kind === 'building');
+    if (units.length) {
+      const vil = units.some(u => u.type === 'villager');
+      const orderTarget = t && (t.owner !== 0 || (t.kind === 'artifact') ||
+        (t.kind === 'building' && vil && (!t.built || t.type === 'farm' || t.hp < t.maxHp)) ||
+        (t.kind === 'building' && units.some(u => u.artifact) && t.type === 'town_hall'));
+      const selectable = t && t.owner === 0 && !orderTarget || (t && t.owner !== 0 && t.kind === 'building' && !units.length);
+      if (selectable) return clickSelect(px, py, false, false);
+      if (t && !orderTarget && t.owner === 2 && !(t.D && (t.D.creep || t.D.food))) return clickSelect(px, py, false, false);
+      if (!t && node < 0 && Mobile.tapOrder === 'amove') { const [x, y] = R.toWorld(px, py); W.groupMove(units, x, y, false, true); mark(x, y, '#ff6040'); return; }
+      return rightClick(px, py, false);
+    }
+    if (!t && blds.some(b => b.D.trains)) return rightClick(px, py, false);   // rally point
+    clickSelect(px, py, false, false);
   }
   function clickSelect(px, py, shift, ctrl) {
     const e = pickEntity(px, py), now = performance.now();
@@ -124,13 +201,24 @@ const UI = (() => {
     const after = R.toWorld(e.offsetX, e.offsetY);
     const [ax, ay] = iso(before[0], before[1]), [bx, by] = iso(after[0], after[1]); R.cam.x += ax - bx; R.cam.y += ay - by; R.clampCam();
   }
-  function miniDown(e) {
-    e.preventDefault(); const m = $('mini'), r = m.getBoundingClientRect(), sx = m.width / r.width;
-    const [x, y] = R.miniToWorld((e.clientX - r.left) * sx, (e.clientY - r.top) * sx);
-    if (x < 0 || y < 0 || x > W.W || y > W.H) return;
-    if (e.button === 2) { const us = ownUnits(); if (us.length) { W.groupMove(us, x, y, e.shiftKey); mark(x, y, '#40ff60'); } else for (const b of sel.list()) if (b.owner === 0 && b.D.trains) b.rally = { x, y }; return; }
-    R.centerOn(x, y);
+  const MM = { drag: false, lp: 0 };
+  function miniPt(e) { const m = $('mini'), r = m.getBoundingClientRect(), sx = m.width / r.width; return R.miniToWorld((e.clientX - r.left) * sx, (e.clientY - r.top) * sx); }
+  function miniSend(x, y, shift) {
+    const us = ownUnits(); if (us.length) { W.groupMove(us, x, y, shift, Mobile.tapOrder === 'amove' && e2touch); mark(x, y, '#40ff60'); return true; }
+    let any = false; for (const b of sel.list()) if (b.owner === 0 && b.D.trains) { b.rally = { x, y }; any = true; } return any;
   }
+  let e2touch = false;
+  function miniDown(e) {
+    e.preventDefault(); const [x, y] = miniPt(e); if (x < 0 || y < 0 || x > W.W || y > W.H) return;
+    e2touch = e.pointerType !== 'mouse';
+    if (e.button === 2) { miniSend(x, y, e.shiftKey); return; }
+    try { $('mini').setPointerCapture(e.pointerId); } catch (_) { }
+    MM.drag = true; MM.sx = e.clientX; MM.sy = e.clientY; R.centerOn(x, y); clearTimeout(MM.lp);
+    if (e2touch && sel.set.size) MM.lp = setTimeout(() => {   // hold the minimap: send the selection there (Brass and Bone)
+      if (MM.drag && miniSend(x, y, false)) { MM.drag = false; msg('Sent.'); try { navigator.vibrate && navigator.vibrate(15); } catch (_) { } } }, 420);
+  }
+  function miniMove(e) { if (!MM.drag) return; if (Math.hypot(e.clientX - MM.sx, e.clientY - MM.sy) > 8) clearTimeout(MM.lp); const [x, y] = miniPt(e); R.centerOn(x, y); }
+  function miniUp() { MM.drag = false; clearTimeout(MM.lp); }
 
   /* ---------------- placement ---------------- */
   function tileAt(px, py, s) { const [x, y] = R.toWorld(px, py); return [Math.round(x - s / 2), Math.round(y - s / 2)]; }
@@ -138,7 +226,7 @@ const UI = (() => {
     const D = DATA.BUILDINGS[type];
     if (D.needs && !W.has(0, D.needs)) return msg(`Needs a ${DATA.BUILDINGS[D.needs].name} first.`);
     if (!W.canAfford(0, D.cost)) return msg(`Not enough resources for a ${D.name}.`);
-    st.placing = type; st.menu = 'build'; updateGhost(); refresh();
+    st.placing = type; st.menu = 'build'; Mobile.pin = null; if (Mobile.on) Mobile.startPin(); updateGhost(); refresh();
   }
   function wallLine(a, b) {   // straight or diagonal, the way AoE2 lays palisades
     const out = [], dx = b[0] - a[0], dy = b[1] - a[1], n = Math.max(Math.abs(dx), Math.abs(dy));
@@ -153,16 +241,19 @@ const UI = (() => {
       st.ghost = tiles.map(([tx, ty]) => { wood -= D.cost.wood; return { type: st.placing, tx, ty, ok: wood >= 0 && W.canPlace(st.placing, 0, tx, ty) }; });
       return;
     }
-    const [tx, ty] = tileAt(px, py, D.size);
+    const [tx, ty] = Mobile.pin || tileAt(px, py, D.size);
+    if (Mobile.on && !Mobile.pin && !(st.inside && !P.touch)) { st.ghost = null; return; }
     st.ghost = [{ type: st.placing, tx, ty, ok: W.canPlace(st.placing, 0, tx, ty) && W.canAfford(0, D.cost) }];
   }
   function builders() { return ownUnits().filter(u => u.type === 'villager'); }
-  function placeAt(px, py, shift) {
-    const D = DATA.BUILDINGS[st.placing], [tx, ty] = tileAt(px, py, D.size);
+  function placeAt(px, py, shift, tile) {
+    const D = DATA.BUILDINGS[st.placing], [tx, ty] = tile || tileAt(px, py, D.size);
     const b = W.place(st.placing, 0, tx, ty);
     if (!b) return msg(W.canAfford(0, D.cost) ? 'Cannot build there.' : 'Not enough resources.');
     for (const u of builders()) W.order(u, { type: 'build', id: b.id }, shift);
-    if (!shift) { st.placing = null; st.ghost = null; st.menu = null; } refresh();
+    Mobile.pin = null;
+    if (!shift) { st.placing = null; st.ghost = null; st.menu = null; } else updateGhost(); refresh();
+    return b;
   }
   function placeWall(shift) {
     const D = DATA.BUILDINGS[st.placing], tiles = wallLine(st.wallStart, tileAt(...st.mouse, 1)); st.wallStart = null;
@@ -173,7 +264,106 @@ const UI = (() => {
     if (!shift) { st.placing = null; st.ghost = null; st.menu = null; }
     void D; refresh();
   }
-  function cancelModes() { st.placing = null; st.ghost = null; st.wallStart = null; st.mode = null; refresh(); }
+  function cancelModes() { st.placing = null; st.ghost = null; st.wallStart = null; st.mode = null; Mobile.pin = null; refresh(); }
+
+
+  /* ---------------- mobile interface (after Brass and Bone) ----------------
+     Auto turns on below 900 px wide (or on a touch screen up to 1100 px); F1 lets the player force Mobile or Desktop.
+     A rail of big buttons on the right, five group slots in the top bar, a pinned building ghost. */
+  const ICON = {
+    build: '<path d="M4 20h16M6 20V10l6-5 6 5v10M10 20v-5h4v5"/>', box: '<rect x="4.5" y="5.5" width="15" height="13" stroke-dasharray="3 2.6"/>',
+    idle: '<circle cx="12" cy="7" r="3"/><path d="M6.5 20c0-4 2.5-7 5.5-7s5.5 3 5.5 7"/><path d="M18 4l2 0M19 3v2" />',
+    army: '<path d="M5 19L17 7M14 5l5 0 0 5M5 15l4 4"/>', screen: '<path d="M4 8V4.5h3.5M20 8V4.5h-3.5M4 16v3.5h3.5M20 16v3.5h-3.5"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/>',
+    move: '<path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/>', amove: '<path d="M5 19L17 7M13 6h5v5"/><circle cx="8" cy="8" r="2.5"/>',
+    clear: '<path d="M6 6l12 12M18 6L6 18"/>', map: '<path d="M4 6.5l5.5-2 5 2 5.5-2v13l-5.5 2-5-2-5.5 2zM9.5 4.5v13M14.5 6.5v13"/>',
+    here: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', repeat: '<path d="M17 4l3 3-3 3M20 7H8a4 4 0 0 0-4 4M7 20l-3-3 3-3M4 17h12a4 4 0 0 0 4-4"/>',
+  };
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) { } } };
+  const Mobile = {
+    on: false, box: false, repeat: false, tapOrder: 'move', pin: null, layout: 'auto', lgT: 0, lg: false, lastSlot: { n: 0, t: 0 },
+    want() {
+      if (this.layout === 'mobile') return true; if (this.layout === 'desktop') return false;
+      const coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+      return window.innerWidth <= 900 || (coarse && window.innerWidth <= 1100);
+    },
+    init() {
+      this.layout = store.get('rf-layout') || 'auto';
+      $('mrail').addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b) this.act(b.dataset.r); });
+      const mg = $('mgroups');
+      mg.addEventListener('contextmenu', e => e.preventDefault());
+      mg.addEventListener('pointerdown', e => { const b = e.target.closest('[data-g]'); if (!b) return; this.lg = false; clearTimeout(this.lgT);
+        this.lgT = setTimeout(() => { if (sel.set.size) { this.lg = true; st.groups[+b.dataset.g] = [...sel.set]; msg(`Group ${b.dataset.g} saved.`); this.groups(); try { navigator.vibrate && navigator.vibrate(15); } catch (_) { } } }, 480); });
+      for (const t of ['pointerup', 'pointercancel', 'pointerleave']) mg.addEventListener(t, () => clearTimeout(this.lgT));
+      mg.addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (!b) return; if (this.lg) { this.lg = false; return; }
+        const n = +b.dataset.g, g = (st.groups[n] || []).filter(id => W.get(id));
+        if (g.length) { sel.set = new Set(g); st.menu = null; const now = performance.now();
+          if (this.lastSlot.n === n && now - this.lastSlot.t < 450) { const u = W.get(g[0]); R.centerOn(u.x, u.y); } this.lastSlot = { n, t: now }; refresh(); }
+        else if (sel.set.size) { st.groups[n] = [...sel.set]; msg(`Group ${n} saved.`); this.groups(); }
+        else msg('Select something first, then tap a slot to save it.'); });
+      $('layout').addEventListener('click', e => { e.stopPropagation(); const b = e.target.closest('[data-v]'); if (!b) return; this.layout = b.dataset.v; store.set('rf-layout', this.layout); this.apply(); });
+      this.apply();
+    },
+    apply() {
+      const on = Mobile.want(); Mobile.on = on; document.body.classList.toggle('mui', on);
+      document.querySelectorAll('#layout [data-v]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === Mobile.layout));
+      requestAnimationFrame(() => { R.resize(); }); Mobile.rail(); Mobile.groups(); refresh();
+    },
+    groups() {
+      if (!this.on) return; let h = '';
+      for (let n = 1; n <= 5; n++) { const c = (st.groups[n] || []).filter(id => W.get(id)).length; h += `<button class="mg${c ? ' on' : ''}" data-g="${n}"><b>${n}</b>${c || ''}</button>`; }
+      const el = $('mgroups'); if (el._h !== h) { el._h = h; el.innerHTML = h; }
+    },
+    rail() {
+      if (!this.on) return;
+      const rb = (a, label, cls) => `<button class="rb${cls ? ' ' + cls : ''}" data-r="${a}"><svg viewBox="0 0 24 24">${ICON[a]}</svg>${label}</button>`;
+      const has = sel.set.size > 0, units = ownUnits().length > 0; let h = '';
+      if (st.placing) {
+        const g = st.ghost && st.ghost[0], D = DATA.BUILDINGS[st.placing];
+        if (!(D.wall || D.gate)) h += rb('here', 'Place', this.pin ? (g && g.ok ? 'go2' : 'off') : 'off');
+        h += rb('repeat', 'Repeat', this.repeat ? 'on' : '') + rb('clear', 'Cancel');
+      } else {
+        h += rb('build', 'Build', st.menu === 'build' ? 'on' : '') + rb('box', 'Box', this.box ? 'on' : '') + rb('idle', 'Idle') + rb('army', 'Army') + rb('screen', 'Screen');
+        if (units) h += this.tapOrder === 'move' ? rb('move', 'Move') : rb('amove', 'Attack', 'on');
+        if (has) h += rb('clear', 'Clear');
+        h += rb('map', 'Map', document.body.classList.contains('m-mapoff') ? '' : 'on');
+      }
+      const el = $('mrail'); if (el._h !== h) { el._h = h; el.innerHTML = h; }
+    },
+    act(a) {
+      if (a === 'build') {
+        if (st.menu === 'build') { st.menu = null; return refresh(); }
+        let v = ownUnits().filter(u => u.type === 'villager');
+        if (!v.length) {   // no peasant selected: take an idle one, else the nearest to the middle of the screen
+          const [cx, cy] = R.toWorld(R.vw / 2, R.vh / 2), all = W.ents.filter(u => !u.dead && u.owner === 0 && u.type === 'villager' && !u.garrisoned);
+          const idle = all.filter(u => !u.order), pool = idle.length ? idle : all;
+          pool.sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));
+          if (!pool.length) return msg('No peasants.'); sel.set = new Set([pool[0].id]); msg('Building with the nearest peasant.');
+        }
+        st.menu = 'build'; return refresh();
+      }
+      if (a === 'box') { this.box = !this.box; if (this.box) msg('Drag on the map to select.'); return this.rail(); }
+      if (a === 'idle') return idleVillager();
+      if (a === 'army') { const us = W.ents.filter(u => !u.dead && u.owner === 0 && u.kind === 'unit' && DATA.UNITS[u.type] && u.type !== 'villager' && !u.garrisoned);
+        if (!us.length) return msg('No military.'); sel.set = new Set(us.slice(0, 60).map(u => u.id)); st.menu = null; return refresh(); }
+      if (a === 'screen') { const us = onScreen(u => u.owner === 0 && u.kind === 'unit' && u.type !== 'sheep'); if (!us.length) return msg('None of your units on screen.');
+        sel.set = new Set(us.slice(0, 60).map(u => u.id)); st.menu = null; return refresh(); }
+      if (a === 'move' || a === 'amove') { this.tapOrder = this.tapOrder === 'move' ? 'amove' : 'move'; msg(this.tapOrder === 'move' ? 'Tap the ground: move.' : 'Tap the ground: attack-move.'); return this.rail(); }
+      if (a === 'clear') { if (st.placing || st.mode) return cancelModes(); sel.set.clear(); st.menu = null; return refresh(); }
+      if (a === 'map') { document.body.classList.toggle('m-mapoff'); return this.rail(); }
+      if (a === 'repeat') { this.repeat = !this.repeat; return this.rail(); }
+      if (a === 'here') { if (this.pin) placeAt(0, 0, this.repeat, this.pin); return this.rail(); }
+    },
+    startPin() {   // a new building: pin the ghost in the middle of the screen
+      const D = DATA.BUILDINGS[st.placing]; if (D.wall || D.gate) { this.pin = null; msg('Drag on the map to lay the line.'); return; }
+      this.pin = tileAt(R.vw / 2, R.vh / 2, D.size); updateGhost(); this.rail();
+    },
+    pinTap(px, py) {
+      const D = DATA.BUILDINGS[st.placing], t = tileAt(px, py, D.size), [wx, wy] = R.toWorld(px, py), p = this.pin;
+      if (p && wx >= p[0] && wx < p[0] + D.size && wy >= p[1] && wy < p[1] + D.size) placeAt(0, 0, this.repeat, p);
+      else { this.pin = t; updateGhost(); }
+      this.rail();
+    },
+  };
 
   /* ---------------- keyboard ---------------- */
   function key(e) {
@@ -237,9 +427,14 @@ const UI = (() => {
       `<div class="r" title="Population"><i class="pop"></i><b id="r-pop">0/0</b></div>`;
   }
   function button(key, label, tip, onclick, opts = {}) {
-    const b = document.createElement('button'); b.dataset.key = key; b.innerHTML = `<span class="lbl">${label}</span><span class="hk">${key}</span>`;
+    const b = document.createElement('button'); b.dataset.key = key;
+    b.innerHTML = `<span class="lbl">${label}</span>${opts.cost ? `<span class="cst">${Object.entries(opts.cost).map(([k, v]) => `<i style="background:${DATA.RES_INFO[k].color}"></i>${v}`).join(' ')}</span>` : ''}<span class="hk">${key}</span>`;
     b.disabled = !!opts.disabled; if (opts.cls) b.className = opts.cls;
-    b.onclick = ev => onclick(ev); b.onmouseenter = () => tip && showTip(b, tip); b.onmouseleave = hideTip;
+    b.onclick = ev => { if (b._lp) { b._lp = false; return; } hideTip(); onclick(ev); };
+    b.onmouseenter = () => tip && !Mobile.on && showTip(b, tip); b.onmouseleave = () => { if (!b._lp) hideTip(); };
+    b.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || !tip) return; clearTimeout(b._t); b._t = setTimeout(() => { b._lp = true; showTip(b, tip); setTimeout(hideTip, 2500); }, 450); });
+    for (const t of ['pointerup', 'pointercancel']) b.addEventListener(t, () => clearTimeout(b._t));
+    b.addEventListener('contextmenu', e => e.preventDefault());
     return b;
   }
   function showTip(b, html) { const t = $('tip'); t.innerHTML = html; t.style.display = 'block'; const r = b.getBoundingClientRect(); t.style.left = r.left + 'px'; t.style.bottom = (window.innerHeight - r.top + 6) + 'px'; }
@@ -254,7 +449,7 @@ const UI = (() => {
       const vils = units.filter(u => u.type === 'villager');
       if (vils.length && st.menu === 'build') {
         DATA.BUILD_MENU.forEach(t => { const D = DATA.BUILDINGS[t], need = D.needs && !W.has(0, D.needs);
-          add(button(D.hotkey, D.name, `<b>${D.name}</b> ${costHtml(D.cost)}<br>${D.tip}${need ? `<br><em>Needs a ${DATA.BUILDINGS[D.needs].name}.</em>` : ''}`, () => startPlacing(t), { disabled: need, cls: st.placing === t ? 'on' : '' })); });
+          add(button(D.hotkey, D.name, `<b>${D.name}</b> ${costHtml(D.cost)}<br>${D.tip}${need ? `<br><em>Needs a ${DATA.BUILDINGS[D.needs].name}.</em>` : ''}`, () => startPlacing(t), { disabled: need, cls: st.placing === t ? 'on' : '', cost: D.cost })); });
         add(button('X', '◀ Back', 'Back (Esc)', () => { st.menu = null; cancelModes(); }));
       } else {
         if (vils.length) add(button('Q', 'Build', '<b>Build</b><br>Economic and military buildings', () => { st.menu = 'build'; refresh(); }));
@@ -269,10 +464,10 @@ const UI = (() => {
       const b = blds[0], D = b.D;
       if (b.built) {
         for (const t of D.trains || []) { const U = DATA.UNITS[t];
-          add(button(U.hotkey, `Train ${U.name}`, `<b>${U.name}</b> ${costHtml(U.cost)} · ${U.time}s<br>${U.tip}<br><em>Shift-click: 5</em>`, ev => { let n = 0; for (const x of blds) n += W.queueTrain(x, t, ev.shiftKey ? 5 : 1); if (!n) msg(W.players[0].pop >= W.players[0].popCap ? 'Need more housing.' : 'Not enough resources.'); refresh(); })); }
+          add(button(U.hotkey, `Train ${U.name}`, `<b>${U.name}</b> ${costHtml(U.cost)} · ${U.time}s<br>${U.tip}<br><em>Shift-click: 5</em>`, ev => { let n = 0; for (const x of blds) n += W.queueTrain(x, t, ev.shiftKey ? 5 : 1); if (!n) msg(W.players[0].pop >= W.players[0].popCap ? 'Need more housing.' : 'Not enough resources.'); refresh(); }, { cost: U.cost })); }
         for (const t of D.researches || []) { const T = DATA.TECHS[t], done = W.players[0].techs.has(t), busy = W.ents.some(e => !e.dead && e.kind === 'building' && e.owner === 0 && e.queue.some(q => q.what === t));
           if (done) continue;
-          add(button(T.hotkey, T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}`, () => { if (!W.queueTech(b, t)) msg('Cannot research that now.'); refresh(); }, { disabled: T.locked || busy, cls: T.locked ? 'locked' : '' })); }
+          add(button(T.hotkey, T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}`, () => { if (!W.queueTech(b, t)) msg('Cannot research that now.'); refresh(); }, { disabled: T.locked || busy, cls: T.locked ? 'locked' : '', cost: T.cost })); }
         if (b.type === 'town_hall') {
           add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides; its arrows grow. (AoE2 Town Bell)', () => { W.townBell(0); msg('Town Bell rung!'); }));
           add(button('N', 'All Clear', '<b>All Clear</b><br>Everyone back to work.', () => W.allClear(0)));
@@ -284,6 +479,7 @@ const UI = (() => {
     // order buttons in grid order
     const bs = [...cmds.children].sort((a, b) => GRID.indexOf(a.dataset.key) - GRID.indexOf(b.dataset.key));
     cmds.innerHTML = ''; for (const b of bs) cmds.appendChild(b);
+    Mobile.rail(); Mobile.groups();
     info();
   }
   let infoKey = '';
@@ -350,7 +546,8 @@ const UI = (() => {
     const m = $('msgs'), recent = [...W.messages.filter(x => W.time - x.t < 7), ...W.alerts.filter(a => W.time - a.t < 5).map(a => ({ text: a.text, t: a.t, alert: true }))].sort((a, b) => a.t - b.t).slice(-5);
     m.innerHTML = recent.map(x => `<div class="${x.alert ? 'alert' : ''}">${x.text}</div>`).join('');
     if (sel.set.size) info(); else if (st.nodeSel >= 0) info();
+    if (Mobile.on) { Mobile.rail(); Mobile.groups(); }
     if (W.state !== 'playing' && !st.ended) { st.ended = true; $('end').style.display = 'flex'; $('end-text').textContent = W.state === 'victory' ? 'Victory' : 'Defeat'; }
   }
-  return { init, frame, refresh, sel, st, msg, startPlacing };
+  return { init, frame, refresh, sel, st, msg, startPlacing, Mobile };
 })();

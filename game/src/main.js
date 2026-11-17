@@ -7,6 +7,7 @@
   Render.init(world, canvas); Render.initMini(document.getElementById('mini'));
   UI.init(world, canvas);
   const tc = world.ents.find(e => e.owner === 0 && e.type === 'town_hall');
+  if (UI.Mobile.on) Render.cam.zoom = 0.75;   // more of the map on a phone
   Render.centerOn(tc.x + 2, tc.y + 2);
   UI.sel.set.add(tc.id); UI.refresh();
   UI.msg('Your Town Hall stands in the north corner. Train Peasants (Q), find sheep with your Scout, and grow.');
