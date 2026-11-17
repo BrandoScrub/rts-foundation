@@ -1,0 +1,25 @@
+# Rules for every chat working on RTS Foundation
+
+## The brief
+AoE2's workers, counters, unit variety, base building and tech progression; Warcraft III's fantasy and creep camps;
+no heroes. When in doubt, research how Age of Empires II (Definitive Edition) handles it and copy it; note the AoE2
+value beside the number in `game/src/data.js`.
+
+## Scope
+- Only tier 1 (AoE2's Dark Age) is built. Do not code tier 2 or later until the user says so; ask for direction
+  first (open questions are listed in `docs/design.md`).
+- Record every design decision the user makes in `docs/design.md`.
+
+## Where things go
+- Numbers: `game/src/data.js`. Map generation: `game/src/map.js`. Rules and AI: `game/src/world.js` (no DOM, runs
+  in Node). Drawing: `game/src/render.js`. Input and HUD: `game/src/ui.js`.
+- `artkit/` is a pinned copy of BrandoScrub/Game-Engine-System-Design and is never edited here. Engine changes go to
+  that repository (its CLAUDE.md), then `python3 tools/update_artkit.py <engine checkout>` here. `python3
+  tools/check_artkit.py` must print OK before every commit. `game/lib/glcanvas.js` must equal
+  `artkit/runtime/glcanvas.js`.
+- This game's art content (its style pack) will live in `styles/<pack>/`, outside the engine. Any new building, unit
+  or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
+
+## Before you commit
+`node tests/sim_check.js` prints only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
+browser and check the console is clean.
