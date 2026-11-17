@@ -25,6 +25,7 @@ const DATA = (() => {
     stone:   { res: 'stone',   amount: 350, rate: 0.36, name: 'Stone Mine' },    // stone miner 0.36
     iron:    { res: 'iron',    amount: 800, rate: 0.38, name: 'Iron Vein' },     // gold miner 0.38
     crystal: { res: 'crystal', amount: 600, rate: 0.30, name: 'Crystal Vein' },  // our choice: premium, slower
+    fish:    { res: 'food',    amount: 200, rate: 0.43, name: 'Shore Fish' },    // AoE2 DE shore fish 200, fisherman 0.43
   };
   const FARM = { food: 175, rate: 0.32 };   // AoE2 DE farm 175 food, farmer 0.32; auto-reseed like DE's option
 

@@ -15,10 +15,12 @@ comes from in a comment.
 | Resources | Basic: food, wood, stone (the foundation of the early game). Premium: **iron** (military, takes AoE2 gold's role for soldiers and armour) and **crystal** (magic, age-ups and mystic techs from tier 2). |
 | Creep camps | Clearing a camp **unwards the deposit it guards** (crystal or iron you cannot mine before) and **drops artifacts** that work like AoE2 relics. No XP (no heroes). |
 | Mobile (Nov 17) | Touch controls copied from Brass and Bone: auto below 900 px wide (or a touch screen up to 1100), forced Mobile/Desktop in F1. Tap selects or orders, double-tap selects the type on screen, hold-drag boxes, hold toggles a unit, drag pans, pinch zooms; right-hand rail (Build, Box, Idle, Army, Screen, Move/Attack, Clear, Map); group slots 1-5; pinned building ghost with Place and Repeat; hold the minimap to send troops; hold a command button for its tooltip. |
-| Tier 2 counters (Nov 17) | A fantasy races mix fills the AoE2 counter roles (spear, archer, skirmisher, light cavalry, infantry upgrade). Which races and units: still to choose. Not built. |
+| Tier 2 counters (Nov 17) | A fantasy races mix, built into the one shared faction (trained from normal buildings), in the classic set: dwarf pikemen (spear), elf archers (archer), halfling slingers (skirmisher), wolf riders (light cavalry), human men-at-arms (infantry upgrade). Same counters as AoE2. Not built yet. |
 | Tier 2 cost (Nov 17) | 500 food, no crystal, plus two tier 1 buildings: exactly AoE2's Feudal Age. Crystal first matters from tier 3. |
 | Opponent (Nov 17) | Stays idle for now. |
 | River (Nov 17, built) | A river runs corner to corner between the players. Deep water blocks; five shallow fords cross it: the wide centre ford, held by the Ogre Stronghold and its crystal, and two pairs further out. Banks slope down into a valley. |
+| Fishing (Nov 17, built) | Shore fish only: schools along the river banks (AoE2 DE shore fish: 200 food, fisherman 0.43/s), gathered by peasants from the bank and dropped at a Mill or Town Hall. No Dock or boats. |
+| Art timing (Nov 17) | Not yet: placeholders stay while gameplay settles. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)
@@ -48,8 +50,6 @@ Each player's home also has free iron (7 + 4 + 4), stone (5 + 5), berries, 6 she
 like AoE2 Arabia.
 
 ## Open questions (ask before building past tier 1)
-1. Which fantasy races and units fill the tier 2 counter roles (spear, archer, skirmisher, light cavalry, infantry
-   upgrade), and do they belong to one shared faction or come from captured camps / mercenaries?
-2. Who carries artifacts once tier 2 has a temple-like building (AoE2 Monastery), and where they are stored.
-3. Fish in the river and a dock with fishing boats (AoE2 has both on river maps)?
-4. When to start the art: briefs and grey blockouts for the Town Hall, Peasant and Militia first.
+1. Who carries artifacts once tier 2 has a temple-like building (AoE2 Monastery), and where they are stored.
+2. Exact stats of the tier 2 roster (start from AoE2's Spearman, Archer, Skirmisher, Scout Cavalry, Man-at-Arms).
+3. When to start the art (briefs and grey blockouts).

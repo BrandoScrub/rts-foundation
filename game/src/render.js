@@ -172,7 +172,7 @@ const Render = (() => {
   function nodeSprite(type, v) {
     const key = `n:${type}:${v}`;
     return sprite(key, 70, 110, 35, 90, g => {
-      ell(g, 0, 2, 16, 7, 'rgba(0,0,0,0.22)');
+      if (type !== 6) ell(g, 0, 2, 16, 7, 'rgba(0,0,0,0.22)');
       if (type === 1) {   // tree: broadleaf or conifer
         if (v < 2) { g.fillStyle = '#5b3c20'; g.fillRect(-2.5, -18, 5, 20);
           ell(g, 0, -30, 17, 15, v ? '#2f5f2a' : '#3a6e2e', '#1d3a17'); ell(g, -6, -40, 12, 10, v ? '#386f30' : '#478236', '#1d3a17'); ell(g, 5, -45, 9, 8, v ? '#468039' : '#559440', '#1d3a17'); }
@@ -182,6 +182,10 @@ const Render = (() => {
         ell(g, 0, -6, 13, 9, '#3c7a32', '#1f4019');
         for (let k = 0; k < 7; k++) ell(g, Math.cos(k * 2.3) * 8, -6 + Math.sin(k * 1.7) * 5, 2, 2, '#c0283a');
       } else {
+        if (type === 6) {   // shore fish: a few shapes under the surface
+          for (let k = 0; k < 3; k++) { const x = (k - 1) * 9, y = -2 + (k % 2) * 4; ell(g, x, y, 5, 2.2, 'rgba(190,215,230,0.85)', 'rgba(30,60,90,0.6)'); poly(g, [[x + 5, y], [x + 9, y - 2.5], [x + 9, y + 2.5]], 'rgba(190,215,230,0.85)', null); }
+          return;
+        }
         const col = { 3: ['#a8a69e', '#7a786f'], 4: ['#5d5f63', '#8a5a3a'], 5: ['#3a8fb0', '#7af0ff'] }[type];
         if (type === 5) {
           for (let k = 0; k < 4; k++) { const x = (k - 1.5) * 7, hgt = 16 + (k * 7 + v * 5) % 14;
@@ -370,7 +374,7 @@ const Render = (() => {
       let c;
       if (!P.explored[i]) c = [0, 0, 0];
       else { const n = m.node[i];
-        c = n === 1 ? [40, 80, 34] : n === 2 ? [190, 60, 70] : n === 3 ? [170, 170, 160] : n === 4 ? [120, 150, 180] : n === 5 ? [98, 224, 255] : TERR_COL[m.terr[i]];
+        c = n === 1 ? [40, 80, 34] : n === 2 ? [190, 60, 70] : n === 3 ? [170, 170, 160] : n === 4 ? [120, 150, 180] : n === 5 ? [98, 224, 255] : n === 6 ? [200, 225, 240] : TERR_COL[m.terr[i]];
         if (!P.vis[i]) c = c.map(v => v * 0.55); }
       d[i * 4] = c[0]; d[i * 4 + 1] = c[1]; d[i * 4 + 2] = c[2]; d[i * 4 + 3] = 255;
     }

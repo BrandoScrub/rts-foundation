@@ -3,8 +3,8 @@
 'use strict';
 const MapGen = (() => {
   const T = { GRASS: 0, GRASS2: 1, DIRT: 2, FOREST: 3, ROCK: 4, SAND: 5, WATER: 6, FORD: 7 };
-  const N = { NONE: 0, TREE: 1, BERRY: 2, STONE: 3, IRON: 4, CRYSTAL: 5 };
-  const NODE_KEY = [null, 'tree', 'berry', 'stone', 'iron', 'crystal'];
+  const N = { NONE: 0, TREE: 1, BERRY: 2, STONE: 3, IRON: 4, CRYSTAL: 5, FISH: 6 };
+  const NODE_KEY = [null, 'tree', 'berry', 'stone', 'iron', 'crystal', 'fish'];
   const MAXH = 6;
 
   function rng(seed) {
@@ -196,6 +196,15 @@ const MapGen = (() => {
     animal('boar', 15, 19); animal('boar', 16, 20);
     animal('deer', 20, 27, 4, 1);
 
+    // shore fish in the river, gathered from the bank by peasants (no Dock: the user's call)
+    for (let k = 0, made = 0; k < 4000 && made < 7; k++) {
+      const x = Math.floor(R() * W), y = Math.floor(R() * H), i = idx(x, y), [a, b] = mir(x, y);
+      if (m.water[i] !== 1 || m.node[i] || !(x + y < W - 1) || (a === x && b === y)) continue;
+      const land = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => inb(x + dx, y + dy) && !m.water[idx(x + dx, y + dy)]);
+      if (!land || Math.abs(x - y) > 200) continue;
+      put(x, y, N.FISH, DATA.NODES.fish.amount); made++;
+      for (const [dx, dy] of [[1, -1], [-1, 1]]) { const nx = x + dx, ny = y + dy; if (inb(nx, ny) && m.water[idx(nx, ny)] === 1 && !m.node[idx(nx, ny)] && nx + ny < W - 1) put(nx, ny, N.FISH, DATA.NODES.fish.amount); }
+    }
     // forests across the map, mirrored
     for (let k = 0; k < 70; k++) {
       const x = Math.floor(R() * W), y = Math.floor(R() * H);

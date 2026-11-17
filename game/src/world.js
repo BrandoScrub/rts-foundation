@@ -559,7 +559,7 @@ class World {
   afterBuild(u, b) {   // AoE2: builders of a drop site start gathering the nearest matching resource; farmers farm
     this.nextOrder(u); if (u.order || !b || b.dead) return;
     if (b.type === 'farm' && (!b.farmer || !this.get(b.farmer))) return this.setOrder(u, { type: 'gather', ent: b.id });
-    const want = { lumber_camp: [MapGen.N.TREE], mining_camp: [MapGen.N.IRON, MapGen.N.STONE, MapGen.N.CRYSTAL], mill: [MapGen.N.BERRY] }[b.type];
+    const want = { lumber_camp: [MapGen.N.TREE], mining_camp: [MapGen.N.IRON, MapGen.N.STONE, MapGen.N.CRYSTAL], mill: [MapGen.N.BERRY, MapGen.N.FISH] }[b.type];
     if (!want) return;
     let best = -1, bd = 12;
     for (let y = b.ty - 8; y < b.ty + b.size + 8; y++) for (let x = b.tx - 8; x < b.tx + b.size + 8; x++) {
