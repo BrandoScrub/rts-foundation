@@ -1,0 +1,457 @@
+{
+ "name": "Frontier Outpost",
+ "about": "A survey colony on a red dust world. White composite modules, orange hazard accents, teal glass, dark solar fields.",
+ "tiles": "tiles",
+ "terrain": "terrain.json",
+ "hud": "hud.json",
+ "tile_units": 128,
+ "tile_px": 128,
+ "procedural": {
+  "hull": [
+   [
+    214,
+    214,
+    206
+   ],
+   "panel"
+  ],
+  "panel": [
+   [
+    168,
+    170,
+    166
+   ],
+   "panel"
+  ],
+  "plating": [
+   [
+    86,
+    90,
+    96
+   ],
+   "metal"
+  ],
+  "dark": [
+   [
+    52,
+    56,
+    62
+   ],
+   "metal"
+  ],
+  "glass": [
+   [
+    70,
+    170,
+    176
+   ],
+   "plain"
+  ],
+  "solar": [
+   [
+    34,
+    46,
+    82
+   ],
+   "solar"
+  ],
+  "grate": [
+   [
+    120,
+    122,
+    118
+   ],
+   "grate"
+  ],
+  "rubber": [
+   [
+    38,
+    38,
+    40
+   ],
+   "leather"
+  ],
+  "regolith": [
+   [
+    156,
+    92,
+    62
+   ],
+   "dust"
+  ],
+  "basalt": [
+   [
+    92,
+    74,
+    68
+   ],
+   "rock"
+  ],
+  "scrub": [
+   [
+    120,
+    74,
+    140
+   ],
+   "foliage"
+  ],
+  "orange": [
+   [
+    222,
+    120,
+    44
+   ],
+   "plain"
+  ],
+  "concrete": [
+   [
+    150,
+    140,
+    130
+   ],
+   "rock"
+  ],
+  "steel": [
+   [
+    130,
+    134,
+    138
+   ],
+   "metal"
+  ],
+  "copper": [
+   [
+    176,
+    110,
+    64
+   ],
+   "metal"
+  ],
+  "tar": [
+   [
+    30,
+    30,
+    32
+   ],
+   "plain"
+  ],
+  "planks": [
+   [
+    150,
+    140,
+    120
+   ],
+   "panel"
+  ],
+  "rust": [
+   [
+    126,
+    84,
+    60
+   ],
+   "metal"
+  ],
+  "brass": [
+   [
+    190,
+    160,
+    90
+   ],
+   "metal"
+  ],
+  "log": [
+   [
+    70,
+    60,
+    58
+   ],
+   "wood"
+  ]
+ },
+ "tile_scale": {
+  "solar": 0.5,
+  "grate": 0.6
+ },
+ "roles": {
+  "hab": [
+   90,
+   200,
+   200
+  ],
+  "power": [
+   236,
+   200,
+   80
+  ],
+  "mil": [
+   226,
+   110,
+   60
+  ],
+  "sci": [
+   170,
+   130,
+   220
+  ],
+  "ind": [
+   200,
+   170,
+   140
+  ]
+ },
+ "figures": {
+  "_comment": "smooth-look materials for rigs",
+  "hull": [
+   [
+    214,
+    214,
+    206
+   ],
+   "metal"
+  ],
+  "plating": [
+   [
+    86,
+    90,
+    96
+   ],
+   "metal"
+  ],
+  "orange": [
+   [
+    222,
+    120,
+    44
+   ],
+   "plain"
+  ],
+  "rubber": [
+   [
+    38,
+    38,
+    40
+   ],
+   "leather"
+  ],
+  "glass": [
+   [
+    70,
+    170,
+    176
+   ],
+   "plain"
+  ],
+  "suit": [
+   [
+    200,
+    196,
+    186
+   ],
+   "canvas"
+  ],
+  "glow": [
+   [
+    150,
+    255,
+    240
+   ],
+   "plain"
+  ]
+ },
+ "ground": [
+  156,
+  92,
+  62
+ ],
+ "palette": {
+  "base": [
+   [
+    214,
+    214,
+    206
+   ],
+   [
+    168,
+    170,
+    166
+   ],
+   [
+    86,
+    90,
+    96
+   ],
+   [
+    52,
+    56,
+    62
+   ],
+   [
+    156,
+    92,
+    62
+   ],
+   [
+    92,
+    74,
+    68
+   ],
+   [
+    34,
+    46,
+    82
+   ]
+  ],
+  "accent": [
+   [
+    222,
+    120,
+    44
+   ],
+   [
+    70,
+    170,
+    176
+   ],
+   [
+    236,
+    200,
+    80
+   ],
+   [
+    170,
+    130,
+    220
+   ]
+  ]
+ },
+ "game": {
+  "tile_px": 32,
+  "building_px_per_out": 0.5,
+  "figure_k": 0.62
+ },
+ "proportions": {
+  "storey": 110,
+  "figure": 100,
+  "door": 96
+ },
+ "budget": {
+  "unit_mb": 32,
+  "static_mb": 6
+ },
+ "design": {
+  "values": {
+   "ground": "regolith",
+   "base": "plating",
+   "body": "hull",
+   "body2": "panel",
+   "roof": "panel",
+   "roof2": "solar",
+   "trim": "plating",
+   "metal": "steel",
+   "dark": "dark",
+   "stack": "plating",
+   "bags": "basalt",
+   "wood": "panel",
+   "log": "log",
+   "rock": "basalt",
+   "cloth": "hull",
+   "faction": "orange",
+   "accent": "orange",
+   "glow": "glass",
+   "glass": "solar"
+  },
+  "units": {
+   "bay": 160
+  },
+  "massing": {
+   "margin": 30,
+   "base": "skirt",
+   "base_share": 0.3,
+   "plans": [
+    "setback",
+    "wing_x",
+    "wing_y"
+   ]
+  },
+  "rhythm": {
+   "wall": "ribs",
+   "bay": 70,
+   "low": null,
+   "high": [
+    "solar"
+   ],
+   "glow": "glass",
+   "lit": 0.5
+  },
+  "roofs": {
+   "default": "deck",
+   "flat": "deck",
+   "wing": "deck",
+   "home": "dome",
+   "science": "dome"
+  },
+  "door": {
+   "default": "airlock"
+  },
+  "signatures": {
+   "command": [
+    "drum_tower",
+    "dish",
+    "mast"
+   ],
+   "store": [
+    "vault_drum"
+   ],
+   "science": [
+    "dish",
+    "mast"
+   ],
+   "home": [
+    "mast"
+   ],
+   "industry": [
+    "stacks",
+    "derrick"
+   ],
+   "power": [
+    "stacks"
+   ],
+   "military": [
+    "drum_tower",
+    "searchlight"
+   ],
+   "default": [
+    "mast"
+   ]
+  },
+  "accent": {
+   "motif": "band"
+  },
+  "ground": {
+   "siege": {
+    "yard": 70,
+    "dress": [
+     "beacons"
+    ]
+   },
+   "work": {
+    "yard": 0.28,
+    "dress": [
+     "beacons"
+    ]
+   },
+   "calm": {
+    "yard": 0.18,
+    "dress": [
+     "beacons"
+    ]
+   }
+  },
+  "grammar": [
+   "base",
+   "roof",
+   "signature",
+   "accent"
+  ]
+ }
+}

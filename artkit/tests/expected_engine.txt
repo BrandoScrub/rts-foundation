@@ -1,0 +1,43 @@
+still comms_array damaged 269x172 1097f3d71e60bb9f g None
+still comms_array normal 269x180 4feeb217d0037dfc g None
+turning comms_array dish 268x54 8628177e6bc58371
+critic comms_array 67.5
+still hab_dome build33 269x173 48d0d2bc099490a9 g None
+still hab_dome build66 269x199 7df7decb18596ce1 g None
+still hab_dome damaged 269x152 cf3a3150106a76ff g None
+still hab_dome normal 269x158 ccc41407e50e17ab g None
+still hab_dome ruined 269x141 d9c4f23c09352730 g None
+critic hab_dome 76.2
+still landing_pad build33 397x219 8e131b22254d6235 g None
+still landing_pad build66 397x228 1ba74c1bb187e91a g None
+still landing_pad damaged 397x205 df68ede1fc03011a g None
+still landing_pad normal 397x205 aeab46e598a51f94 g None
+critic landing_pad 73.8
+still laser_turret damaged 141x77 e9c62d4170ffc062 g None
+still laser_turret normal 141x77 6e589bb389e68091 g None
+turning laser_turret head 292x40 2d92c394868553c3
+critic laser_turret 51.9
+still refinery build33 333x200 40a4f7a054735e56 g None
+still refinery build66 333x221 9dc74537c95a837c g None
+still refinery damaged 333x200 f08b1562203e63fc g None
+still refinery normal 333x221 c42454ad8a6361aa g None
+still refinery ruined 333x177 65a12e5e94bd8f75 g None
+critic refinery 90.9
+still solar_field build33 269x155 28b8a1faa8630413 g None
+still solar_field build66 269x155 b6a449f8e2a413a0 g None
+still solar_field damaged 269x141 b9a5188c10a5b3c6 g None
+still solar_field normal 269x142 1f163051fca22d9b g None
+critic solar_field 0.0
+strip strider idle L 672x164 12de63f65ee934dc
+strip strider idle U 252x50 e6c8593b8c719eed
+strip strider walk L 1344x164 6d9d2adef52b563a
+strip strider walk U 504x50 2678f382f8d6ef82
+manifest strider e9942cc8ae654392
+strip trooper fire L 234x68 306da309ab58cb0a
+strip trooper fire U 522x64 e9c95a760e415a85
+strip trooper idle L 208x68 419c2329335f75b0
+strip trooper idle U 464x64 f7fbf1ed53b64cc2
+manifest trooper 77452c0717a23b85
+compose ops b761232aaf0f9a3b critic 84.2 issues 0
+compose hab 0bebec44447092d8 critic 100.0 issues 0
+compose smelter 96291828ecb62f08 critic 100.0 issues 0

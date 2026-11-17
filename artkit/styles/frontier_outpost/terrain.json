@@ -1,0 +1,265 @@
+{
+ "_about": "Frontier Outpost's terrain for artkit.terrain: one land (dust). Proves the modules take their look from the pack; no painted tiles yet.",
+ "gates": {
+  "materials": {
+   "stake": [
+    196,
+    198,
+    196
+   ],
+   "post": [
+    150,
+    154,
+    158
+   ],
+   "rail": [
+    214,
+    120,
+    52
+   ],
+   "beam": [
+    120,
+    126,
+    132
+   ],
+   "iron": [
+    70,
+    74,
+    80
+   ],
+   "concrete": [
+    204,
+    206,
+    204
+   ],
+   "slate": [
+    48,
+    92,
+    98
+   ],
+   "steel": [
+    [
+     180,
+     184,
+     186
+    ],
+    [
+     150,
+     110,
+     80
+    ]
+   ],
+   "hazard": [
+    [
+     40,
+     40,
+     44
+    ],
+    [
+     226,
+     124,
+     44
+    ]
+   ]
+  }
+ },
+ "rocks": {
+  "ore": {
+   "stain": [
+    60,
+    90,
+    96
+   ],
+   "seam": [
+    60,
+    200,
+    200
+   ],
+   "glint": [
+    200,
+    250,
+    250
+   ]
+  },
+  "lands": {
+   "dust": {
+    "rock": [
+     176,
+     98,
+     70
+    ],
+    "dark": [
+     110,
+     58,
+     44
+    ],
+    "soil": [
+     150,
+     84,
+     58
+    ],
+    "band": 0.3,
+    "moss": null,
+    "snow": 0
+   }
+  }
+ },
+ "calm": {
+  "grain": 0.6,
+  "contrast": 0.9,
+  "lands": [
+   "dust"
+  ],
+  "pinned_means": {}
+ },
+ "ground": {
+  "procedural": {
+   "quality": 82,
+   "lands": {
+    "dust": {
+     "land": {
+      "op": "grit",
+      "seed": 7,
+      "amt": [
+       0.06,
+       0.1,
+       0.16
+      ],
+      "of": {
+       "op": "pebbles",
+       "n": 900,
+       "seed": 6,
+       "r": [
+        1,
+        3
+       ],
+       "lo": [
+        130,
+        70,
+        50
+       ],
+       "hi": [
+        200,
+        130,
+        96
+       ],
+       "alpha": 0.8,
+       "of": {
+        "op": "wind",
+        "noise": [
+         1.6,
+         5
+        ],
+        "aspect": [
+         1,
+         4
+        ],
+        "base": 0.9,
+        "amp": 0.2,
+        "of": {
+         "op": "soil",
+         "lo": [
+          160,
+          86,
+          58
+         ],
+         "hi": [
+          196,
+          116,
+          80
+         ],
+         "seed": 4
+        }
+       }
+      }
+     },
+     "floor": {
+      "op": "grit",
+      "seed": 17,
+      "amt": [
+       0.04,
+       0.06,
+       0.08
+      ],
+      "of": {
+       "op": "cracks",
+       "seed": 16,
+       "pts": 160,
+       "width": 1.6,
+       "col": [
+        90,
+        96,
+        100
+       ],
+       "amt": 0.6,
+       "of": {
+        "op": "soil",
+        "lo": [
+         150,
+         154,
+         156
+        ],
+        "hi": [
+         180,
+         184,
+         186
+        ],
+        "seed": 15
+       }
+      }
+     },
+     "rock": {
+      "op": "grit",
+      "seed": 27,
+      "of": {
+       "op": "pebbles",
+       "n": 2600,
+       "seed": 26,
+       "r": [
+        1,
+        4
+       ],
+       "lo": [
+        120,
+        64,
+        46
+       ],
+       "hi": [
+        180,
+        112,
+        84
+       ],
+       "alpha": 0.9,
+       "of": {
+        "op": "cracks",
+        "seed": 25,
+        "pts": 340,
+        "width": 3,
+        "col": [
+         70,
+         36,
+         28
+        ],
+        "amt": 0.8,
+        "of": {
+         "op": "soil",
+         "lo": [
+          130,
+          70,
+          50
+         ],
+         "hi": [
+          170,
+          100,
+          74
+         ],
+         "seed": 24
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

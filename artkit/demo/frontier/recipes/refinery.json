@@ -1,0 +1,234 @@
+{
+ "name": "Ore refinery",
+ "footprint": [
+  3,
+  2
+ ],
+ "states": [
+  "build",
+  "damaged",
+  "ruined"
+ ],
+ "rubble_mat": "plating",
+ "scaffold_mat": "grate",
+ "parts": [
+  {
+   "name": "hall",
+   "shape": "box",
+   "args": [
+    240,
+    150,
+    80
+   ],
+   "mat": "panel@ind",
+   "at": [
+    30,
+    70,
+    0
+   ]
+  },
+  {
+   "name": "roof",
+   "shape": "gable",
+   "args": [
+    240,
+    150,
+    30
+   ],
+   "mat": "plating",
+   "at": [
+    30,
+    70,
+    80
+   ]
+  },
+  {
+   "name": "stack",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      18,
+      0
+     ],
+     [
+      16,
+      150
+     ],
+     [
+      20,
+      152
+     ],
+     [
+      20,
+      160
+     ],
+     [
+      0,
+      160
+     ]
+    ],
+    "dark",
+    12
+   ],
+   "at": [
+    70,
+    40,
+    0
+   ]
+  },
+  {
+   "name": "stack_band",
+   "shape": "prism",
+   "args": [
+    19,
+    8,
+    "orange",
+    12
+   ],
+   "at": [
+    70,
+    40,
+    128
+   ]
+  },
+  {
+   "name": "silo",
+   "use": "tank",
+   "args": {
+    "r": 30,
+    "h": 70,
+    "mat": "hull"
+   },
+   "at": [
+    330,
+    50,
+    0
+   ]
+  },
+  {
+   "name": "silo2",
+   "use": "tank",
+   "args": {
+    "r": 24,
+    "h": 56,
+    "mat": "hull"
+   },
+   "at": [
+    360,
+    190,
+    0
+   ]
+  },
+  {
+   "name": "pipes",
+   "use": "pipe_run",
+   "args": {
+    "path": [
+     [
+      270,
+      120,
+      60
+     ],
+     [
+      320,
+      120,
+      60
+     ],
+     [
+      360,
+      90,
+      60
+     ],
+     [
+      360,
+      80,
+      0
+     ]
+    ],
+    "r": 6,
+    "mat": "copper",
+    "clamp": "plating"
+   }
+  },
+  {
+   "name": "pipes2",
+   "use": "pipe_run",
+   "args": {
+    "path": [
+     [
+      270,
+      200,
+      40
+     ],
+     [
+      340,
+      210,
+      40
+     ],
+     [
+      384,
+      214,
+      30
+     ]
+    ],
+    "r": 5,
+    "mat": "plating",
+    "clamp": "dark"
+   }
+  },
+  {
+   "name": "doors",
+   "shape": "quad",
+   "args": [
+    [
+     270.2,
+     110,
+     0
+    ],
+    [
+     0,
+     60,
+     0
+    ],
+    [
+     0,
+     0,
+     56
+    ],
+    "shutter"
+   ]
+  },
+  {
+   "name": "windows",
+   "shape": "quad",
+   "args": [
+    [
+     100,
+     220.2,
+     40
+    ],
+    [
+     60,
+     0,
+     0
+    ],
+    [
+     0,
+     0,
+     18
+    ],
+    "window_lit"
+   ],
+   "glow": true,
+   "repeat": {
+    "count": 2,
+    "step": [
+     90,
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

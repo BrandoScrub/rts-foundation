@@ -1,0 +1,3 @@
+# Kept beside the root .gitignore on purpose: games copy artkit/ (and this file with it) into their own repository.
+demo/frontier/out/
+__pycache__/

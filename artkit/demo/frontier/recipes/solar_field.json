@@ -1,0 +1,130 @@
+{
+ "name": "Solar field",
+ "footprint": [
+  2,
+  2
+ ],
+ "states": [
+  "build",
+  "damaged"
+ ],
+ "rubble_mat": "dark",
+ "scaffold_mat": "grate",
+ "parts": [
+  {
+   "name": "posts",
+   "shape": "block",
+   "args": [
+    0,
+    6,
+    0,
+    6,
+    0,
+    22,
+    "steel"
+   ],
+   "at": [
+    44,
+    40,
+    0
+   ],
+   "repeat": {
+    "count": 3,
+    "step": [
+     90,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "posts2",
+   "shape": "block",
+   "args": [
+    0,
+    6,
+    0,
+    6,
+    0,
+    22,
+    "steel"
+   ],
+   "at": [
+    44,
+    180,
+    0
+   ],
+   "repeat": {
+    "count": 3,
+    "step": [
+     90,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "panels",
+   "shape": "box",
+   "args": [
+    90,
+    100,
+    4,
+    "solar"
+   ],
+   "at": [
+    20,
+    20,
+    20
+   ],
+   "tilt": -24,
+   "repeat": {
+    "count": 3,
+    "step": [
+     94,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "panels2",
+   "shape": "box",
+   "args": [
+    90,
+    100,
+    4,
+    "solar"
+   ],
+   "at": [
+    20,
+    160,
+    20
+   ],
+   "tilt": -24,
+   "repeat": {
+    "count": 3,
+    "step": [
+     94,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "box",
+   "shape": "box",
+   "args": [
+    26,
+    20,
+    30,
+    "panel@power"
+   ],
+   "at": [
+    290,
+    140,
+    0
+   ]
+  }
+ ]
+}

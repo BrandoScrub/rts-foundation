@@ -1,0 +1,165 @@
+{
+ "name": "Comms array",
+ "footprint": [
+  2,
+  2
+ ],
+ "states": [
+  "damaged"
+ ],
+ "rubble_mat": "panel",
+ "parts": [
+  {
+   "name": "base",
+   "shape": "box",
+   "args": [
+    150,
+    120,
+    40
+   ],
+   "mat": "panel@sci",
+   "at": [
+    60,
+    90,
+    0
+   ]
+  },
+  {
+   "name": "roof",
+   "shape": "box",
+   "args": [
+    150,
+    120,
+    6
+   ],
+   "mat": "plating",
+   "at": [
+    60,
+    90,
+    40
+   ]
+  },
+  {
+   "name": "mast",
+   "shape": "prism",
+   "args": [
+    10,
+    70,
+    "plating",
+    8
+   ],
+   "at": [
+    135,
+    150,
+    46
+   ]
+  },
+  {
+   "name": "mast_tower",
+   "use": "antenna",
+   "args": {
+    "h": 110,
+    "mat": "steel"
+   },
+   "at": [
+    40,
+    50,
+    0
+   ]
+  },
+  {
+   "name": "dish",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      0,
+      0
+     ],
+     [
+      34,
+      8
+     ],
+     [
+      52,
+      22
+     ],
+     [
+      50,
+      24
+     ],
+     [
+      32,
+      12
+     ],
+     [
+      0,
+      4
+     ]
+    ],
+    "hull",
+    14
+   ],
+   "at": [
+    135,
+    150,
+    118
+   ],
+   "tilt": -55
+  },
+  {
+   "name": "feed",
+   "shape": "strut",
+   "args": [
+    [
+     135,
+     150,
+     118
+    ],
+    [
+     163,
+     150,
+     140
+    ],
+    2.5,
+    "dark"
+   ]
+  },
+  {
+   "name": "panel",
+   "shape": "quad",
+   "args": [
+    [
+     210.2,
+     110,
+     12
+    ],
+    [
+     0,
+     40,
+     0
+    ],
+    [
+     0,
+     0,
+     20
+    ],
+    "window_lit"
+   ],
+   "glow": true
+  }
+ ],
+ "pivots": {
+  "dish": {
+   "at": [
+    135,
+    150,
+    118
+   ],
+   "parts": [
+    "dish",
+    "feed"
+   ]
+  }
+ }
+}

@@ -1,0 +1,138 @@
+{
+ "name": "Laser turret",
+ "footprint": [
+  1,
+  1
+ ],
+ "states": [
+  "damaged"
+ ],
+ "rubble_mat": "plating",
+ "parts": [
+  {
+   "name": "base",
+   "shape": "prism",
+   "args": [
+    54,
+    18,
+    "concrete",
+    8
+   ],
+   "at": [
+    80,
+    80,
+    0
+   ],
+   "turn": 22.5
+  },
+  {
+   "name": "pedestal",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      30,
+      0
+     ],
+     [
+      26,
+      30
+     ],
+     [
+      20,
+      34
+     ],
+     [
+      0,
+      34
+     ]
+    ],
+    "plating",
+    10
+   ],
+   "at": [
+    80,
+    80,
+    18
+   ]
+  },
+  {
+   "name": "head",
+   "shape": "box",
+   "args": [
+    54,
+    34,
+    26,
+    "hull@mil"
+   ],
+   "at": [
+    60,
+    63,
+    50
+   ]
+  },
+  {
+   "name": "barrel",
+   "shape": "cyl",
+   "args": [
+    [
+     114,
+     80,
+     64
+    ],
+    [
+     160,
+     80,
+     64
+    ],
+    5,
+    "dark"
+   ]
+  },
+  {
+   "name": "lens",
+   "shape": "sphere",
+   "args": [
+    6,
+    "glass"
+   ],
+   "at": [
+    162,
+    80,
+    64
+   ],
+   "glow": true
+  },
+  {
+   "name": "sensor",
+   "shape": "box",
+   "args": [
+    14,
+    14,
+    10,
+    "glass"
+   ],
+   "at": [
+    70,
+    73,
+    76
+   ],
+   "glow": true
+  }
+ ],
+ "pivots": {
+  "head": {
+   "at": [
+    80,
+    80,
+    0
+   ],
+   "parts": [
+    "head",
+    "barrel",
+    "lens",
+    "sensor"
+   ]
+  }
+ }
+}

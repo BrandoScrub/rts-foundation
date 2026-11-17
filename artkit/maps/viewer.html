@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>mapkit viewer</title><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{color-scheme:dark}
+body{margin:0;background:#16140f;color:#e8e2d0;font:14px/1.4 system-ui,sans-serif;display:flex;flex-direction:column;height:100vh}
+header{padding:10px 14px;background:#1f1c15;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #3a3322}
+label{display:inline-flex;gap:5px;align-items:center}input[type=number]{width:90px}select,input{background:#2a2619;color:#f1ead6;border:1px solid #4a4230;border-radius:4px;padding:3px 6px}
+button{background:#7a5a22;color:#fff;border:0;border-radius:4px;padding:5px 12px;cursor:pointer;font-weight:600}
+main{flex:1;display:flex;min-height:0}
+#mapwrap{flex:1;overflow:auto;background:#0e0d0a;padding:10px}
+canvas{image-rendering:pixelated;display:block}
+aside{width:380px;overflow:auto;padding:12px 14px;background:#1b1812;border-left:1px solid #3a3322}
+h3{margin:14px 0 6px;color:#ecc77f;font-size:14px;font-weight:600}
+.ch p{margin:0 0 6px}.ch b{color:#c8a05a}.m{font-size:13px;color:#b9b19a}
+.bad{color:#f08570;font-weight:600}.good{color:#9ed28f;font-weight:600}
+table{border-collapse:collapse;font-size:12px}td,th{padding:2px 7px;text-align:right;border-bottom:1px solid #332d1f}th:first-child,td:first-child{text-align:left}
+#tip{position:fixed;background:#000d;padding:4px 8px;border-radius:4px;font-size:12px;pointer-events:none;display:none;max-width:280px}
+.leg{display:inline-block;width:11px;height:11px;margin-right:4px;border-radius:2px;vertical-align:-1px}
+</style></head><body>
+<header><b style="color:#ecc77f">artkit.maps viewer</b>
+<label>Seed <input id="seed" type="number" value="1234"></label>
+<button id="roll">Reroll</button>
+<label>Size <select id="size"><option>120</option><option selected>180</option><option>240</option></select></label>
+<label>Template <select id="tpl"></select></label>
+<label>Biome <select id="bio"><option>lowlands</option><option>highlands</option><option>wastes</option></select></label>
+<span id="toggles"></span><span id="stat" class="m"></span></header>
+<main><div id="mapwrap"><canvas id="c"></canvas></div><aside id="side"></aside></main><div id="tip"></div>
+<script src="mapkit.js"></script>
+<script>/* templates from a style pack: viewer.html?style=<pack>, default brass_and_bone */document.write('<script src="../styles/'+(new URLSearchParams(location.search).get('style')||'brass_and_bone')+'/maps/templates.js"><\/script>')</script>
+<script>
+const $=s=>document.querySelector(s),tp=$('#tpl');for(const k in MK_TEMPLATES.all){const o=document.createElement('option');o.value=k;o.textContent=MK_TEMPLATES.all[k].name;tp.appendChild(o)}
+const LAYERS={districts:1,roads:1,approaches:1,chokes:1,sites:1,placements:1,land:1};let plan=null,S=4;
+const tg=$('#toggles');for(const k of Object.keys(LAYERS)){const id='t_'+k,l=document.createElement('label');l.innerHTML=`<input type="checkbox" id="${id}" checked>${k}`;tg.appendChild(l);l.querySelector('input').onchange=e=>{LAYERS[k]=e.target.checked;draw()}}
+const DCOL={core:[150,70,60],outskirts:[120,95,60],industrial:[100,85,110],farmland:[100,120,60],front:[110,90,50],wilds:[60,70,55]};
+const LANDCOL=[[86,96,62],[46,74,44],[110,100,90],[34,62,90],[58,50,42],[150,120,70]],ROAD=[[0,0,0],[120,100,70],[165,135,80],[200,160,100]];
+const ctxFor=(b,n)=>({biome:b,start:{x:n/2+.5,y:n/2+.5},ore:{lowlands:4,highlands:6,wastes:5}[b],edges:{n:{open:true,neighbor:true,infected:true,name:'Blighted Marsh'},s:{open:true,neighbor:true,name:'Oakwell'},e:{open:true,neighbor:true,name:'Cinderford'},w:{open:true,neighbor:false}},threatSide:'n',budget:{hamlets:Math.round(6*Math.pow(n/120,1.3)),caches:Math.round(40*(n/120)**2)}});
+function run(){const n=+$('#size').value,t=MK_TEMPLATES.all[tp.value],b=$('#bio').value;plan=MapKit.generate({seed:+$('#seed').value,w:n,h:n,template:t,context:ctxFor(b,n)});S=n>180?3:4;draw();side()}
+function draw(){const{w,h,grids:g}=plan,c=$('#c');c.width=w*S;c.height=h*S;const X=c.getContext('2d'),im=X.createImageData(w,h),d=im.data;
+ for(let i=0;i<w*h;i++){let col=LAYERS.land?LANDCOL[g.land[i]]:[40,40,36];if(LAYERS.districts){const dc=DCOL[plan.districts[g.district[i]]];if(dc)col=[col[0]*.6+dc[0]*.4,col[1]*.6+dc[1]*.4,col[2]*.6+dc[2]*.4]}if(LAYERS.roads&&g.roadClass[i])col=ROAD[g.roadClass[i]];if(g.ford[i])col=[80,140,190];const p=i*4;d[p]=col[0];d[p+1]=col[1];d[p+2]=col[2];d[p+3]=255}
+ const tmp=document.createElement('canvas');tmp.width=w;tmp.height=h;tmp.getContext('2d').putImageData(im,0,0);X.imageSmoothingEnabled=false;X.drawImage(tmp,0,0,w*S,h*S);
+ if(LAYERS.approaches){plan.approaches.forEach((a,k)=>{X.strokeStyle=a.fromSite?'rgba(255,190,70,.5)':['#ff5c4a','#ff9e3c','#ffd84a','#ff6ad0','#7ad8ff'][k%5];X.lineWidth=a.fromSite?1:2;X.beginPath();a.path.forEach((p,i)=>{const x=(p%w+.5)*S,y=((p/w|0)+.5)*S;i?X.lineTo(x,y):X.moveTo(x,y)});X.stroke()})}
+ if(LAYERS.chokes){for(const a of plan.approaches)for(const c2 of a.chokepoints){X.fillStyle={bridge:'#6bd',ford:'#8cd',gap:'#fc8',narrow:'#fff',trench:'#f8b',checkpoint:'#fa0'}[c2.kind]||'#fff';X.fillRect((c2.x-.5)*S,(c2.y-.5)*S,S*2,S*2)}}
+ if(LAYERS.sites){X.font='11px system-ui';X.textBaseline='middle';for(const s of plan.sites){const col=s.tags.includes('start')?'#ffe28a':s.seat?'#ff9c5a':'#fff';X.fillStyle=col;X.beginPath();X.arc((s.x+.5)*S,(s.y+.5)*S,s.seat?5:3,0,7);X.fill();if(!s.tags.includes('crossing')&&!s.tags.includes('gate')&&s.importance>=2){X.strokeStyle='#000';X.lineWidth=3;X.strokeText(s.name,(s.x+1.5)*S,(s.y)*S);X.fillStyle='#fff';X.fillText(s.name,(s.x+1.5)*S,(s.y)*S)}}}
+ if(LAYERS.placements){for(const p of plan.placements){const x=p.x*S,y=p.y*S;if(p.type==='loot'){X.fillStyle='#ffd24a';X.fillRect(x,y,S,S)}else if(p.type==='blocker'){X.fillStyle='#ff2d8a';X.fillRect(x,y,S*3,S*3)}else if(p.type==='threat'&&(p.kind==='hamlet'||p.kind==='stronghold')){X.fillStyle=p.kind==='stronghold'?'#ff3030':'#c04ac0';X.fillRect(x,y,S*3,S*3)}else if(p.type==='threat'){X.fillStyle='rgba(255,70,70,.55)';X.fillRect(x+S*.2,y+S*.2,S*.6,S*.6)}else if(p.kind==='wreck'){X.fillStyle='#ffb07a';X.fillRect(x,y,S,S)}else{X.fillStyle='#9ed8a8';X.fillRect(x,y,S,S)}}}}
+function side(){const p=plan,m=p.metrics;let h=`<h3>${MK_TEMPLATES.all[p.template].name}</h3><p class="m">${MK_TEMPLATES.all[p.template].desc}</p><p class="${m.ok?'good':'bad'}">Validation: ${m.ok?'all pass':m.fails.join(', ')}</p>`;
+ h+=`<p class="m">Generated in ${p.ms} ms. ${m.hamlets}/${m.hamletGoal} hamlets, ${m.caches} caches, ${m.gates} gates, ${m.approaches} approaches, ${m.chokes} chokepoints, core share ${m.coreLootShare}, core ${m.seatRoad} by road, core density ×${m.coreDensityRatio}.</p>`;
+ h+=`<h3>Rings by travel from the start</h3><table><tr><th>ring</th><th>loot</th><th>value</th><th>threat</th><th>buildable</th><th>blockers</th></tr>${m.rings.map(q=>`<tr><td>${['0–22','22–42','42–62','62+'][q.ring]}</td><td>${q.loot}</td><td>${q.lootV}</td><td>${q.threat}</td><td>${q.buildable}</td><td>${q.blockers}</td></tr>`).join('')}</table>`;
+ h+=`<h3>Approaches</h3><div class="ch">${p.approaches.filter(a=>!a.fromSite).map(a=>`<p><b>${a.name}</b> (weight ${a.weight}, ${a.path.length} tiles, chokepoints: ${a.chokepoints.map(c=>c.kind).join(', ')||'none'})</p>`).join('')}</div>`;
+ h+=`<h3>Chronicle</h3><div class="ch">${p.chronicle.map(c=>`<p><b>${c.era}.</b> ${c.text}</p>`).join('')}</div>`;
+ h+=`<h3>Sites</h3><p class="m">${p.sites.filter(s=>!s.tags.includes('crossing')).map(s=>`${s.name} (${s.kind})`).join(', ')}</p>`;
+ h+=`<h3>Legend</h3><p class="m"><span class="leg" style="background:#ff2d8a"></span>blocker <span class="leg" style="background:#c04ac0"></span>hamlet <span class="leg" style="background:#f33"></span>stronghold <span class="leg" style="background:#ffd24a"></span>loot <span class="leg" style="background:#ffb07a"></span>wreck <span class="leg" style="background:#9ed8a8"></span>prop</p>`;
+ $('#side').innerHTML=h}
+$('#c').onmousemove=e=>{if(!plan)return;const r=$('#c').getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/S),y=Math.floor((e.clientY-r.top)/S),i=y*plan.w+x,tip=$('#tip');let t=`${x},${y} ${MapKit.LAND_NAMES[plan.grids.land[i]]}, ${plan.districts[plan.grids.district[i]]}`;const near=plan.placements.find(p=>Math.abs(p.x-x)<3&&Math.abs(p.y-y)<3&&p.type!=='prop');if(near){const st=plan.sites.find(s=>s.id===near.siteId);t+=`\\n${near.type} ${near.kind}${st?' at '+st.name:''} (${near.beatId||''})`}tip.textContent=t;tip.style.display='block';tip.style.left=e.clientX+14+'px';tip.style.top=e.clientY+10+'px'};$('#c').onmouseleave=()=>$('#tip').style.display='none';
+$('#roll').onclick=()=>{$('#seed').value=(Math.random()*1e9)|0;run()};for(const id of ['#seed','#size','#tpl','#bio'])$(id).onchange=run;run();
+</script></body></html>

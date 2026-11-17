@@ -1,0 +1,103 @@
+{
+ "_about": "Frontier Outpost's HUD: white composite panels, orange hazard trim instead of brass, teal glow. Same shapes as every artkit.hud skin.",
+ "seeds": [
+  2207,
+  2208
+ ],
+ "plate": {
+  "lo": [
+   150,
+   154,
+   156
+  ],
+  "hi": [
+   206,
+   210,
+   210
+  ],
+  "rust": [
+   170,
+   96,
+   60
+  ]
+ },
+ "brass": [
+  [
+   60,
+   28,
+   10
+  ],
+  [
+   120,
+   52,
+   18
+  ],
+  [
+   196,
+   92,
+   30
+  ],
+  [
+   226,
+   124,
+   44
+  ],
+  [
+   246,
+   168,
+   92
+  ],
+  [
+   252,
+   214,
+   170
+  ]
+ ],
+ "outline": [
+  18,
+  22,
+  26
+ ],
+ "groove": [
+  40,
+  46,
+  52
+ ],
+ "edge": [
+  16,
+  20,
+  24
+ ],
+ "backing": [
+  14,
+  30,
+  34
+ ],
+ "slot_tint": [
+  -60,
+  -48,
+  -40
+ ],
+ "slot_glow": [
+  40,
+  150,
+  160
+ ],
+ "bay_tint": [
+  -40,
+  -34,
+  -30
+ ],
+ "bay_rim": [
+  [
+   18,
+   22,
+   26
+  ],
+  [
+   220,
+   224,
+   226
+  ]
+ ]
+}

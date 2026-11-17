@@ -1,0 +1,148 @@
+{
+ "name": "Landing pad",
+ "footprint": [
+  3,
+  3
+ ],
+ "states": [
+  "build",
+  "damaged"
+ ],
+ "rubble_mat": "concrete",
+ "scaffold_mat": "grate",
+ "parts": [
+  {
+   "name": "pad",
+   "shape": "prism",
+   "args": [
+    205,
+    10,
+    "concrete",
+    8
+   ],
+   "at": [
+    240,
+    240,
+    0
+   ],
+   "turn": 22.5
+  },
+  {
+   "name": "deck",
+   "shape": "prism",
+   "args": [
+    188,
+    3,
+    "grate",
+    8
+   ],
+   "at": [
+    240,
+    240,
+    10
+   ],
+   "turn": 22.5
+  },
+  {
+   "name": "stripe_a",
+   "shape": "quad",
+   "args": [
+    [
+     150,
+     226,
+     13.2
+    ],
+    [
+     180,
+     0,
+     0
+    ],
+    [
+     0,
+     28,
+     0
+    ],
+    "hazard_h"
+   ]
+  },
+  {
+   "name": "stripe_b",
+   "shape": "quad",
+   "args": [
+    [
+     226,
+     150,
+     13.3
+    ],
+    [
+     28,
+     0,
+     0
+    ],
+    [
+     0,
+     180,
+     0
+    ],
+    "hazard_v"
+   ]
+  },
+  {
+   "name": "lights",
+   "shape": "prism",
+   "args": [
+    5,
+    6,
+    "orange",
+    6
+   ],
+   "at": [
+    240,
+    58,
+    12
+   ],
+   "glow": true,
+   "repeat": {
+    "count": 8,
+    "turn": 45,
+    "around": [
+     240,
+     240
+    ]
+   }
+  },
+  {
+   "name": "fuel",
+   "use": "tank",
+   "args": {
+    "r": 22,
+    "h": 40,
+    "mat": "hull"
+   },
+   "at": [
+    400,
+    30,
+    0
+   ]
+  },
+  {
+   "name": "hose",
+   "use": "cable",
+   "args": {
+    "a": [
+     420,
+     74,
+     40
+    ],
+    "b": [
+     330,
+     170,
+     12
+    ],
+    "sag": 12,
+    "r": 2.2,
+    "mat": "rubber"
+   }
+  }
+ ]
+}

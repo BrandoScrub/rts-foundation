@@ -1,0 +1,329 @@
+{
+ "name": "Point-defence laser turret (blockout)",
+ "brief": {
+  "is": "point-defence laser turret",
+  "does": "tracks and burns small fast targets (drones, missiles) near the base",
+  "gameplay": "static defence, 1x1 tile, turns 360, the player must read where it is aiming",
+  "power": "mains power through a buried cable into the pedestal; heat dumped through a rear radiator",
+  "moves": "yaw on a ring bearing; pitch on trunnions, -10 to +70 degrees",
+  "built": "factory-made head bolted onto a cast pedestal on a poured pad",
+  "serviced": "access panel on the pedestal; the head lifts off the ring",
+  "made_of": "composite shell, steel mechanism, glass optics",
+  "faction": "frontier colonists: practical, modular, a little worn",
+  "references": [
+   "Phalanx CIWS: one rotating mount carries weapon, sensor and feed",
+   "naval gun mounts: ring, trunnions between cheeks, mantlet, weight behind the axis"
+  ],
+  "read_at_play_size": "a column with a heavy head and a long barrel that points somewhere",
+  "stage": "blockout: primary and secondary masses only; access panel, conduit, fins and team panel come with detail"
+ },
+ "footprint": [
+  1,
+  1
+ ],
+ "states": [
+  "damaged"
+ ],
+ "rubble_mat": "plating",
+ "parts": [
+  {
+   "name": "pad",
+   "why": "poured foundation that spreads the load; an octagon fits the tile and reads as built, not dropped",
+   "shape": "prism",
+   "args": [
+    60,
+    8,
+    "concrete",
+    8
+   ],
+   "at": [
+    80,
+    80,
+    0
+   ],
+   "turn": 22.5
+  },
+  {
+   "name": "flange",
+   "why": "where the cast pedestal is bolted to the pad: a wider foot at the joint",
+   "shape": "prism",
+   "args": [
+    32,
+    6,
+    "plating",
+    16
+   ],
+   "at": [
+    80,
+    80,
+    8
+   ]
+  },
+  {
+   "name": "pedestal",
+   "why": "houses the yaw motor and slip ring; its height lifts the bore to about 1.75 m",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      26,
+      0
+     ],
+     [
+      23,
+      40
+     ],
+     [
+      0,
+      40
+     ]
+    ],
+    "plating",
+    16
+   ],
+   "at": [
+    80,
+    80,
+    14
+   ]
+  },
+  {
+   "name": "ring",
+   "why": "the ring bearing the head turns on: a dark lip wider than the pedestal says 'this rotates'",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      31,
+      0
+     ],
+     [
+      31,
+      4
+     ],
+     [
+      0,
+      4
+     ]
+    ],
+    "steel",
+    24
+   ],
+   "at": [
+    80,
+    80,
+    54
+   ]
+  },
+  {
+   "name": "drum",
+   "why": "rotating housing (power conditioning) on the ring: round because it turns, narrower than the ring so the ring still shows",
+   "shape": "lathe",
+   "args": [
+    [
+     [
+      28,
+      0
+     ],
+     [
+      28,
+      12
+     ],
+     [
+      24,
+      16
+     ],
+     [
+      0,
+      16
+     ]
+    ],
+    "hull",
+    20
+   ],
+   "at": [
+    80,
+    80,
+    58
+   ]
+  },
+  {
+   "name": "cheek_l",
+   "why": "thin upright plate carrying the pitch axis; lower than the cradle so the cradle reads as the thing that tilts",
+   "shape": "box",
+   "args": [
+    26,
+    6,
+    26,
+    "hull"
+   ],
+   "at": [
+    67,
+    63,
+    74
+   ]
+  },
+  {
+   "name": "cheek_r",
+   "why": "the other side plate of the pitch axis",
+   "shape": "box",
+   "args": [
+    26,
+    6,
+    26,
+    "hull"
+   ],
+   "at": [
+    67,
+    91,
+    74
+   ]
+  },
+  {
+   "name": "trunnion_l",
+   "why": "the visible pitch pivot, on the axis through both cheeks",
+   "shape": "cyl",
+   "args": [
+    [
+     80,
+     59,
+     92
+    ],
+    [
+     80,
+     63,
+     92
+    ],
+    6,
+    "steel"
+   ]
+  },
+  {
+   "name": "trunnion_r",
+   "why": "the other end of the pitch axis",
+   "shape": "cyl",
+   "args": [
+    [
+     80,
+     97,
+     92
+    ],
+    [
+     80,
+     101,
+     92
+    ],
+    6,
+    "steel"
+   ]
+  },
+  {
+   "name": "cradle",
+   "why": "the emitter body, centred on the pitch axis so it balances; clear of the drum so it can tilt",
+   "shape": "box",
+   "args": [
+    56,
+    22,
+    18,
+    "hull@mil"
+   ],
+   "at": [
+    52,
+    69,
+    83
+   ]
+  },
+  {
+   "name": "radiator",
+   "why": "lasers make heat: a narrower block at the back of the cradle dumps it and counterweights the barrel",
+   "shape": "box",
+   "args": [
+    16,
+    18,
+    14,
+    "plating"
+   ],
+   "at": [
+    36,
+    71,
+    85
+   ]
+  },
+  {
+   "name": "shroud",
+   "why": "heavy base of the emitter where it leaves the cradle (the mantlet); tapers into the tube",
+   "shape": "cyl",
+   "args": [
+    [
+     108,
+     80,
+     92
+    ],
+    [
+     124,
+     80,
+     92
+    ],
+    8,
+    "steel",
+    6
+   ]
+  },
+  {
+   "name": "emitter",
+   "why": "the lens tube the beam leaves along: the long thin line that says where it aims",
+   "shape": "cyl",
+   "args": [
+    [
+     124,
+     80,
+     92
+    ],
+    [
+     180,
+     80,
+     92
+    ],
+    3.5,
+    "steel"
+   ]
+  },
+  {
+   "name": "sensor",
+   "why": "tracking optic on the right cheek, lens forward, so it pitches with the emitter",
+   "shape": "box",
+   "args": [
+    14,
+    8,
+    10,
+    "glass"
+   ],
+   "at": [
+    76,
+    101,
+    87
+   ]
+  }
+ ],
+ "pivots": {
+  "head": {
+   "at": [
+    80,
+    80,
+    0
+   ],
+   "parts": [
+    "drum",
+    "cheek_l",
+    "cheek_r",
+    "trunnion_l",
+    "trunnion_r",
+    "cradle",
+    "radiator",
+    "shroud",
+    "emitter",
+    "sensor"
+   ]
+  }
+ }
+}

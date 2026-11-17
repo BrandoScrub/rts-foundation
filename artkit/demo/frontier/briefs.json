@@ -1,0 +1,10 @@
+[
+ {"key": "ops", "name": "Operations Centre", "footprint": [3, 3], "role": "command", "rank": "landmark", "mood": "siege",
+  "mechanic": "Colony headquarters: landing clearance, comms and the colony's stores.", "shows": ["crates", "tank"]},
+ {"key": "hab", "name": "Habitat", "footprint": [2, 2], "role": "home", "rank": "minor", "mood": "calm",
+  "mechanic": "Pressurised quarters for eight colonists.", "shows": ["tank"]},
+ {"key": "smelter", "name": "Smelter", "footprint": [3, 2], "role": "industry", "rank": "major", "mood": "work",
+  "mechanic": "Turns ore into plating.", "shows": ["ore", "barrels", "fuel"]},
+ {"key": "lab", "name": "Survey Lab", "footprint": [2, 2], "role": "science", "rank": "minor", "mood": "work",
+  "mechanic": "Researches new modules.", "shows": ["crates"]}
+]
