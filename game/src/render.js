@@ -8,7 +8,7 @@ const iso = (x, y, z = 0) => [(x - y) * TW / 2, (x + y) * TH / 2 - z * EL];
 const Render = (() => {
   let W, ctx, canvas, cam = { x: 0, y: 0, zoom: 1 }, vw = 0, vh = 0, dpr = 1;
   const chunks = new Map(); const CHUNK_MAX = 60;
-  const TERR_COL = [[92, 132, 58], [80, 120, 50], [138, 110, 72], [62, 92, 44], [128, 124, 110], [190, 172, 120]];
+  const TERR_COL = [[92, 132, 58], [80, 120, 50], [138, 110, 72], [62, 92, 44], [128, 124, 110], [190, 172, 120], [46, 92, 140], [96, 140, 150]];
 
   function init(world, cv) {
     W = world; canvas = cv;
@@ -63,6 +63,7 @@ const Render = (() => {
       for (let k = 0; k < 4; k++) {
         const r1 = hash(x * 7 + k, y * 13 - k), r2 = hash(y * 5 + k, x * 3 + k * 7);
         const px = cxp + (r1 - 0.5) * TW * 0.7, py = cyp + (r2 - 0.5) * TH * 0.7;
+        if (t === 6 || t === 7) { if (k < 2) { g.strokeStyle = 'rgba(200,230,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(px - 5, py); g.quadraticCurveTo(px, py - 2, px + 5, py); g.stroke(); } continue; }
         const tone = t === 2 || t === 5 || t === 4 ? 0.82 : 1.18;
         g.fillStyle = `rgba(${base[0] * tone | 0},${base[1] * tone | 0},${base[2] * tone | 0},0.8)`;
         if (t === 0 || t === 1 || t === 3) g.fillRect(px, py, 1.5, 3); else g.fillRect(px, py, 2.5, 1.5);

@@ -5,7 +5,12 @@ let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); i
 const run = (w, s) => { for (let i = 0; i < 30 * s; i++) w.step(1 / 30); };
 const w = new World(7), m = w.map, P = w.players[0];
 let sym = true; for (let y = 0; y < 300; y++) for (let x = 0; x < 300; x++) if (m.node[y * 300 + x] !== m.node[(299 - y) * 300 + 299 - x]) sym = false;
-ok(sym, 'resources are point-symmetric between the two corners');
+for (let i = 0; i < 90000; i++) if (m.water[i] !== m.water[89999 - i]) sym = false;
+ok(sym, 'resources and the river are point-symmetric between the two corners');
+{ let deep = 0, ford = 0; for (const v of m.water) { if (v === 1) deep++; if (v === 2) ford++; }
+  ok(deep > 1000 && ford > 100, `a river with fords runs between the players (deep ${deep}, ford ${ford})`);
+  const Path = require('../game/src/path.js'); const r = Path.find(36, 38, [262, 262, 262, 262], i => w.walkable(i, 0), 0, 200000);
+  ok(r.reached, 'a unit can walk from one base to the other across a ford'); }
 ok(w.ents.filter(e => e.type === 'town_hall').length === 2, 'two Town Halls in opposite corners');
 ok(P.pop === 4 && P.popCap === 5, 'start: 3 peasants + scout, population 4/5 (AoE2)');
 const near = t => { let b = -1, bd = 1e9; for (let i = 0; i < m.node.length; i++) if (m.node[i] === t) { const d = Math.hypot(i % 300 - 34, (i / 300 | 0) - 34); if (d < bd) { bd = d; b = i; } } return b; };

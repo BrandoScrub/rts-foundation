@@ -81,7 +81,7 @@ class World {
   /* ------------------------------------------------------------ geometry */
   h(x, y) { return MapGen.tileH(this.map, x, y); }
   walkable(i, owner) {
-    if (this.map.node[i]) return false;
+    if (this.map.node[i] || this.map.water[i] === 1) return false;
     const b = this.occ[i]; if (!b) return true;
     const e = this.byId.get(b); if (!e) return true;
     return !!(e.D.walk || (e.D.gate && e.built && e.owner === owner));
@@ -128,7 +128,7 @@ class World {
     let lo = 99, hi = -1;
     for (let y = ty; y < ty + s; y++) for (let x = tx; x < tx + s; x++) {
       const i = y * this.W + x;
-      if (this.map.node[i] || this.occ[i]) return false;
+      if (this.map.node[i] || this.occ[i] || this.map.water[i]) return false;
       if (p === 0 && !this.players[0].explored[i]) return false;
     }
     for (let y = ty; y <= ty + s; y++) for (let x = tx; x <= tx + s; x++) { const v = this.map.hc[y * (this.W + 1) + x]; lo = Math.min(lo, v); hi = Math.max(hi, v); }

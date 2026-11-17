@@ -2,7 +2,7 @@
    wildlife, creep camps. Two players in opposite corners; everything is point-symmetric so both starts are equal. */
 'use strict';
 const MapGen = (() => {
-  const T = { GRASS: 0, GRASS2: 1, DIRT: 2, FOREST: 3, ROCK: 4, SAND: 5 };
+  const T = { GRASS: 0, GRASS2: 1, DIRT: 2, FOREST: 3, ROCK: 4, SAND: 5, WATER: 6, FORD: 7 };
   const N = { NONE: 0, TREE: 1, BERRY: 2, STONE: 3, IRON: 4, CRYSTAL: 5 };
   const NODE_KEY = [null, 'tree', 'berry', 'stone', 'iron', 'crystal'];
   const MAXH = 6;
@@ -26,7 +26,7 @@ const MapGen = (() => {
   function generate(seed = 1, W = 300, H = 300) {
     const R = rng(seed);
     const m = { W, H, seed, terr: new Uint8Array(W * H), node: new Uint8Array(W * H), amt: new Float32Array(W * H),
-      ward: new Int16Array(W * H).fill(-1), hc: new Uint8Array((W + 1) * (H + 1)), spawns: [], camps: [], starts: [] };
+      ward: new Int16Array(W * H).fill(-1), water: new Uint8Array(W * H), hc: new Uint8Array((W + 1) * (H + 1)), spawns: [], camps: [], starts: [] };
     const idx = (x, y) => y * W + x, inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
     const mir = (x, y) => [W - 1 - x, H - 1 - y];
 
@@ -52,6 +52,23 @@ const MapGen = (() => {
     };
     for (const [x, y] of starts) flatten(x, y, 12, 8);
     flatten(150, 150, 9, 6);
+    /* ---- the river: corner to corner between the players, along x + y = W - 1, wandering by an odd function of
+       (x - y) so the map stays point-symmetric. Deep water blocks; fords (the centre, guarded by the Ogre
+       Stronghold, and two pairs further out) are shallow and walkable. ---- */
+    const sg = R() < 0.5 ? 1 : -1, A1 = 7 + R() * 4, A2 = 3 + R() * 2;
+    const wander = t => sg * A1 * Math.sin(t / 37) + A2 * Math.sin(t / 13);   // odd in t: keeps the mirror
+    const FORDS = [0, 95, -95, 190, -190], HALF = 3.2;
+    m.river = { wander, half: HALF, fords: FORDS };
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const t = x - y, off = (x + y) - (W - 1) - wander(t);
+      if (Math.abs(off) > HALF) continue;
+      const ford = FORDS.some(f => Math.abs(t - f) < (f === 0 ? 16 : 7));
+      m.water[y * W + x] = ford ? 2 : 1;
+    }
+    for (let y = 0; y <= H; y++) for (let x = 0; x <= W; x++) {   // the valley floor
+      const t = x - y, off = Math.abs((x + y) - W - wander(t));
+      if (off < HALF + 2) hf[y * (W + 1) + x] = Math.min(hf[y * (W + 1) + x], 0);
+    }
     for (let i = 0; i < hf.length; i++) m.hc[i] = Math.max(0, Math.min(MAXH, Math.round(hf[i])));
     for (let pass = 0; pass < 8; pass++) {          // no cliffs: neighbours differ by at most one level
       let changed = false;
@@ -73,12 +90,13 @@ const MapGen = (() => {
       const [mx, my] = mir(x, y), v = (gn(x, y) + gn(mx, my)) / 2, s = (sn(x, y) + sn(mx, my)) / 2, h = tileH(m, x, y);
       m.terr[idx(x, y)] = h >= 4.5 ? T.ROCK : s > 0.78 ? T.SAND : v > 0.55 ? T.GRASS2 : T.GRASS;
     }
+    for (let i = 0; i < W * H; i++) if (m.water[i]) m.terr[i] = m.water[i] === 1 ? T.WATER : T.FORD;
     for (const [cx, cy] of starts) for (let y = cy - 9; y < cy + 9; y++) for (let x = cx - 9; x < cx + 9; x++)
       if (inb(x, y) && Math.hypot(x + 0.5 - cx, y + 0.5 - cy) < 7 + R() * 2.5) m.terr[idx(x, y)] = T.DIRT;
 
     /* ---- placement helpers (P1 side; every placement is mirrored) ---- */
     const reserved = new Uint8Array(W * H);   // keep clear: town halls, camp floors
-    const free = (x, y) => inb(x, y) && !m.node[idx(x, y)] && !reserved[idx(x, y)];
+    const free = (x, y) => inb(x, y) && !m.node[idx(x, y)] && !reserved[idx(x, y)] && !m.water[idx(x, y)];
     const freeBoth = (x, y) => { const [a, b] = mir(x, y); return free(x, y) && free(a, b) && !(a === x && b === y); };
     function put(x, y, type, amount, ward = -1) {
       for (const [px, py] of [[x, y], mir(x, y)]) {
@@ -148,6 +166,7 @@ const MapGen = (() => {
       const [x, y] = polar(sx, sy, d0, d1, -0.2, Math.PI / 2 + 0.2);
       if (!inb(x - 6, y - 6) || !inb(x + 6, y + 6) || !p1side(x, y, 40)) continue;
       let ok = true; for (const c of m.camps) if (Math.hypot(c.x - x, c.y - y) < 26) ok = false;
+      for (let b = y - 4; b <= y + 4 && ok; b++) for (let a = x - 4; a <= x + 4; a++) if (m.water[idx(a, b)]) { ok = false; break; }
       if (ok) return [x, y]; } return null; };
     for (const [type, d0, d1] of [['wolf_den', 38, 55], ['wolf_den', 38, 60], ['goblin_post', 60, 90], ['goblin_post', 60, 95], ['ogre_lair', 95, 135]]) {
       const p = campSpot(d0, d1); if (p) camp(type, p[0], p[1]);
