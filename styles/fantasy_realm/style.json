@@ -1,6 +1,6 @@
 {
  "name": "Fantasy Realm",
- "about": "RTS Foundation's style pack: a bright storybook fantasy realm (Warcraft III's colour, AoE2's readability). Ground recipes in terrain.json; building blockouts in blockouts/ (masses and material colours only, no detail yet).",
+ "about": "RTS Foundation's style pack: a dark storybook fantasy realm. Ground recipes in terrain.json; buildings in blockouts/; figures in units.py; trees, ore and camps in props.py. One set of materials (procedural), one light, cast shadows as their own pictures (shadow).",
  "terrain": "terrain.json",
  "tile_units": 128,
  "tile_px": 128,
@@ -101,6 +101,134 @@
     60
    ],
    "plain"
+  ],
+  "bark": [
+   [
+    58,
+    44,
+    34
+   ],
+   "wood"
+  ],
+  "leaf": [
+   [
+    52,
+    84,
+    44
+   ],
+   "wool"
+  ],
+  "leaf_dark": [
+   [
+    34,
+    62,
+    38
+   ],
+   "wool"
+  ],
+  "pine": [
+   [
+    38,
+    70,
+    56
+   ],
+   "wool"
+  ],
+  "pine_dark": [
+   [
+    26,
+    52,
+    46
+   ],
+   "wool"
+  ],
+  "quarry": [
+   [
+    168,
+    164,
+    154
+   ],
+   "rock"
+  ],
+  "ore_rock": [
+   [
+    62,
+    66,
+    78
+   ],
+   "rock"
+  ],
+  "rust": [
+   [
+    138,
+    74,
+    42
+   ],
+   "rock"
+  ],
+  "berry": [
+   [
+    178,
+    34,
+    48
+   ],
+   "plain"
+  ],
+  "bone": [
+   [
+    206,
+    196,
+    170
+   ],
+   "plain"
+  ],
+  "hide": [
+   [
+    122,
+    92,
+    62
+   ],
+   "leather"
+  ],
+  "glow": [
+   [
+    120,
+    236,
+    255
+   ],
+   "plain"
+  ],
+  "bane": [
+   [
+    255,
+    70,
+    190
+   ],
+   "plain"
+  ],
+  "relic": [
+   [
+    255,
+    214,
+    106
+   ],
+   "plain"
+  ],
+  "crop": [
+   [
+    150,
+    138,
+    62
+   ],
+   "wool"
+  ],
+  "soil": [
+   [
+    70,
+    54,
+    40
+   ],
+   "dust"
   ]
  },
  "team_colors": {
@@ -120,5 +248,19 @@
   "figure": 100,
   "door": 96
  },
- "look": "Darker, more fantasy, realistic (user, Nov 17): weathered stone and dark timber, muted player colours, steep spires; figures oversized for visibility."
+ "look": "Darker, more fantasy, realistic (user, Nov 17): weathered stone and dark timber, muted player colours, steep spires; figures oversized for visibility.",
+ "shadow": {
+  "length": 0.72,
+  "dir": [
+   2,
+   1
+  ],
+  "opacity": 0.5,
+  "blur": 2.0,
+  "color": [
+   10,
+   12,
+   10
+  ]
+ }
 }

@@ -77,10 +77,10 @@ const UI = (() => {
   function pickNode(px, py, touch) {
     const [wx, wy] = R.toWorld(px, py), P = W.players[0], k = R.cam.zoom, slop = touch ? 8 : 0;
     let best = -1, dep = -1e9;
-    for (let ty = Math.floor(wy) - 1; ty <= Math.floor(wy) + 3; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 3; tx++) {
+    for (let ty = Math.floor(wy) - 1; ty <= Math.floor(wy) + 5; ty++) for (let tx = Math.floor(wx) - 1; tx <= Math.floor(wx) + 5; tx++) {
       if (tx < 0 || ty < 0 || tx >= W.W || ty >= W.H) continue;
       const i = ty * W.W + tx, n = W.map.node[i]; if (!n || !P.explored[i]) continue;
-      const [sx, sy] = R.toScreen(tx + 0.5, ty + 0.5, W.h(tx + 0.5, ty + 0.5)), tall = (n === 1 ? 52 : n === 6 ? 8 : 20) * k, half = (n === 1 ? 15 : 14) * k + slop;
+      const [sx, sy] = R.toScreen(tx + 0.5, ty + 0.5, W.h(tx + 0.5, ty + 0.5)), tall = (n === 1 ? 92 : n === 6 ? 8 : 26) * k, half = (n === 1 ? 15 : 14) * k + slop;
       if (px < sx - half || px > sx + half || py < sy - tall - slop || py > sy + 8 * k + slop) continue;
       if (tx + ty > dep) { dep = tx + ty; best = i; }   // the front-most sprite under the finger
     }

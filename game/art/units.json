@@ -36,7 +36,8 @@
     53.0,
     82.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "militia": {
    "parts": 19,
@@ -52,7 +53,8 @@
     53.0,
     82.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "militia_maa": {
    "parts": 21,
@@ -68,7 +70,8 @@
     56.5,
     90.0
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "spearman": {
    "parts": 19,
@@ -84,7 +87,8 @@
     60.0,
     106.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "ogre": {
    "parts": 19,
@@ -99,7 +103,8 @@
     70.5,
     90.4
    ],
-   "draw": 0.8625
+   "draw": 0.8625,
+   "shadow": true
   },
   "archer": {
    "parts": 20,
@@ -115,7 +120,8 @@
     58.0,
     86.39999999999999
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "skirmisher": {
    "parts": 19,
@@ -131,7 +137,8 @@
     43.5,
     69.6
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "goblin": {
    "parts": 17,
@@ -146,7 +153,8 @@
     48.0,
     72.0
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "scout": {
    "parts": 17,
@@ -162,7 +170,8 @@
     80.5,
     115.19999999999999
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "sheep": {
    "parts": 14,
@@ -177,7 +186,8 @@
     36.0,
     34.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "wolf": {
    "parts": 15,
@@ -192,7 +202,8 @@
     65.0,
     60.0
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "boar": {
    "parts": 15,
@@ -207,7 +218,8 @@
     50.5,
     43.199999999999996
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "deer": {
    "parts": 15,
@@ -222,7 +234,8 @@
     58.0,
     64.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "villager_pick": {
    "parts": 18,
@@ -238,7 +251,8 @@
     53.0,
     82.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "villager_hammer": {
    "parts": 18,
@@ -254,7 +268,8 @@
     53.0,
     82.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   },
   "villager_hoe": {
    "parts": 18,
@@ -270,7 +285,8 @@
     53.0,
     82.8
    ],
-   "draw": 0.575
+   "draw": 0.575,
+   "shadow": true
   }
  }
 }

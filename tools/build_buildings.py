@@ -10,6 +10,7 @@ sys.path.insert(0, ROOT)
 from artkit.style import Style
 from artkit.core.materials import Materials, Material, procedural
 from artkit.sprite import picture
+from artkit import shadow as SH
 from styles.fantasy_realm.blockouts.buildings import CATALOG
 
 OUT = os.path.join(ROOT, 'game', 'art')
@@ -23,12 +24,22 @@ def materials(st, team_rgb):
         rgb, kind = P[base]
         if base == 'roof': rgb, kind = list(t * 0.52 + 16), 'wood'       # roofs: the player colour, dark and muted (slate with a tint)
         if base == 'team': rgb, kind = list(t * 0.82 + 8), 'plain'
-        return Material(procedural(rgb, kind, seed=sum(map(ord, base))).astype(np.float32), 'tile', 48 / 128, base == 'ember')
+        return Material(procedural(rgb, kind, seed=sum(map(ord, base))).astype(np.float32), 'tile', 48 / 128, base in ('ember', 'glow', 'bane', 'relic'))
     return Materials(fallback=fb)
 
 
+def shadow_meta(g, rules, fp, m, path):
+    """The cast shadow as its own picture (artkit.shadow), and where the footprint centre is in it: the sprite and
+    its shadow share the footprint's near corner, so the centre is that corner minus the sprite's own offset."""
+    if rules is None: return None
+    im, sm = SH.picture(g, rules, scale=0.4, footprint=fp)
+    if im is None: return None
+    im.convert('LA').save(path, optimize=True)      # one colour and alpha: a few kB
+    return {'w': im.size[0], 'h': im.size[1], 'cx': round(sm['near_corner'][0] - (m['near_corner'][0] - m['centre'][0]), 2), 'cy': round(sm['near_corner'][1] - (m['near_corner'][1] - m['centre'][1]), 2)}
+
+
 def main():
-    st = Style.load('fantasy_realm'); os.makedirs(OUT, exist_ok=True); bad = 0
+    st = Style.load('fantasy_realm'); os.makedirs(OUT, exist_ok=True); bad = 0; rules = SH.Shadow.from_pack(st.cfg.get('shadow'))
     only = sys.argv[sys.argv.index('--only') + 1].split(',') if '--only' in sys.argv else None      # --only key,key or a prefix: palisade
     mf = os.path.join(OUT, 'buildings.json'); meta = json.load(open(mf))['buildings'] if only and os.path.exists(mf) else {}
     for key, fn in CATALOG.items():
@@ -40,6 +51,8 @@ def main():
             im, m = picture(g, st, footprint=fp, scale=0.4, mats=materials(st, rgb))
             im.save(os.path.join(OUT, f'b_{key}_{p}.png'))
         meta[key] = {'w': im.size[0], 'h': im.size[1], 'cx': m['centre'][0], 'cy': m['centre'][1], 'parts': len(b.why)}
+        s = shadow_meta(g, rules, fp, m, os.path.join(OUT, f'b_{key}_s.png'))
+        if s: meta[key]['s'] = s
         print(key, im.size, m['centre'])
     json.dump({'players': sorted(st.cfg['team_colors']), 'buildings': meta}, open(os.path.join(OUT, 'buildings.json'), 'w'), indent=1)
     return 1 if bad else 0

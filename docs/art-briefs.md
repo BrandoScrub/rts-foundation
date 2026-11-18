@@ -66,5 +66,28 @@ User: "Weak spots first. Then building details".
 - **Damage:** flames and smoke below 75%, 50% and 25% hit points (AoE2), drawn by the game. **Rubble:** `rubble_1..4`,
   left for 40 s, fading (AoE2).
 
-Not made yet: diagonal walls, doors that open on gates, roof and wall detail on the 16 buildings (still blockouts),
-a head-down idle for grazing animals.
+## Fifth pass (Nov 17): one style for everything
+User: "Detail walls, fix shadows, make artwork all have the same style (ground, units, buildings, terrain), work on
+trees, ores and any other missing passes."
+- **Nothing on the map is drawn in code any more** except shore fish (shapes under the water), fire and smoke, and
+  the peasant's carried load. Trees, stone, iron, crystal, berries, the relic and the camps' dressing are engine
+  props: `styles/fantasy_realm/props.py` -> `python3 tools/build_props.py` -> `game/art/p_<key>.png`, `props.json`.
+  Same materials (`style.json` "procedural"), light, outline and scale (0.4 px a unit, drawn at half) as buildings.
+- **Trees:** three oaks (forked leaning trunk, wide dark crown; one with glowing lantern fungus) and three black
+  pines; the game picks one of six per tile. **Stone** pale with squared blocks; **iron** blue-black with rust and
+  metal; **crystal** a fan of glowing cyan spikes; **berries** a dark bush dotted red; **relic** a carved stone
+  under a golden light.
+- **Camps** have a landmark behind the guards (dressing, walked over): Wolf Den (rock mound, black mouth, bones),
+  Goblin Outpost (hide tents, stakes, skull totem, fire), Ogre Lair and Stronghold (rib-and-hide hut, totems,
+  glowing cauldron). All carry the wild's magenta shard.
+- **Farm** is an engine building now: furrows, crop rows, a low fence, a scarecrow in the owner's colour.
+- **Shadows are cast shadows** (artkit's `shadow` option, pack section "shadow": length 0.72, down-right, 50%):
+  every building, prop and unit frame has its own shadow picture (`*_s.png`), and the game draws all shadows
+  first, under every sprite. The soft ellipses are gone.
+- **Walls:** uneven hand-cut logs with two lashed rails and a banded king post; stone curtain with a plank
+  wall-walk, string course, buttress and arrow loops; corner turrets with loops, a watch fire and a pennant in the
+  owner's colour. **Diagonal runs** have their own pieces (`_d1`, `_d2`) for Palisade and Stone Wall.
+
+Still off: a diagonal wall on a slope steps at each tile; gates have no diagonal piece; farms do not show how
+much food is left; cut trees leave no stump; the site floor reads as a deck; the 16 buildings are blockout-level
+(no windows, beams or roof texture); grazing animals have no head-down idle.

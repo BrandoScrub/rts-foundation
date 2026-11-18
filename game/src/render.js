@@ -13,7 +13,7 @@ const Render = (() => {
   function init(world, cv) {
     W = world; canvas = cv;
     ctx = (typeof GLCanvas !== 'undefined' && !/[?&]gl=0/.test(location.search)) ? GLCanvas.create(canvas) : canvas.getContext('2d');
-    resize(); loadGround(); loadBuildings(); loadUnits();
+    resize(); loadGround(); loadBuildings(); loadUnits(); loadProps();
   }
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -190,7 +190,24 @@ const Render = (() => {
   const bart = { meta: null, img: {} };
   function loadBuildings() {
     fetch('art/buildings.json').then(r => r.json()).then(j => { bart.meta = j.buildings;
-      for (const k in j.buildings) for (const p of j.players) { const im = new Image(); im.onload = () => { bart.img[k + '_' + p] = im; }; im.src = `art/b_${k}_${p}.png`; } }).catch(() => { });
+      for (const k in j.buildings) { for (const p of j.players) { const im = new Image(); im.onload = () => { bart.img[k + '_' + p] = im; }; im.src = `art/b_${k}_${p}.png`; }
+        if (j.buildings[k].s) { const im = new Image(); im.onload = () => { bart.img[k + '_s'] = im; }; im.src = `art/b_${k}_s.png`; } } }).catch(() => { });
+  }
+  /* Props from the art engine (trees, ore, stone, berries, relics, camp dressing): styles/fantasy_realm/props.py ->
+     tools/build_props.py -> art/p_<key>.png and its cast shadow p_<key>_s.png. Drawn at half size like buildings. */
+  const part = { meta: null, img: {} };
+  function loadProps() {
+    fetch('art/props.json').then(r => r.json()).then(j => { part.meta = j;
+      for (const k in j) { const im = new Image(); im.onload = () => { part.img[k] = im; }; im.src = `art/p_${k}.png`;
+        if (j[k].s) { const sm = new Image(); sm.onload = () => { part.img[k + '_s'] = sm; }; sm.src = `art/p_${k}_s.png`; } } }).catch(() => { });
+  }
+  function still(im, m, sx, sy, alpha = 1) { if (!im || !m) return false; const k = cam.zoom * 0.5; ctx.globalAlpha = alpha; ctx.drawImage(im, sx - m.cx * k, sy - m.cy * k, m.w * k, m.h * k); ctx.globalAlpha = 1; return true; }
+  const prop = (key, sx, sy, a) => part.meta && still(part.img[key], part.meta[key], sx, sy, a);
+  const propShadow = (key, sx, sy) => part.meta && part.meta[key] && still(part.img[key + '_s'], part.meta[key].s, sx, sy);
+  const NODE_ART = { 1: ['tree', 6], 2: ['berry', 2], 3: ['stone', 3], 4: ['iron', 3], 5: ['crystal', 3] };
+  function buildingShadow(b, sx, sy) {
+    if (!bart.meta) return; const key = b.built ? wallKey(b) : 'site_' + Math.min(4, b.size), m = bart.meta[key];
+    if (m && m.s) still(bart.img[key + '_s'], m.s, sx, sy);
   }
   const WALLS = { palisade: 1, gate: 1, stone_wall: 1, stone_gate: 1 };
   /* Wall pieces pick their picture from their neighbours: a straight run along x or y, else the corner piece.
@@ -199,6 +216,10 @@ const Render = (() => {
     if (!WALLS[b.type] || b.tx === undefined) return b.type;
     const o = (dx, dy) => { const x = b.tx + dx, y = b.ty + dy; if (x < 0 || y < 0 || x >= W.W || y >= W.H) return false; const id = W.occ[y * W.W + x]; return id && id !== b.id; };
     const hx = o(-1, 0) || o(1, 0), hy = o(0, -1) || o(0, 1);
+    if (!hx && !hy) {   // a slanting run: neighbours only corner to corner, on one diagonal
+      const d1 = o(-1, -1) || o(1, 1), d2 = o(-1, 1) || o(1, -1), key = b.type + (d1 && !d2 ? '_d1' : d2 && !d1 ? '_d2' : '');
+      return bart.meta && bart.meta[key] ? key : b.type;
+    }
     return hx && !hy ? b.type + '_x' : hy && !hx ? b.type + '_y' : b.type;
   }
   function bimg(key, owner, sx, sy, alpha = 1, rise = 1) {   // rise < 1: only the lower part, a building going up
@@ -218,7 +239,7 @@ const Render = (() => {
     }
   }
   function drawBuilding(b, owner, sx, sy, alpha = 1) {
-    if (b.built || b.type === 'farm' || b.progress === undefined) {
+    if (b.built || b.progress === undefined) {
       if (b.built && bimg(wallKey(b), owner, sx, sy, alpha)) return;
       return blit(buildingSprite(b, W.players[owner].color), sx, sy, false, alpha);
     }
@@ -232,12 +253,10 @@ const Render = (() => {
   const uart = { meta: null, img: {} };
   function loadUnits() {
     fetch('art/units.json').then(r => r.json()).then(j => { uart.meta = j;
-      for (const k in j.units) for (const p of j.units[k].players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; } }).catch(() => { });
+      for (const k in j.units) { for (const p of j.units[k].players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; }
+        if (j.units[k].shadow) { const im = new Image(); im.onload = () => { uart.img[k + '_s'] = im; }; im.src = `art/u_${k}_s.png`; } } }).catch(() => { });
   }
   function unitArt(key, owner) { const U = uart.meta && uart.meta.units[key]; if (!U) return null; const im = uart.img[key + '_' + owner] || uart.img[key + '_' + U.players[0]]; return im ? [U, im] : null; }
-  function shadow(sx, sy, rx, a) {   // light from the upper left on screen: the shadow lies a little down and right
-    ctx.fillStyle = `rgba(8,10,6,${a})`; ctx.beginPath(); ctx.ellipse(sx + rx * 0.22, sy + rx * 0.06, rx, rx * 0.46, 0, 0, 7); ctx.fill();
-  }
   const TOOL = { stone: '_pick', iron: '_pick', crystal: '_pick', build: '_hammer', farm: '_hoe' };
   function load(res, x, y, k) {   // what a peasant carries, on the back: logs, a sack, a block, ore, a shard
     ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
@@ -249,19 +268,23 @@ const Render = (() => {
     else { ctx.moveTo(x - 5 * k, y - 3 * k); ctx.lineTo(x + 3 * k, y - 5 * k); ctx.lineTo(x + 6 * k, y + 2 * k); ctx.lineTo(x - 3 * k, y + 4 * k); }
     ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = col[1]; ctx.fillRect(x - 1.5 * k, y - 2.5 * k, 2.6 * k, 2.2 * k);
   }
-  function drawUnit(e, sx, sy) {
+  function unitFrame(e) {   // which sheet and which cell: shared by the figure and its shadow
     const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type === 'villager' ? 'villager' + (TOOL[e.job] || '') : e.type, A = unitArt(key, e.owner) || unitArt(e.type, e.owner);
-    if (!A) return false;
-    const M = uart.meta, [U, im] = A, [cw, ch] = U.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
+    if (!A) return null;
+    const M = uart.meta, [U, im] = A, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
     let col = 0;
     const sw = e.swingT !== undefined ? W.time - e.swingT : 9;
     if (e.carcass) col = C.die[0] + Math.min(C.die[1] - 1, Math.floor((W.time - (e.dieT || 0)) * C.die[2]));
     else if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
-    const k = cam.zoom * (U.draw || M.draw || 0.575);
-    if (!e.carcass) shadow(sx, sy, e.r * 38 * cam.zoom + 3, 0.46);
-    ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - U.origin[0] * k, sy - U.origin[1] * k, cw * k, ch * k);
+    return { U, im, sh: U.shadow && uart.img[(uart.meta.units[key] === U ? key : e.type) + '_s'], col, row, k: cam.zoom * (U.draw || M.draw || 0.575) };
+  }
+  const cell = (im, F, sx, sy) => { const [cw, ch] = F.U.cell; ctx.drawImage(im, F.col * cw, F.row * ch, cw, ch, sx - F.U.origin[0] * F.k, sy - F.U.origin[1] * F.k, cw * F.k, ch * F.k); };
+  function unitShadow(e, sx, sy) { const F = unitFrame(e); if (F && F.sh) cell(F.sh, F, sx, sy); }
+  function drawUnit(e, sx, sy) {
+    const F = unitFrame(e); if (!F) return false;
+    cell(F.im, F, sx, sy);
     if (e.carry && e.carry.amt >= 1) load(e.carry.res, sx - Math.sign(Math.cos(e.facing) - Math.sin(e.facing) || 1) * 8 * cam.zoom, sy - 27 * cam.zoom, cam.zoom);
     if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 48 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
     return true;
@@ -484,15 +507,19 @@ const Render = (() => {
     // static resources
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = y * Wd + x, n = W.map.node[i]; if (!n || !P.explored[i]) continue;
-      list.push({ d: x + y + 1, f: () => {
-        const [sx, sy] = toScreen(x + 0.5, y + 0.5, W.h(x + 0.5, y + 0.5));
-        if (sx < -60 || sx > vw + 60 || sy < -40 || sy > vh + 120) return;
-        const v = Math.floor(hash(x, y) * 4);
-        blit(nodeSprite(n, n === 1 ? v : v % 3), sx, sy);
+      const [sx, sy] = toScreen(x + 0.5, y + 0.5, W.h(x + 0.5, y + 0.5));
+      if (sx < -80 * k || sx > vw + 80 * k || sy < -40 * k || sy > vh + 130 * k) continue;
+      const A = NODE_ART[n], key = A && A[0] + '_' + Math.floor(hash(x, y) * A[1]), ok = A && part.meta && part.img[key];
+      list.push({ d: x + y + 1, s: ok ? () => propShadow(key, sx, sy) : null, f: () => {
+        if (ok) prop(key, sx, sy); else { const v = Math.floor(hash(x, y) * 4); blit(nodeSprite(n, n === 1 ? v : v % 3), sx, sy); }
         if (n === 5 || n === 4) { const c = W.wardedBy(i); if (c) { ctx.strokeStyle = 'rgba(190,90,255,0.75)'; ctx.lineWidth = 1.5;
           ctx.beginPath(); ctx.ellipse(sx, sy - 4 * k, 18 * k, 9 * k, 0, 0, Math.PI * 2); ctx.stroke(); } }
       } });
     }
+    // what the wild built at its camps: dressing only, behind the guards
+    for (const c of W.camps) { const x = c.x - 2.6, y = c.y - 2.6; if (x < x0 - 4 || x > x1 + 4 || y < y0 - 4 || y > y1 + 4 || !P.explored[Math.floor(y) * Wd + Math.floor(x)]) continue;
+      const [sx, sy] = toScreen(x, y, W.h(x, y)), key = 'camp_' + c.type;
+      list.push({ d: x + y, s: () => propShadow(key, sx, sy), f: () => prop(key, sx, sy) }); }
     for (const e of W.ents) {
       if (e.dead || e.garrisoned || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * Wd + Math.floor(e.x);
@@ -509,6 +536,14 @@ const Render = (() => {
       list.push({ d: f.x + f.y - 0.5, f: () => { const [sx, sy] = toScreen(f.x, f.y, W.h(f.x, f.y)); drawCorpse(f, sx, sy); } });
     list.sort((a, b) => a.d - b.d);
     const selSet = sel.set;
+    // cast shadows first, under every sprite: a shadow lies on the ground and never on a neighbour (artkit Shadows)
+    for (const it of list) {
+      if (it.s) { it.s(); continue; }
+      const e = it.e; if (!e || e.kind === 'artifact') continue;
+      if (e.kind === 'building') { const [sx, sy] = toScreen(e.x, e.y, W.h(e.x, e.y)); buildingShadow(e, sx, sy); continue; }
+      const ex = e.px !== undefined ? e.px + (e.x - e.px) * alpha : e.x, ey = e.py !== undefined ? e.py + (e.y - e.py) * alpha : e.y, [sx, sy] = toScreen(ex, ey, W.h(ex, ey));
+      unitShadow(e, sx, sy);
+    }
     for (const it of list) {
       if (it.f) { it.f(); continue; }
       const e = it.e, team = W.players[e.owner].color;
@@ -522,10 +557,9 @@ const Render = (() => {
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
-        if (e.built && e.type !== 'farm' && !WALLS[e.type]) shadow(sx + e.size * 5 * k, sy + (fz - z) * EL * k + e.size * 2 * k, e.size * TW * 0.44 * k, 0.36);
         drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k); flames(e, sx, sy + (fz - z) * EL * k);
       } else if (e.kind === 'artifact') {
-        const s = artifactSprite(); blit(s, sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
+        if (!prop('relic', sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k)) blit(artifactSprite(), sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
         ctx.fillStyle = 'rgba(255,220,120,0.18)'; ctx.beginPath(); ctx.arc(sx, sy - 22 * k, 14 * k, 0, 7); ctx.fill();
       } else {
         if (!drawUnit(e, sx, sy)) {

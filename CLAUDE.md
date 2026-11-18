@@ -28,6 +28,10 @@ value beside the number in `game/src/data.js`.
   what is still off: `docs/art-briefs.md`.
 - Figures: `styles/fantasy_realm/units.py` (artkit `Biped`; animals and the Wolf Rider on `artkit.rig.Rig`), rendered by `python3 tools/build_units.py` into
   `game/art/u_<key>_<player>.png`. Art direction (user): darker, more fantasy, realistic; figures oversized.
+- Props (trees, ore, stone, berries, relic, camp landmarks): `styles/fantasy_realm/props.py`, rendered by `python3
+  tools/build_props.py` into `game/art/p_<key>.png`. Cast shadows (`*_s.png`) come from the pack's "shadow" section and
+  are written by all three build tools; the game draws them first. Nothing on the map is drawn in code except shore
+  fish, fire and carried loads: new map art goes through the engine so everything keeps one style.
 - This game's art content (its style pack) lives in `styles/fantasy_realm/`, outside the engine. Any new building, unit
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 

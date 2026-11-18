@@ -77,6 +77,9 @@ comes from in a comment.
 - **Weak spots, then building detail** (user, fourth note): Wolf Rider couches a lance; peasants hold the tool of
   their job and carry visible loads; walls and gates join their neighbours in straight runs and corners; buildings
   rise from a site, burn when damaged and leave rubble (all as AoE2). Details in `docs/art-briefs.md`.
+- **One style** (user, fifth note): everything on the map goes through the art engine with one set of materials
+  and one light: trees, ore, stone, berries, relics, farms and camp landmarks join the ground, buildings and
+  figures. Shadows are cast shadows drawn under everything. Walls are detailed and run on diagonals. No AI yet.
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.
