@@ -147,11 +147,14 @@ deterministic (to replay one: same seed, the opponent on, and the human's comman
 - **Attack waves:** the first leaves with 8 soldiers (about minute 18), each later one needs 4 more (to 28), at least
   two minutes apart. Waves cross the river by the two nearest fords in turn, never the centre one (the Ogre
   Stronghold), go for the Town Hall, then for whatever the enemy has left. A wave beaten down to a quarter goes home.
+- **Creeping (Nov 17, "continue"):** between waves the soldiers at home clear the camps on their own bank, nearest
+  first and only with the numbers for it (6 for a Wolf Den, 8 for a Goblin Outpost, 12 for an Ogre Lair), which
+  frees the ore each camp wards; a militia carries every artifact to the Town Hall. A party cut to half gives up and
+  leaves that camp alone for four minutes. The Ogre Stronghold is never attacked. No wave leaves while a party is out.
 - **Defence:** soldiers at home answer any attack on the base; when raiders by the Town Hall outnumber them it rings
   the Town Bell, and All Clear when they are gone.
 - **Not yet like a person (my choices, open to change):** it knows the whole map (no fog for it); it does not hunt
-  boar or deer, fish, wall, build towers, use the Market, clear camps on purpose or collect artifacts; one
-  difficulty. It beats a player who does nothing in about half an hour.
+  boar or deer, fish, wall, build towers or use the Market; one difficulty. It beats a player who does nothing in about half an hour.
 - **Fixed on the way:** a unit on a move or attack-move that got stuck used to drop the order (and jump to its next
   queued one); it now looks for a new way, up to six times.
 
@@ -165,6 +168,6 @@ like AoE2 Arabia.
 ## Open questions
 1. Castle Age content (age 3): not started. Who carries artifacts once there is a temple (AoE2 Monastery and Monks)?
 2. Should crystal be buyable at the Market, or stay mine-only?
-3. Opponent AI, next steps: should it play by the fog (scout first)? Should it clear camps and take artifacts? Hunt
+3. Opponent AI, next steps: should it play by the fog (scout first)? Hunt
    boar and deer, towers and walls, the Market? Difficulty levels (AoE2 has Easiest to Extreme)?
 4. Art: approve or change the grey blockouts before any detail is added.
