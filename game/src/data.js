@@ -170,6 +170,20 @@ const DATA = (() => {
   const MARKET = { start: { food: 100, wood: 100, stone: 130 }, fee: 0.3, step: 3, min: 20, max: 9999, lot: 100, coin: 'iron' };
 
   /* AoE2 stances and formations */
+  /* What each unit is for, in a few words: shown first in tooltips and in the selection panel, so a unit's job can
+     be read at a glance (counters as in AoE2: spear beats cavalry, cavalry beats ranged, archer beats infantry,
+     skirmisher beats archer). */
+  const ROLES = {
+    villager:   { role: 'Worker', does: 'Gathers, builds, repairs', strong: '', weak: 'everything' },
+    militia:    { role: 'Infantry', does: 'Front line; carries artifacts', strong: 'Pikemen, Slingers, buildings', weak: 'Archers' },
+    spearman:   { role: 'Anti-cavalry infantry', does: 'Stops riders', strong: 'Wolf Riders', weak: 'Archers, Militia' },
+    archer:     { role: 'Ranged', does: 'Shoots from behind the line', strong: 'Militia, Pikemen', weak: 'Slingers, Wolf Riders' },
+    skirmisher: { role: 'Anti-archer ranged', does: 'Hunts archers', strong: 'Archers', weak: 'Militia, Wolf Riders' },
+    scout:      { role: 'Light cavalry', does: 'Scouts and raids', strong: 'Archers, Slingers, Peasants', weak: 'Pikemen' },
+    goblin:     { role: 'Creep', does: 'Guards a camp', strong: '', weak: '' }, ogre: { role: 'Creep, heavy', does: 'Guards a camp', strong: 'single units', weak: 'groups, archers' },
+    wolf:       { role: 'Creep, fast', does: 'Guards a den', strong: '', weak: '' },
+    sheep: { role: 'Herd animal', does: 'Food: herd it home', strong: '', weak: '' }, deer: { role: 'Game', does: 'Food: hunt it', strong: '', weak: '' }, boar: { role: 'Game, dangerous', does: 'Much food: lure it home', strong: 'a lone Peasant', weak: '' },
+  };
   const STANCES = ['aggressive', 'defensive', 'ground', 'passive'];
   const STANCE_NAMES = { aggressive: 'Aggressive', defensive: 'Defensive', ground: 'Stand Ground', passive: 'No Attack' };
   const FORMATIONS = ['line', 'staggered', 'box', 'flank'];
@@ -177,6 +191,6 @@ const DATA = (() => {
 
   const PLAYER_COLORS = ['#3b6fe0', '#d8402f', '#7a7a7a'];  // blue, red, neutral grey
   return { RES, RES_INFO, START_RES, POP_MAX, CARRY, ELEV_BONUS, ARTIFACT_RATE, ARROW_SPEED, AGE_NAMES, NODES, FARM, UNITS, FEUDAL_SCOUT,
-           WILD, CREEP, CAMPS, BUILDINGS, BUILD_MENU, FEUDAL_NEEDS, TECHS, MARKET, STANCES, STANCE_NAMES, FORMATIONS, FORMATION_NAMES, PLAYER_COLORS };
+           WILD, CREEP, CAMPS, BUILDINGS, BUILD_MENU, FEUDAL_NEEDS, TECHS, MARKET, STANCES, STANCE_NAMES, FORMATIONS, FORMATION_NAMES, ROLES, PLAYER_COLORS };
 })();
 if (typeof module !== 'undefined') module.exports = DATA;

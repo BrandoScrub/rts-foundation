@@ -554,6 +554,9 @@ const Render = (() => {
       if (e.kind === 'building') { const [sx, sy] = toScreen(e.x, e.y, W.h(e.x, e.y)); buildingShadow(e, sx, sy); continue; }
       const ex = e.px !== undefined ? e.px + (e.x - e.px) * alpha : e.x, ey = e.py !== undefined ? e.py + (e.y - e.py) * alpha : e.y, [sx, sy] = toScreen(ex, ey, W.h(ex, ey));
       unitShadow(e, sx, sy);
+      if (!e.carcass && e.owner < 2) {   // whose it is, under its feet: a ring in the owner's colour (the figure's own colour can be hidden by a neighbour)
+        const pc = e.owner === 0 ? '90,150,255' : '255,80,60', r = e.r * 1.25;
+        ctx.fillStyle = `rgba(${pc},0.16)`; ctx.strokeStyle = `rgba(${pc},0.6)`; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.ellipse(sx, sy, r * TW / 2 * k, r * TH / 2 * k, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
     }
     for (const it of list) {
       if (it.f) { it.f(); continue; }
@@ -564,7 +567,8 @@ const Render = (() => {
       if (selSet.has(e.id) || ui.hoverId === e.id) {
         const r = e.kind === 'building' ? e.size * 0.75 : e.r * 1.6;
         ctx.strokeStyle = e.owner === 0 ? 'rgba(255,255,255,0.9)' : e.owner === 1 ? 'rgba(255,80,60,0.9)' : 'rgba(255,220,80,0.9)';
-        ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(sx, sy, r * TW / 2 * k, r * TH / 2 * k, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 4; const c0 = ctx.strokeStyle; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.ellipse(sx, sy, r * TW / 2 * k, r * TH / 2 * k, 0, 0, Math.PI * 2); ctx.stroke();   // a dark edge so the ring reads on any ground
+        ctx.strokeStyle = c0; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.ellipse(sx, sy, r * TW / 2 * k, r * TH / 2 * k, 0, 0, Math.PI * 2); ctx.stroke();
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
@@ -582,9 +586,10 @@ const Render = (() => {
       // health bar
       if (e.kind !== 'artifact' && !e.carcass && (selSet.has(e.id) || ui.hoverId === e.id || (e.hp < e.maxHp && e.kind === 'unit' && e.hitT && W.time - e.hitT < 4))) {
         const top = e.kind === 'building' ? sy - (e.size * 16 + 40) * k : sy - ({ ogre: 62, scout: 58, spearman: 46 }[e.type] || (e.D.food ? 26 : 40)) * k, bw = (e.kind === 'building' ? 40 : 22) * k;
-        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - bw / 2 - 1, top - 1, bw + 2, 5);
-        ctx.fillStyle = e.owner === 0 ? '#5fd35f' : e.owner === 1 ? '#e04a3a' : '#e8c440'; ctx.fillRect(sx - bw / 2, top, bw * Math.max(0, e.hp / e.maxHp), 3);
-        if (e.kind === 'building' && !e.built) { ctx.fillStyle = '#6fb0ff'; ctx.fillRect(sx - bw / 2, top + 4, bw * e.progress, 2); }
+        const hf = Math.max(0, e.hp / e.maxHp);   // AoE2: green hit points on red; here the frame also carries the owner's colour, so a bar is never read by hue alone
+        ctx.fillStyle = e.owner === 0 ? '#0a1430' : e.owner === 1 ? '#300a06' : '#2a2206'; ctx.fillRect(sx - bw / 2 - 2, top - 2, bw + 4, 9);
+        ctx.fillStyle = '#8a1a14'; ctx.fillRect(sx - bw / 2, top, bw, 5); ctx.fillStyle = hf > 0.5 ? '#5fe05f' : hf > 0.25 ? '#f0d040' : '#ff7a50'; ctx.fillRect(sx - bw / 2, top, bw * hf, 5);
+        if (e.kind === 'building' && !e.built) { ctx.fillStyle = '#0a1430'; ctx.fillRect(sx - bw / 2 - 2, top + 7, bw + 4, 6); ctx.fillStyle = '#8fc4ff'; ctx.fillRect(sx - bw / 2, top + 8, bw * e.progress, 4); }
       }
     }
     const T2 = performance.now();

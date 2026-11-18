@@ -34,7 +34,7 @@ material('fr_team_dark', (50, 70, 110), 'wool')
 material('fr_hose', (66, 54, 40), 'wool')
 material('fr_skin', (188, 142, 108))
 material('fr_skin_pale', (214, 190, 168))
-material('fr_gob', (96, 128, 60))
+material('fr_gob', (188, 190, 96))       # sallow yellow-green: a grass-green goblin on grass is camouflage
 material('fr_ogre', (132, 128, 96))
 material('fr_hair', (52, 38, 28))
 material('fr_hair_red', (150, 66, 28))
@@ -52,10 +52,10 @@ material('fr_glow', (120, 236, 255), emissive=True)       # the realm's crystal
 material('fr_bane', (255, 70, 190), emissive=True)        # the wild's sickly glow: creeps' eyes and stolen shards
 material('fr_linen', (170, 158, 132), 'canvas')
 material('fr_wool', (206, 200, 184), 'wool')
-material('fr_hide', (112, 82, 54), 'leather')
-material('fr_boar', (62, 48, 40), 'leather')
-material('fr_wolf', (86, 88, 96), 'leather')
-material('fr_wolf_dark', (48, 50, 58), 'leather')
+material('fr_hide', (196, 150, 98), 'leather')        # a pale fawn deer
+material('fr_boar', (34, 26, 24), 'leather')          # near black: the boar reads by being darker than the ground
+material('fr_wolf', (168, 170, 180), 'leather')      # silver-grey: a mid-grey wolf has the same value as grass and vanishes
+material('fr_wolf_dark', (60, 62, 74), 'leather')
 
 
 # ---- body parts, sized for a human and stretched to each race's bones
@@ -88,11 +88,11 @@ def upper_arm(mat, L=15.0, t=1.0): return limb([(3.4, -15.5), (3.9, -8), (4.3, -
 def fore_arm(mat, L=14.0, t=1.0):  return limb([(3.0, -14), (3.5, -6), (3.5, 0.5)], mat, L, 14.0, t)
 def hand(skin='fr_skin', k=1.0):   return ellipsoid(2.5 * k, 2.3 * k, 2.9 * k, skin, (0, 0, -.6), 8, 5)
 def pauldron(mat, k=1.0):          return ellipsoid(5.6 * k, 5.8 * k, 4.6 * k, mat, (0, 0, .5))
-def cape(mat, length=44):          return box(-10.6, -8.6, -10, 10, 24 - length, 25, mat) + box(-10.6, -6, -11, 11, 22, 26.5, mat)
+def cape(mat, length=44, w=10):    return box(-10.6, -8.6, -w, w, 24 - length, 25, mat) + box(-10.6, -6, -w - 1, w + 1, 22, 26.5, mat)
 
 # ---- headgear
 def bent_hat(mat='fr_team_dark'):
-    return (lathe([(15.5, 10.6), (7.0, 12.4), (5.2, 21), (2.8, 31)], mat, 12) + cyl((0, 0, 30), (-8, 0, 38), 2.8, mat, r1=1.4, seg=6) + cyl((-8, 0, 38), (-15, 0, 33), 1.4, mat, r1=.3, seg=6)
+    return (lathe([(20.5, 10.2), (7.0, 12.4), (5.2, 21), (2.8, 31)], mat, 12) + cyl((0, 0, 30), (-8, 0, 38), 2.8, mat, r1=1.4, seg=6) + cyl((-8, 0, 38), (-15, 0, 33), 1.4, mat, r1=.3, seg=6)
             + lathe([(7.1, 12.3), (7.1, 14.4)], 'fr_leather', 12) + sphere(1.9, 'fr_glow', 6, 4).move(7.2, 0, 13.4)).move(.3, 0, 0)
 
 def cowl(mat='fr_team'):
@@ -127,14 +127,14 @@ def axe():
 
 def falchion():
     m = cyl((-3, 0, -1.4), (3, 0, 0), 1.0, 'fr_leather', seg=6) + box(2.6, 4.0, -4.0, 4.0, -1.0, 1.0, 'fr_iron') + sphere(1.5, 'fr_glow', 6, 4).move(-3.6, 0, -1.6)
-    return m + cyl((4, 0, 0), (26, 0, 7), 1.8, 'fr_steel', r1=4.4, seg=4) + cyl((26, 0, 7), (38, 0, 11), 4.4, 'fr_steel', r1=.5, seg=4) + cyl((8, 0, 2.2), (30, 0, 9), .8, 'fr_glow', seg=4)
+    return (m + cyl((4, 0, 0), (26, 0, 7), 1.8, 'fr_steel', r1=4.4, seg=4) + cyl((26, 0, 7), (38, 0, 11), 4.4, 'fr_steel', r1=.5, seg=4) + cyl((8, 0, 2.2), (30, 0, 9), .8, 'fr_glow', seg=4)).ry(-48)   # carried point-up: a blade aimed at the camera vanishes
 
 def long_sword():
     m = cyl((-4, 0, -1.6), (3, 0, 0), 1.0, 'fr_leather', seg=6) + box(2.6, 4.2, -5.2, 5.2, -1.0, 1.0, 'fr_steel') + sphere(1.6, 'fr_glow', 6, 4).move(-4.6, 0, -1.8)
-    return m + cyl((4, 0, 0), (54, 0, 14), 2.6, 'fr_steel', r1=.6, seg=4) + cyl((6, 0, 1.4), (46, 0, 12.4), .9, 'fr_glow', seg=4)      # a greatsword with a glowing fuller
+    return (m + cyl((4, 0, 0), (58, 0, 14), 3.0, 'fr_steel', r1=.6, seg=4) + cyl((6, 0, 1.4), (50, 0, 12.4), 1.0, 'fr_glow', seg=4)).ry(-58)      # a greatsword with a glowing fuller, carried upright: the tallest thing on him
 
 def round_shield():
-    m = cyl((0, 3.2, -8), (0, 5.0, -8), 13.0, 'fr_wood', seg=12) + cyl((0, 5.0, -8), (0, 5.6, -8), 11.0, 'fr_team', seg=12)
+    m = cyl((0, 3.2, -8), (0, 5.0, -8), 16.5, 'fr_wood', seg=12) + cyl((0, 5.0, -8), (0, 5.6, -8), 14.5, 'fr_team', seg=12)
     return m + sphere(3.0, 'fr_glow', 8, 5).move(0, 6.0, -8)
 
 def kite_shield():
@@ -167,7 +167,7 @@ def pot_helm():
     return lathe([(7.6, 9.2), (8.0, 15.5), (6.6, 18.6), (0, 19.4)], 'fr_iron', 10).move(.3, 0, 0) + cyl((-7.5, 0, 14), (-15, 0, 16), 1.2, 'fr_iron', seg=5)   # the cooking pot, handle behind
 
 def bone_spear():
-    return cyl((-16, 0, -5), (34, 0, 10), 1.1, 'fr_wood', seg=5) + cyl((34, 0, 10), (48, 0, 14), 3.0, 'fr_bane', r1=.2, seg=4)      # a stolen shard, gone sour
+    return (cyl((-16, 0, -5), (34, 0, 10), 1.1, 'fr_wood', seg=5) + cyl((34, 0, 10), (48, 0, 14), 3.0, 'fr_bane', r1=.2, seg=4)).rz(-62)      # a stolen shard, gone sour
 
 def club():
     return cyl((-4, 0, -1), (16, 0, 4), 2.0, 'fr_wood', seg=6) + cyl((16, 0, 4), (40, 0, 11), 3.0, 'fr_wood', r1=6.5, seg=7) + cyl((34, 3, 12), (37, 9, 19), 2.4, 'fr_bane', r1=.2, seg=4) + cyl((30, -3, 6), (31, -10, 2), 2.4, 'fr_bane', r1=.2, seg=4) + cyl((38, 0, 13), (44, 1, 21), 2.4, 'fr_bane', r1=.2, seg=4)
@@ -201,7 +201,7 @@ TOOLS = dict(axe=axe, pick=pick, hammer=hammer, hoe=hoe)
 
 def peasant(tool='axe'):
     u = person('peasant', 'fr_team', 'fr_team', 'fr_skin', [(bent_hat(), 'tall bent pointed hat with a wide brim: a storybook worker, the widest and tallest shape on the figure')])
-    u.attach('chest', box(-9.6, -6.5, -6, 6, 6, 20, 'fr_leather'), 'a small pack: someone who carries things')
+    u.attach('chest', lathe([(7.5, 2), (10.5, 30), (9.5, 33)], 'fr_bone', 9).move(-15.5, 0, 0) + lathe([(10.8, 29), (10.8, 32)], 'fr_wood', 9).move(-15.5, 0, 0), 'a tall wicker pannier on the back, higher than the shoulders: the worker\'s outline, and pale so it shows')
     u.attach('hand_R', TOOLS[tool](), 'the tool: what a peasant does is shown by what is in the hand (axe for wood and meat, pick for ore and stone, hammer to build, hoe for farms and berries)')
     return u
 
@@ -210,14 +210,16 @@ def militia():
     u.attach('chest', lathe([(8.9, 15), (10.2, 18), (9.8, 22), (7.6, 25)], 'fr_team').scaled(.82, 1.2, 1), 'the cowl\'s cape over the shoulders: joins hood to body')
     u.attach('hand_R', falchion(), 'a broad falchion with a crystal pommel: a cheap soldier\'s chopper, heavier than a real sword so it reads')
     u.attach('fore_arm_L', round_shield(), 'round shield with a glowing crystal boss: the biggest shape, in the player colour')
+    u.idle = dict(hand_L=(10, 19, 12), hand_R=(8, -17, 14))
     return u
 
 def man_at_arms():
-    u = person('man_at_arms', 'fr_mail', 'fr_mail', 'fr_iron', [(winged_helm(), 'winged helm with a tall plume in the player colour: the upgrade shows in the outline')], long=6, beard=.6, limbs=1.08)
-    u.attach('chest', cape('fr_team', 50), 'cape in the player colour: mail alone would hide whose soldier it is, and a cape reads from behind')
+    u = person('man_at_arms', 'fr_mail', 'fr_mail', 'fr_iron', [(winged_helm(), 'winged helm with a tall plume in the player colour: the upgrade shows in the outline')], long=6, beard=.6, limbs=1.08, top='fr_team')
+    u.attach('chest', cape('fr_team', 54, 15), 'cape in the player colour: mail alone would hide whose soldier it is, and a cape reads from behind')
     for b in ('upper_arm_L', 'upper_arm_R'): u.attach(b, pauldron('fr_steel', 1.5) + cyl((0, 0, 3), (0, 0, 10), 1.6, 'fr_steel', r1=.2, seg=4), 'oversized spiked pauldron: heavier than the Militia at a glance')
     u.attach('hand_R', long_sword(), 'long sword with a crystal pommel')
     u.attach('fore_arm_L', kite_shield(), 'kite shield in the player colour with a crystal: covers the leg')
+    u.idle = dict(hand_L=(10, 20, 10), hand_R=(6, -19, 16))
     return u
 
 def dwarf_pikeman():
@@ -226,16 +228,18 @@ def dwarf_pikeman():
                hair='fr_hair_red', beard=3.0, bulk=(1.3, 1.32), limbs=1.35, head_k=1.12, foot_k=1.2, long=-4)
     for b in ('upper_arm_L', 'upper_arm_R'): u.attach(b, pauldron('fr_iron', 1.5), 'broad iron shoulders: as wide as he is tall')
     u.attach('chest', pike(), 'a pike three times his height with a crystal blade: what stops cavalry, and the tallest line on the field')
+    u.attach('chest', box(5, 6.2, -14.4, 4, 84, 104, 'fr_team'), 'a pennon in the player colour under the blade: his colour is high up where nothing hides it')
+    u.attach('chest', cyl((-11, 0, 10), (-13, 0, 10), 13, 'fr_team', seg=10), 'a round shield slung on his back in the player colour: reads from behind')
     return u
 
 def elf_archer():
-    u = person('elf', 'fr_team', 'fr_cloak', 'fr_leather', [(elf_hood(), 'forest hood thrown back off the brow')],
+    u = person('elf', 'fr_team', 'fr_cloak', 'fr_leather', [(elf_hood(), 'forest hood thrown back off the brow')],   # tunic in the player colour
                dims=dict(thigh=27.0, shin=25.0, shoulder=(0.0, 10.5, 25.0), upper_arm=16.0, fore_arm=15.0, neck=(0.0, 0.0, 29.0)),
                skin='fr_skin_pale', hair='fr_hair_pale', ears=5.0, bulk=(.86, .84), limbs=.84, legs='fr_cloak', long=-3)
     u.attach('head', ellipsoid(3.4, 5.4, 9.0, 'fr_hair_pale', (-4.6, 0, 3.0)), 'long pale hair down the back: an elf even from behind')
-    u.attach('chest', cape('fr_cloak', 46), 'forest cloak: the dark shape that makes the pale head and the bow stand out')
+    u.attach('chest', cape('fr_team', 52, 8), 'a long cloak in the player colour: the largest block on the figure, so the archer is known from behind and from far')
     u.attach('chest', quiver(), 'quiver over the shoulder: an archer')
-    u.attach('chest', bow(), 'a bow as tall as the elf with glowing tips: the ranged unit\'s signature')
+    u.attach('chest', bow().rz(38), 'a bow as tall as the elf with glowing tips, held half across the body so it shows from the front as well as the side: the ranged unit\'s signature')
     return u
 
 def halfling_slinger():
@@ -249,9 +253,10 @@ def halfling_slinger():
 
 def goblin():
     u = person('goblin', 'fr_fur', 'fr_gob', 'fr_gob', [], dims=dict(thigh=20.0, shin=19.0, shoulder=(0.0, 11.0, 22.0), neck=(1.5, 0.0, 25.0)),
-               skin='fr_gob', hair=None, ears=9.0, tusks=False, eyes='fr_bane', jaw=.6, legs='fr_gob', feet='fr_gob', bulk=(.95, .92), limbs=.9, head_k=1.25, foot_k=1.2, long=-6)
+               skin='fr_gob', hair=None, ears=14.0, tusks=False, eyes='fr_bane', jaw=.6, legs='fr_gob', feet='fr_gob', bulk=(.95, .92), limbs=.9, head_k=1.25, foot_k=1.2, long=-6)
     u.attach('chest', box(-8.6, 8.4, -1.6, 1.6, 2, 24, 'fr_leather').rz(0), 'a strap of scavenged leather: no uniform, no player colour')
-    u.attach('hand_R', bone_spear(), 'bone-tipped spear')
+    u.attach('hand_R', bone_spear(), 'a spear tipped with a sour shard, carried crossways: a wide, low, ragged outline against the realm\'s upright ones')
+    u.idle = dict(hand_R=(8, -16, 4), hand_L=(8, 14, 2), chest_rot=(0, 16, 0))
     return u
 
 def ogre():
@@ -290,6 +295,7 @@ def clips(u, kind='strike'):
 
 def figure_clips(u, kind):
     cl, base = clips(u, kind)
+    if getattr(u, 'idle', None): base = dict(base, **u.idle)        # the standing pose is the one players read: weapon and shield held clear of the body
     return {'idle': [base], 'walk': cl['walk'].poses(), 'attack': cl['attack'].poses(), 'die': cl['die'].poses()}
 
 
@@ -345,14 +351,14 @@ def beast_head(coat, size, snout, ears=1.0, eyes=None, dark=None, tusk=False, an
 def dire_wolf(saddle=False):
     """DIRE WOLF. Is: a wolf the size of a pony. Reads as: high shoulders, a mane of dark spikes, a long snout, eyes that
     glow. References: WC3 creep wolves (bigger than life, glowing eyes); real wolves (shoulders higher than the rump)."""
-    L, H, W, bh = 96, 56, 30, 15
+    L, H, W, bh = 108, 50, 30, 15
     mane = None
     for i in range(6):
         sp = cyl((L * .34 - i * 9, 0, bh * .8), (L * .30 - i * 9 - 5, 0, bh * 1.0 + 14 - i * 1.5), 4.2, 'fr_wolf_dark', r1=.3, seg=4); mane = sp if mane is None else mane + sp
     extra = mane + ellipsoid(L * .22, W * .5, bh * .9, 'fr_wolf_dark', (L * .26, 0, bh * .5))
-    if saddle: extra += box(-14, 12, -W * .56, W * .56, bh * .2, bh * 1.1, 'fr_leather') + box(-12, 10, -W * .6, W * .6, bh * .5, bh * .9, 'fr_team')
+    if saddle: extra += box(-14, 12, -W * .56, W * .56, bh * .2, bh * 1.1, 'fr_leather') + box(-30, 22, -W * .62, W * .62, -bh * .5, bh * 1.0, 'fr_team') + box(26, 44, -W * .5, W * .5, -bh * .7, bh * .3, 'fr_team')   # a caparison in the player colour over back and chest
     head = beast_head('fr_wolf', 9.5, 1.5, ears=1.0, eyes='fr_glow' if saddle else 'fr_bane', dark='fr_wolf_dark')
-    tail = cyl((0, 0, 0), (-26, 0, -12), 5.0, 'fr_wolf', r1=1.2, seg=6) + cyl((-20, 0, -9), (-30, 0, -15), 3.2, 'fr_wolf_dark', r1=.4, seg=5)
+    tail = cyl((0, 0, 0), (-30, 0, -6), 7.5, 'fr_wolf', r1=3.0, seg=6) + cyl((-24, 0, -5), (-40, 0, -10), 5.0, 'fr_wolf_dark', r1=.4, seg=5)      # a long brush of a tail: wolf, not boar
     return quadruped('wolf', L, H, W, bh, 'fr_wolf', 4.6, head, tail, extra, hoof='fr_wolf_dark')
 
 def wolf_rider():
@@ -367,7 +373,7 @@ def wolf_rider():
     for sg in (1, -1): rider += cyl((2, sg * 9, 6), (10, sg * 17, -12), 3.4, 'fr_hose', r1=2.6, seg=6) + ellipsoid(5, 3, 2.6, 'fr_skin', (12, sg * 17.5, -14))   # legs astride, bare feet
     r.joint('rider', 'body', (-2, 0, 15 * 1.1)); r.attach('rider', rider, 'the rider: a small upright shape over the wolf, leaning into the charge')
     r.joint('lance', 'rider', (6, -13, 12))
-    r.attach('lance', cyl((0, 0, -22), (0, 0, 78), 1.3, 'fr_wood', seg=5) + cyl((0, 0, 78), (0, 0, 100), 3.2, 'fr_glow', r1=.3, seg=4) + box(.5, 22, -.6, .6, 56, 74, 'fr_team'),
+    r.attach('lance', cyl((0, 0, -22), (0, 0, 78), 1.3, 'fr_wood', seg=5) + cyl((0, 0, 78), (0, 0, 100), 3.2, 'fr_glow', r1=.3, seg=4) + box(.5, 30, -.6, .6, 50, 76, 'fr_team'),
              'crystal lance with a pennon: upright at rest so the outline is tall, couched level to strike')
     L = r.dims['L']                                                                             # lower the lance, lunge, hold, recover
     r.atk = [dict(), dict(root=(-L * .06, 0, 1, 0, 0, 0), rider=(0, -8, 0), lance=(0, 50, 0)), dict(root=(L * .22, 0, -2, 0, 0, 0), rider=(0, 18, 0), lance=(0, 76, 0), neck=(0, 14, 0)),
@@ -385,7 +391,7 @@ def halfling_slinger_body():
 
 def boar():
     """WILD BOAR. Reads as: a low dark wedge, heavy in front, a ridge of bristles, pale tusks. References: AoE2 Wild Boar."""
-    L, H, W, bh = 70, 34, 30, 15
+    L, H, W, bh = 84, 32, 34, 16
     ridge = None
     for i in range(7):
         sp = cyl((L * .36 - i * 7, 0, bh * .9), (L * .34 - i * 7 - 3, 0, bh * 1.0 + 8), 3.0, 'fr_boot', r1=.3, seg=4); ridge = sp if ridge is None else ridge + sp
@@ -394,9 +400,9 @@ def boar():
 
 def deer():
     """DEER (a stag). Reads as: long thin legs, a pale rump, antlers taller than its back. References: AoE2 Deer."""
-    L, H, W, bh = 70, 52, 20, 11
-    head = beast_head('fr_hide', 6.2, 1.2, ears=.9, antler=True)
-    head = head.move(4, 0, 14) + cyl((-6, 0, -6), (6, 0, 14), 5.0, 'fr_hide', r1=4.0, seg=7)                                      # a long neck carries the head high
+    L, H, W, bh = 62, 62, 18, 10
+    head = beast_head('fr_hide', 6.2, 1.2, ears=.9, antler=True).scaled(1.25)
+    head = head.move(6, 0, 24) + cyl((-6, 0, -6), (8, 0, 24), 5.0, 'fr_hide', r1=4.0, seg=7)                                      # a long neck carries the head high
     return quadruped('deer', L, H, W, bh, 'fr_hide', 2.6, head, cyl((0, 0, 0), (-6, 0, 3), 2.6, 'fr_wool', r1=.6, seg=5), ellipsoid(8, W * .5, bh * .8, 'fr_wool', (-L * .42, 0, 2)))
 
 def sheep():
@@ -413,11 +419,11 @@ def sheep():
 # neutral one, cell box in units (half-width, up, down: wide enough for the figure lying dead), px per unit)
 BOX = (88, 138, 30)
 CATALOG = {
-    'villager': (peasant, 'strike', 1.0, 'both', BOX, .6), 'villager_pick': (lambda: peasant('pick'), 'strike', 1.0, 'both', BOX, .6),
-    'villager_hammer': (lambda: peasant('hammer'), 'strike', 1.0, 'both', BOX, .6), 'villager_hoe': (lambda: peasant('hoe'), 'strike', 1.0, 'both', BOX, .6), 'militia': (militia, 'strike', 1.0, 'both', BOX, .6), 'militia_maa': (man_at_arms, 'strike', 1.04, 'both', (94, 150, 30), .6),
-    'spearman': (dwarf_pikeman, 'thrust', 1.0, 'both', (100, 178, 30), .6), 'archer': (elf_archer, 'shoot', 1.0, 'both', (96, 144, 30), .6), 'skirmisher': (halfling_slinger, 'sling', .8, 'both', (72, 116, 26), .6),
-    'scout': (wolf_rider, 'quad', 1.0, 'both', (134, 192, 62), .6),
-    'goblin': (goblin, 'strike', .86, 'neutral', (80, 120, 28), .6), 'ogre': (ogre, 'strike', 1.65, 'neutral', (176, 226, 52), .4),
-    'wolf': (dire_wolf, 'quad', .92, 'neutral', (108, 100, 58), .6), 'boar': (boar, 'quad', 1.0, 'neutral', (84, 72, 46), .6),
-    'deer': (deer, 'graze', 1.0, 'neutral', (96, 108, 52), .6), 'sheep': (sheep, 'graze', 1.0, 'neutral', (60, 58, 36), .6),
+    'villager': (peasant, 'strike', .9, 'both', BOX, .6), 'villager_pick': (lambda: peasant('pick'), 'strike', .9, 'both', BOX, .6),
+    'villager_hammer': (lambda: peasant('hammer'), 'strike', .9, 'both', BOX, .6), 'villager_hoe': (lambda: peasant('hoe'), 'strike', .9, 'both', BOX, .6), 'militia': (militia, 'strike', 1.0, 'both', (92, 146, 30), .6), 'militia_maa': (man_at_arms, 'strike', 1.16, 'both', (104, 176, 34), .6),
+    'spearman': (dwarf_pikeman, 'thrust', 1.0, 'both', (100, 178, 30), .6), 'archer': (elf_archer, 'shoot', 1.12, 'both', (104, 162, 32), .6), 'skirmisher': (halfling_slinger, 'sling', .8, 'both', (72, 116, 26), .6),
+    'scout': (wolf_rider, 'quad', 1.0, 'both', (146, 192, 64), .6),
+    'goblin': (goblin, 'strike', 1.0, 'neutral', (96, 136, 30), .6), 'ogre': (ogre, 'strike', 1.65, 'neutral', (176, 226, 52), .4),
+    'wolf': (dire_wolf, 'quad', .92, 'neutral', (124, 100, 60), .6), 'boar': (boar, 'quad', 1.0, 'neutral', (96, 72, 48), .6),
+    'deer': (deer, 'graze', 1.0, 'neutral', (96, 150, 56), .6), 'sheep': (sheep, 'graze', 1.0, 'neutral', (60, 58, 36), .6),
 }

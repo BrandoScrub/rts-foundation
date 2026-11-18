@@ -107,6 +107,10 @@ Laid out as AoE2 Definitive Edition's HUD (source: the official Learn to Play pa
 - Every icon is cut from the game's own art (`tools/build_icons.py` -> `game/art/icons.png`).
 - Not done: a main menu and game-setup screens before the match; save and load; score panel; Objectives, Chat,
   Diplomacy.
+- **Readability on all fronts** (user): units must read by silhouette and role at a glance; menus and tooltips must
+  be easy to read. The checks, their sources and the current results are in `docs/readability.md`;
+  `python3 tools/readability_check.py` measures them. This overrides "muted player colours" for figures: the
+  owner's colour on a unit is now bright (buildings stay muted).
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.
