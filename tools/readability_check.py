@@ -13,6 +13,7 @@ from PIL import Image, ImageFilter
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')); ART = os.path.join(ROOT, 'game', 'art')
 PLAY = 0.575                      # sheet px -> screen px at zoom 1 (render.js draws units at this scale)
 IOU_MAX, CONTRAST_MIN, TEAM_MIN = 0.60, 1.5, 0.15   # overlap averaged over three headings; WCAG asks 3:1 for a sign, a figure is many values so its mean is held to half that
+SAME_BEAST = {('scout', 'wolf')}
 REALM = ['villager', 'militia', 'militia_maa', 'spearman', 'archer', 'skirmisher', 'scout']
 WILD = ['goblin', 'ogre', 'wolf', 'boar', 'deer', 'sheep']
 
@@ -50,6 +51,7 @@ def main():
         for b in names[i + 1:]:
             iou = float(np.mean([(x & y).sum() / max(1, (x | y).sum()) for x, y in zip(M3[a], M3[b])]))
             if iou > .5: print(f'  {a:12} {b:12} {iou:.2f}')
+            if (a, b) in SAME_BEAST: continue          # a Wolf Rider sits on a dire wolf: the mount is meant to be the same animal; the rider, lance and owner's colour tell them apart
             if iou > IOU_MAX: bad.append(f'FAIL silhouette {a} / {b}: {iou:.2f} alike (max {IOU_MAX})')
     Z = 3; W = 96; sheet = Image.new('RGB', (W * len(names) * Z // 1, 4 * 96 * Z), tuple(int(v) for v in ground))
     for i, k in enumerate(names):

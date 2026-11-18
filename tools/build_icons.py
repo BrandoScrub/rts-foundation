@@ -4,6 +4,7 @@ AoE2's command panel, queue and selection panel are pictures, not words. Ours ar
 technologies are the thing they improve with a gold chevron; commands and resources are simple drawn signs.
 64 px cells; icons.json maps a key to [column, row]. Run after the unit, building and prop builds."""
 import json, math, os, sys
+import numpy as np
 from PIL import Image, ImageDraw
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 ART = os.path.join(ROOT, 'game', 'art'); C = 64; SS = 4
@@ -117,7 +118,13 @@ def main():
         icons['c_buy_' + r] = badge(icons['r_' + r], lambda d, S: arrow(d, S, 50, 34, 0, 16, GREEN, 6)); icons['c_sell_' + r] = badge(icons['r_' + r], lambda d, S: arrow(d, S, 50, 56, 0, -16, GOLD, 6))
     for t, src in TECH.items():
         base = icons[src] if isinstance(src, str) else icons[{'u': 'u_', 'b': 'b_', 'p': 'p_', 'g': ''}[src[0]] + src[1]]
-        icons['t_' + t] = base if isinstance(src, str) else badge(base, chevron)
+        if isinstance(src, str): icons['t_' + t] = base; continue
+        # a technology is not the unit it improves: its own blue ground, so "research" is never mistaken for "create"
+        bg = Image.new('RGBA', (C, C)); d = ImageDraw.Draw(bg)
+        for y in range(C): d.line([(0, y), (C, y)], fill=(int(30 - y * .2), int(52 - y * .3), int(96 - y * .5), 255))
+        t0 = tile(); diff = np.abs(np.asarray(base).astype(int) - np.asarray(t0).astype(int)).sum(-1) > 24            # the picture, without its brown tile
+        fg = np.asarray(base).copy(); fg[..., 3] = np.where(diff, 255, 0).astype(np.uint8); bg.alpha_composite(Image.fromarray(fg, 'RGBA'))
+        icons['t_' + t] = badge(bg, chevron)
     keys = sorted(icons); cols = 16; rows = -(-len(keys) // cols)
     atlas = Image.new('RGBA', (cols * C, rows * C)); meta = {}
     for i, k in enumerate(keys): atlas.paste(icons[k], ((i % cols) * C, (i // cols) * C)); meta[k] = [i % cols, i // cols]
