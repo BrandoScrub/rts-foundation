@@ -2,7 +2,7 @@
 'use strict';
 (() => {
   const seed = +(new URLSearchParams(location.search).get('seed') || 7);
-  const world = new World(seed);
+  const world = new World(seed, { ai: !/[?&]ai=0/.test(location.search) });   // the computer opponent plays unless ?ai=0
   const canvas = document.getElementById('view');
   Render.init(world, canvas); Render.initMini(document.getElementById('mini'));
   UI.init(world, canvas);

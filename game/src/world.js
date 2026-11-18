@@ -1,10 +1,10 @@
 /* world.js: the simulation. No drawing and no DOM here, so it also runs in Node for tests.
-   Players: 0 = you, 1 = the opponent (an idle placeholder in this build), 2 = nature (wildlife and creep camps). */
+   Players: 0 = you, 1 = the opponent (a computer player when { ai: true }, else idle), 2 = nature (wildlife and creep camps). */
 'use strict';
 if (typeof module !== 'undefined') { global.DATA = require('./data.js'); global.MapGen = require('./map.js'); global.Path = require('./path.js'); }
 
 class World {
-  constructor(seed = 7) {
+  constructor(seed = 7, opts = {}) {
     const m = this.map = MapGen.generate(seed);
     this.W = m.W; this.H = m.H; this.time = 0; this.tick = 0; this.nextId = 1;
     this.rand = MapGen.rng(seed * 7919 + 13);   // every random choice in the simulation comes from here: same seed + same commands = same game
@@ -22,6 +22,7 @@ class World {
     this.setup();
     this.visTimer = 0; this.slowTimer = 0;
     this.updateVision(true);
+    if (opts.ai) this.aiInit();   // the computer opponent; off by default, so tests and replays choose
   }
 
   /* ------------------------------------------------------------ setup */
@@ -356,6 +357,7 @@ class World {
     if (this.state !== 'playing') return;
     this.time += dt; this.tick++; this.pathBudget = 40000;
     if (this.pending.length) { const cmds = this.pending; this.pending = []; for (const c of cmds) this.run(c); }
+    if (this.ai && this.tick % 30 === 15) this.aiThink();
     for (const e of this.ents) if (e.kind === 'unit') { e.px = e.x; e.py = e.y; }   // for smooth drawing between ticks
     for (const e of this.ents) {
       if (e.dead) continue;
@@ -451,13 +453,16 @@ class World {
       case 'move': {
         if (!u.path || u.pathTarget !== o) { if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
         if (this.follow(u, dt) && !u.moving) this.nextOrder(u);
+        else if (!u.path && (o.retry = (o.retry || 0) + 1) <= 6) u.pathTarget = null;   // stuck against something: find a new way, do not give the order up
         else if (!u.path || !u.path.length) this.nextOrder(u);
         break;
       }
       case 'amove': case 'patrol': {   // walk, fighting whatever comes into sight; a patrol turns round at each end (AoE2 Patrol)
         if (!o.scan || this.time > o.scan) { o.scan = this.time + 0.4; const t = this.findEnemy(u, this.S(u).los); if (t) { u.queue.unshift(o); o.resume = true; this.setOrder(u, { type: 'attack', id: t.id, auto: true, roam: true }); break; } }
         if (!u.path || u.pathTarget !== o || o.resume) { o.resume = false; if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
-        if (this.follow(u, dt) || !u.path || !u.path.length) {
+        const done = this.follow(u, dt);
+        if (!done && !u.path && (o.retry = (o.retry || 0) + 1) <= 6) u.pathTarget = null;   // stuck: find a new way
+        else if (done || !u.path || !u.path.length) {
           if (o.type === 'patrol' && !u.queue.length) { o.leg ^= 1; const q = o.leg ? o.b : o.a; o.x = q[0]; o.y = q[1]; o.gspeed = 0; u.path = null; u.pathTarget = null; }
           else this.nextOrder(u);
         }
@@ -818,6 +823,7 @@ class World {
       if (e.kind === 'unit') { const hp = this.hpOf(e); if (hp !== e.maxHp) { e.hp += hp - e.maxHp; e.maxHp = hp; } }   // Loom, Bloodlines, Man-at-Arms
       if (what === 'horse_collar' && e.type === 'farm') e.food += 75;
     }
+    if (p === 1 && this.ai && T.isAge) this.message(`The enemy has advanced to the ${DATA.AGE_NAMES[T.isAge]}.`);   // AoE2 announces it
     if (p === 0) this.message(T.isAge ? `You have advanced to the ${DATA.AGE_NAMES[T.isAge]}.` : `${T.name} researched.`);
   }
   losOf(e) { let l = e.kind === 'unit' ? this.S(e).los : (e.D.los || 4); if (e.kind === 'building' && e.built && e.owner < 2 && this.players[e.owner].techs.has('town_watch')) l += 4; return l; }
@@ -905,6 +911,274 @@ class World {
       case 'delete': for (const e of this.mine(p, c.ids)) { if (e.kind === 'building' && !e.built && e.progress === 0) this.pay(p, e.D.cost, -1); this.kill(e); } break;
     }
   }
+  /* ------------------------------------------------------------ the opponent (computer player)
+     Player 1, switched on with new World(seed, { ai: true }). It plays by the player's rules and prices and only
+     through world.issue(), once a second, with no randomness: the same seed and the same commands from the human
+     still give the same game. The plan is the standard AoE2 opening: six on sheep, then wood, berries and farms,
+     Loom and the Feudal Age at 21 peasants; then the three military buildings, the Blacksmith, research, an army
+     picked to counter what the enemy fields, and attack waves that grow.
+     Not yet like a person: it knows the whole map (no fog for it), and it does not wall, tower, trade or creep. */
+  aiInit() {
+    const p = 1, th = this.ents.find(e => e.owner === p && e.type === 'town_hall'), s0 = this.map.starts[0];
+    const W = this.W, seen = new Uint8Array(W * this.H), fords = [];
+    for (let i = 0; i < seen.length; i++) if (this.map.water[i] === 2 && !seen[i]) {   // the fords, each as one point
+      const st = [i], all = []; seen[i] = 1; let sx = 0, sy = 0, n = 0;
+      while (st.length) { const j = st.pop(), x = j % W, y = (j / W) | 0; sx += x; sy += y; n++; all.push(j);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (a < 0 || b < 0 || a >= W || b >= this.H) continue;
+          const k = b * W + a; if (this.map.water[k] === 2 && !seen[k]) { seen[k] = 1; st.push(k); } } }
+      let mid = all[0], md = 1e9;   // a tile of the ford itself, the one nearest its middle: always somewhere to walk to
+      for (const j of all) { const d = Math.hypot(j % W - sx / n, ((j / W) | 0) - sy / n); if (d < md && !this.map.node[j]) { md = d; mid = j; } }
+      fords.push([mid % W + 0.5, ((mid / W) | 0) + 0.5]);
+    }
+    this.ai = { p, home: [th.x, th.y], foe: [s0[0], s0[1]], fords, wave: 0, nextWave: 0, squad: [], squadSize: 0, rallied: new Set(),
+      bell: false, calm: 0, shuffleT: 0, defendT: 0 };
+  }
+  aiCampNear(x, y, r) { return this.camps.some(c => !c.cleared && Math.hypot(c.x - x, c.y - y) < r); }
+  aiOpen(i) {   // can a peasant stand beside this resource tile?
+    const W = this.W, x = i % W, y = (i / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const a = x + dx, b = y + dy; if (a < 0 || b < 0 || a >= W || b >= this.H) continue;
+      const k = b * W + a; if (!this.map.node[k] && this.map.water[k] !== 1 && !this.occ[k]) return true; }
+    return false;
+  }
+  /* the nearest free resource tile of a type to a point; dense > 0 asks for that many of its kind around it (a
+     wood line, not a lone tree). Skips warded veins and anything in reach of a camp that still stands. */
+  aiNode(type, cx, cy, rmax, dense = 0) {
+    const W = this.W, m = this.map; let best = -1, bd = rmax;
+    for (let y = Math.max(0, Math.floor(cy - rmax)); y <= Math.min(this.H - 1, cy + rmax); y++) for (let x = Math.max(0, Math.floor(cx - rmax)); x <= Math.min(W - 1, cx + rmax); x++) {
+      const i = y * W + x; if (m.node[i] !== type) continue;
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy); if (d >= bd || m.ward[i] >= 0 && this.wardedBy(i) || !this.aiOpen(i) || this.aiCampNear(x, y, 9)) continue;
+      if (dense) { let n = 0; for (let b = y - 3; b <= y + 3; b++) for (let a = x - 3; a <= x + 3; a++) if (a >= 0 && b >= 0 && a < W && b < this.H && m.node[b * W + a] === type) n++; if (n < dense) continue; }
+      bd = d; best = i;
+    }
+    return best;
+  }
+  /* which tile of a patch a peasant should work: reachable, near the patch, and not already crowded */
+  aiPick(type, t, counts) {
+    const W = this.W, tx = t % W, ty = (t / W) | 0; let best = t, bs = 1e9;
+    for (let y = ty - 4; y <= ty + 4; y++) for (let x = tx - 4; x <= tx + 4; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= this.H) continue; const i = y * W + x;
+      if (this.map.node[i] !== type || this.wardedBy(i) || !this.aiOpen(i)) continue;
+      const s = (counts.get(i) || 0) * 3 + Math.hypot(x - tx, y - ty); if (s < bs) { bs = s; best = i; }
+    }
+    return best;
+  }
+  /* a building site near a point: legal, clear of camps, and (gap) with a free lane all round so nothing gets walled in */
+  aiSpot(type, ax, ay, rmax, gap = true) {
+    const s = DATA.BUILDINGS[type].size, W = this.W; let best = null, bd = 1e9;
+    for (let ty = Math.floor(ay - rmax); ty <= ay + rmax; ty++) for (let tx = Math.floor(ax - rmax); tx <= ax + rmax; tx++) {
+      const d = Math.hypot(tx + s / 2 - ax, ty + s / 2 - ay); if (d >= bd || d > rmax) continue;
+      if (!this.canPlace(type, this.ai.p, tx, ty) || this.aiCampNear(tx + s / 2, ty + s / 2, 10)) continue;
+      let ok = true;
+      if (gap) for (let y = ty - 1; y <= ty + s && ok; y++) for (let x = tx - 1; x <= tx + s; x++) {
+        if (x >= tx && x < tx + s && y >= ty && y < ty + s) continue;
+        const i = y * W + x; if (x < 0 || y < 0 || x >= W || y >= this.H || this.map.water[i] === 1) { ok = false; break; }
+        const o = this.occ[i]; if (o) { const e = this.byId.get(o); if (e && !e.D.walk) { ok = false; break; } }
+      }
+      if (ok) { bd = d; best = [tx, ty]; }
+    }
+    return best;
+  }
+  aiThink() {
+    const A = this.ai, p = A.p, P = this.players[p], m = this.map, N = MapGen.N, B = DATA.BUILDINGS, [hx, hy] = A.home;
+    if (P.defeated) return;
+    const mine = this.ents.filter(e => !e.dead && e.owner === p);
+    const blds = mine.filter(e => e.kind === 'building'), built = blds.filter(b => b.built);
+    const vils = mine.filter(e => e.type === 'villager' && !e.garrisoned);
+    const army = mine.filter(e => e.kind === 'unit' && e.type !== 'villager' && DATA.UNITS[e.type] && !e.garrisoned);
+    const th = built.find(b => b.type === 'town_hall');
+    const foes = this.ents.filter(e => !e.dead && e.owner === 0 && !e.garrisoned && (e.kind === 'building' || (e.kind === 'unit' && DATA.UNITS[e.type])));
+    const el = Math.hypot(A.foe[0] - hx, A.foe[1] - hy) || 1, ex = (A.foe[0] - hx) / el, ey = (A.foe[1] - hy) / el;   // the way to the enemy
+    const n = vils.length, age = P.age, count = t => blds.filter(b => b.type === t).length, have = t => built.some(b => b.type === t);
+    const go = c => this.issue(p, c);
+
+    /* the purse for this second: orders run next tick, so what is spent here is taken off at once; a wanted thing
+       that cannot be paid for yet is taken off too, which keeps anything further down the list from eating its price */
+    const res = Object.assign({}, P.res);
+    const can = (c, keep) => { for (const k in c) if ((res[k] || 0) < c[k] + (keep && keep[k] || 0)) return false; return true; };
+    const spend = c => { for (const k in c) res[k] = (res[k] || 0) - c[k]; };
+    const buy = c => { const ok = can(c); spend(c); return ok; };
+
+    /* ---- what every peasant is doing ---- */
+    const nodeN = new Map(), entN = new Map(), jobs = { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 }, idle = [], taken = new Set();
+    const jobOf = u => {
+      const o = u.order; if (!o) return 'idle';
+      if (o.type === 'build' || o.type === 'repair') return 'build';
+      const g = o.type === 'gather' ? o : o.type === 'dropoff' && !o.final && u.queue[0] && u.queue[0].type === 'gather' ? u.queue[0] : null;
+      if (!g) return 'busy';
+      if (g.node !== undefined) { nodeN.set(g.node, (nodeN.get(g.node) || 0) + 1); const k = MapGen.NODE_KEY[m.node[g.node]]; return k ? DATA.NODES[k].res : 'busy'; }
+      entN.set(g.ent, (entN.get(g.ent) || 0) + 1); return 'food';
+    };
+    for (const u of vils) { u.aiJob = jobOf(u); if (u.aiJob === 'idle') idle.push(u); else if (jobs[u.aiJob] !== undefined) jobs[u.aiJob]++; }
+    const builderFor = (x, y) => { let best = null, bd = 1e9;
+      for (const u of vils) { if (taken.has(u.id) || u.aiJob === 'build' || u.aiJob === 'busy') continue; const d = Math.hypot(u.x - x, u.y - y) + (u.aiJob === 'idle' ? -6 : 0); if (d < bd) { bd = d; best = u; } }
+      return best; };
+    const raise = (type, ax, ay, rmax, gap = true, who) => {   // pay for and place a building; false if it could not be done now
+      if (!buy(B[type].cost)) return false;
+      const s = this.aiSpot(type, ax, ay, rmax, gap); if (!s) return false;
+      const u = who || builderFor(s[0], s[1]); if (!u) return false;
+      taken.add(u.id); go({ c: 'place', type, tiles: [s], ids: [u.id] }); return true;
+    };
+    const pending = t => blds.filter(b => b.type === t && !b.built).length;
+
+    /* ---- danger at home: the army answers, and the Town Bell rings if it is outnumbered ---- */
+    const threats = [];
+    for (const e of this.ents) {
+      if (e.dead || e.kind !== 'unit' || e.garrisoned || e.carcass) continue;
+      const hostile = e.owner === 0 ? e.type !== 'villager' && !!DATA.UNITS[e.type] : e.owner === 2 && e.D.creep && e.order && e.order.type === 'attack';
+      if (hostile && (Math.hypot(e.x - hx, e.y - hy) < 26 || blds.some(b => this.distTo(e, b) < 9))) threats.push(e);
+    }
+    const squad = A.squad = A.squad.filter(id => { const u = this.get(id); return u && u.owner === p; });
+    const inSquad = new Set(squad), guard = army.filter(u => !inSquad.has(u.id));
+    if (threats.length) {
+      A.calm = this.time + 6;
+      const t = threats[0];
+      if (this.time >= A.defendT && guard.length) { A.defendT = this.time + 3; go({ c: 'move', ids: guard.map(u => u.id), x: t.x, y: t.y, attack: true }); }
+      const close = threats.filter(e => Math.hypot(e.x - hx, e.y - hy) < 12).length;
+      if (th && !A.bell && close >= 3 && close > guard.length) { A.bell = true; go({ c: 'bell' }); }
+    } else if (A.bell && this.time > A.calm) { A.bell = false; go({ c: 'allclear' }); }
+
+    /* ---- population, peasants, the age ---- */
+    const queued = built.reduce((a, b) => a + b.queue.filter(q => q.kind === 'unit').length, 0);
+    const room = P.popCap - P.pop - queued;
+    if (room <= (age < 2 ? 2 : 5) && pending('cottage') < (age < 2 ? 1 : 2) && P.popCap + 5 * pending('cottage') < DATA.POP_MAX)
+      raise('cottage', hx - ex * 9, hy - ey * 9, 16);
+    const vilCap = age < 2 ? 21 : 45, thFree = th && !th.queue.length;   // AoE2: up at 21 peasants and the scout, population 22
+    if (thFree && n < vilCap && buy(DATA.UNITS.villager.cost)) go({ c: 'train', ids: [th.id], unit: 'villager' });
+    else if (thFree && age < 2 && n >= vilCap) {
+      if (!P.techs.has('loom') && !this.techBlock(p, 'loom') && buy(DATA.TECHS.loom.cost)) go({ c: 'research', id: th.id, tech: 'loom' });
+      else if (!this.techBlock(p, 'feudal') && buy(DATA.TECHS.feudal.cost)) go({ c: 'research', id: th.id, tech: 'feudal' });
+    }
+
+    /* ---- where the work is ---- */
+    const dropNear = (r, t, onlyBuilt) => t >= 0 && blds.some(b => b.type !== 'town_hall' && (b.built || !onlyBuilt) && b.D.drop && b.D.drop.includes(r) && Math.hypot(b.x - (t % this.W), b.y - ((t / this.W) | 0)) < 7);
+    const line = this.aiNode(N.TREE, hx, hy, 45, 12), lone = this.aiNode(N.TREE, hx, hy, 45);
+    const site = { wood: dropNear('wood', line, true) ? line : lone, iron: this.aiNode(N.IRON, hx, hy, 45), crystal: this.aiNode(N.CRYSTAL, hx, hy, 45), stone: this.aiNode(N.STONE, hx, hy, 45) };
+    const berry = this.aiNode(N.BERRY, hx, hy, 30), nodeType = { wood: N.TREE, iron: N.IRON, crystal: N.CRYSTAL, stone: N.STONE };
+    const camp = (type, r, t) => { if (t >= 0 && !dropNear(r, t) && !pending(type)) raise(type, t % this.W + 0.5, ((t / this.W) | 0) + 0.5, 7, false); };
+    if (n >= 8) camp('lumber_camp', 'wood', line);
+    if (n >= 11 && !count('mill')) { if (berry >= 0) camp('mill', 'food', berry); else raise('mill', hx + ey * 7, hy - ex * 7, 10); }
+    if (jobs.iron) camp('mining_camp', 'iron', site.iron);
+    if (jobs.crystal) camp('mining_camp', 'crystal', site.crystal);
+
+    /* ---- military buildings and the Blacksmith ---- */
+    const mx = hx + ex * 11, my = hy + ey * 11;
+    if ((n >= 17 || age >= 2) && !count('barracks')) raise('barracks', mx, my, 13);
+    if (age >= 2 && have('barracks')) {
+      for (const t of ['archery_range', 'stable', 'blacksmith']) if (!count(t)) raise(t, mx, my, 15);
+      if (res.wood > 500 && n >= 30) for (const t of ['barracks', 'archery_range', 'stable']) if (count(t) < 2 && !pending(t)) { raise(t, mx, my, 18); break; }
+    }
+    for (const b of built) if (b.D.trains && b.type !== 'town_hall' && !A.rallied.has(b.id)) { A.rallied.add(b.id); go({ c: 'rally', ids: [b.id], x: hx + ex * 8, y: hy + ey * 8 }); }
+
+    /* ---- research: one thing per building, when it can be paid for ---- */
+    if (age >= 2) {
+      const at = { double_bit_axe: 'lumber_camp', horse_collar: 'mill', man_at_arms: 'barracks', ore_mining: 'mining_camp', fletching: 'blacksmith', scale_mail: 'blacksmith',
+        forging: 'blacksmith', wheelbarrow: 'town_hall', padded_archer: 'blacksmith', scale_barding: 'blacksmith', bloodlines: 'stable', supplies: 'barracks' }, busy = new Set();
+      for (const t in at) {
+        if (this.techBlock(p, t) || (t === 'wheelbarrow' && n < 28)) continue;
+        const b = built.find(b => b.type === at[t] && !b.queue.length && !busy.has(b.id)); if (!b || !can(DATA.TECHS[t].cost)) continue;
+        spend(DATA.TECHS[t].cost); busy.add(b.id); go({ c: 'research', id: b.id, tech: t });
+      }
+    }
+
+    /* ---- the army: train what counters the enemy's army (AoE2: pikes against riders, slingers against archers,
+       archers against infantry), keeping a little back for buildings and research ---- */
+    if (age >= 2 || threats.length) {
+      const share = { militia: 2, spearman: 1, archer: 2, skirmisher: 1, scout: 1 }, now = { militia: 0, spearman: 0, archer: 0, skirmisher: 0, scout: 0 };
+      for (const e of foes) { if (e.kind !== 'unit' || e.type === 'villager') continue; const c = e.D.cls || [];
+        if (c.includes('cavalry')) share.spearman += 1.5; else if (c.includes('archer')) { share.skirmisher += 1.5; share.scout += 0.5; } else { share.archer += 1; share.militia += 0.5; } }
+      for (const u of army) now[u.type]++;
+      for (const b of built) for (const q of b.queue) if (q.kind === 'unit' && now[q.what] !== undefined) now[q.what]++;
+      const tot = Object.values(share).reduce((a, b) => a + b, 0), keep = age >= 2 ? { food: 60, wood: 60 } : null;
+      let all = Object.values(now).reduce((a, b) => a + b, 0);
+      for (const b of built) {
+        if (b.type === 'town_hall' || !b.D.trains || b.queue.length || all >= 60) continue;
+        const lack = t => share[t] / tot - now[t] / (all + 1);   // how far the army is short of this unit
+        const pick = b.D.trains.filter(t => (DATA.UNITS[t].age || 1) <= age && lack(t) > 0).sort((x, y) => lack(y) - lack(x))
+          .find(t => can(this.unitCost(p, t), keep));   // the most wanted unit it can pay for now; never more of what it has enough of
+        if (pick) { spend(this.unitCost(p, pick)); now[pick]++; all++; go({ c: 'train', ids: [b.id], unit: pick }); }
+      }
+    }
+
+    /* ---- the flock: the scout fetches sheep, sheep walk to the Town Hall (AoE2) ---- */
+    if (th) {
+      const flock = mine.filter(e => e.type === 'sheep' && !e.carcass && !e.order && Math.hypot(e.x - hx, e.y - hy) > 5);
+      if (flock.length) { const sp = this.spawnPoint(th, [hx - ex * 6, hy - ey * 6]); go({ c: 'move', ids: flock.map(e => e.id), x: sp[0], y: sp[1] }); }
+      const scout = guard.find(u => u.type === 'scout' && !u.order);
+      if (scout && !threats.length) { const s = this.nearest(scout, e => e.kind === 'unit' && e.type === 'sheep' && e.owner === 2 && !e.carcass && Math.hypot(e.x - hx, e.y - hy) < 40 && !this.aiCampNear(e.x, e.y, 8));
+        if (s) go({ c: 'move', ids: [scout.id], x: s.x + 0.7, y: s.y + 0.7 }); }
+    }
+
+    /* ---- peasants to work ---- */
+    const gatherNode = (u, i) => { nodeN.set(i, (nodeN.get(i) || 0) + 1); go({ c: 'order', ids: [u.id], node: i, x: i % this.W + 0.5, y: ((i / this.W) | 0) + 0.5 }); };
+    const gatherEnt = (u, e) => { entN.set(e.id, (entN.get(e.id) || 0) + 1); go({ c: 'order', ids: [u.id], target: e.id, x: e.x, y: e.y }); };
+    const toFood = u => {
+      let best = null, bs = 1e9;   // sheep and carcasses by the Town Hall first, a carcass before a living sheep
+      for (const e of this.ents) { if (e.dead || e.kind !== 'unit') continue;
+        if (!(e.carcass ? e.food > 0 : e.type === 'sheep' && (e.owner === p || e.owner === 2))) continue;
+        const d = Math.hypot(e.x - hx, e.y - hy); if (d > 9 || (entN.get(e.id) || 0) >= 4) continue;
+        const s = d + (e.carcass ? 0 : 20); if (s < bs) { bs = s; best = e; } }
+      if (best) return gatherEnt(u, best), true;
+      const farm = built.find(b => b.type === 'farm' && !entN.get(b.id) && !(b.farmer && this.get(b.farmer) && this.get(b.farmer).order && this.get(b.farmer).order.ent === b.id));
+      if (farm) return gatherEnt(u, farm), true;
+      let bn = 0; if (berry >= 0) for (const [i, c] of nodeN) if (m.node[i] === N.BERRY) bn += c;
+      if (berry >= 0 && bn < 5) return gatherNode(u, this.aiPick(N.BERRY, berry, nodeN)), true;
+      if (have('mill') && pending('farm') < 2 && can(B.farm.cost)) {   // AoE2: farms round the Town Hall, then the Mill
+        const mill = built.find(b => b.type === 'mill'), nf = count('farm');
+        if (raise('farm', nf < 8 ? hx : mill.x, nf < 8 ? hy : mill.y, 9, false, u)) return true;
+      }
+      return false;
+    };
+    const toWork = (u, r) => {
+      taken.add(u.id);
+      if (r === 'food' && toFood(u)) return jobs.food++;
+      if (r === 'food' || site[r] < 0) r = 'wood';
+      if (site[r] < 0) return;
+      jobs[r]++; gatherNode(u, this.aiPick(nodeType[r], site[r], nodeN));
+    };
+    const want = { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 };
+    if (age < 2) { want.food = Math.min(n, 6) + Math.round(Math.max(0, n - 6) * 0.5); want.wood = n - want.food; }   // AoE2: the first six on sheep
+    else { want.iron = Math.round(n * 0.14); want.crystal = Math.max(1, Math.round(n * 0.07)); want.wood = Math.round(n * (['archery_range', 'stable', 'blacksmith'].every(have) ? 0.34 : 0.4));   // the Feudal buildings are all wood
+      for (const r of ['iron', 'crystal', 'wood']) if (P.res[r] > 600) want[r] = Math.ceil(want[r] / 2);   // enough in store: back to the fields
+      want.food = n - want.iron - want.crystal - want.wood; }
+    const short = () => { let k = null, d = 0; for (const r in want) { const x = want[r] - jobs[r]; if (x > d) { d = x; k = r; } } return k; };
+    if (!A.bell) {
+      for (const u of idle) if (!taken.has(u.id)) toWork(u, short() || 'wood');
+      for (const b of blds) if (!b.built && !b.D.wall && !vils.some(u => (u.order && u.order.type === 'build' && u.order.id === b.id) || u.queue.some(q => q.type === 'build' && q.id === b.id))) {   // an abandoned site
+        const u = builderFor(b.x, b.y); if (u) { taken.add(u.id); go({ c: 'order', ids: [u.id], target: b.id, x: b.x, y: b.y }); } }
+      if (this.time >= A.shuffleT) {   // move one peasant from the most overmanned job to the most undermanned
+        const to = short(); let from = null, d = 1;
+        for (const r in want) { const x = jobs[r] - want[r]; if (x > d || (x >= 1 && to && want[to] - jobs[to] >= 2 && !from)) { d = Math.max(d, x); from = r; } }
+        if (to && from) { const u = vils.find(u => u.aiJob === from && !taken.has(u.id)); if (u) { A.shuffleT = this.time + 4; jobs[from]--; toWork(u, to); } }
+      }
+    }
+
+    /* ---- attack waves: when enough soldiers stand at home they march, by a side ford (the centre one is the
+       Ogre Stronghold's), on the enemy's Town Hall and then on whatever is left; each wave is larger ---- */
+    const far = (x, y) => x + y > this.W - 1;   // which bank of the river (it runs along x + y = W - 1)
+    const march = (ids, from, x, y, attack, turn = 0) => {   // order a march; across the river it goes by a ford no camp holds
+      let shift = false;
+      if (far(from[0], from[1]) !== far(x, y)) {
+        const len = f => Math.hypot(f[0] - from[0], f[1] - from[1]) + Math.hypot(f[0] - x, f[1] - y);
+        const fords = A.fords.filter(f => !this.aiCampNear(f[0], f[1], 16)).sort((a, b) => len(a) - len(b));
+        const f = fords.length ? fords[Math.min(fords.length - 1, turn)] : null;
+        if (f) { go({ c: 'move', ids, x: f[0], y: f[1], attack }); shift = true; }
+      }
+      go({ c: 'move', ids, x, y, attack, shift });
+    };
+    const need = Math.min(8 + 4 * A.wave, 28);
+    if (age >= 2 && !threats.length && foes.length && guard.length >= need && this.time >= A.nextWave) {
+      const t = foes.find(e => e.type === 'town_hall') || foes[0], ids = guard.map(u => u.id);
+      march(ids, A.home, t.x, t.y, true, A.wave % 2);   // the two nearest fords in turn
+      A.squad = squad.concat(ids); A.squadSize = A.squad.length; A.wave++; A.nextWave = this.time + 120;
+    } else if (squad.length) {
+      const us = squad.map(id => this.get(id));
+      if (squad.length < Math.max(2, A.squadSize * 0.25) && guard.length >= 4) { march(squad, [us[0].x, us[0].y], hx + ex * 8, hy + ey * 8, false); A.squad = []; }   // a beaten wave comes home
+      else { const lost = us.filter(u => !u.order && !u.queue.length);   // nothing left in sight: on to the nearest thing the enemy still has
+        if (lost.length && foes.length) { const t = this.nearest(lost[0], e => e.owner === 0 && (e.kind === 'building' || (e.kind === 'unit' && !!DATA.UNITS[e.type])) && !e.garrisoned);
+          if (t) march(lost.map(u => u.id), [lost[0].x, lost[0].y], t.x, t.y, true); } }
+    }
+  }
+
   /* a fingerprint of the game state, for determinism checks and, later, desync detection */
   hash() {
     let h = 2166136261; const mix = v => { h ^= Math.round(v * 1000) | 0; h = Math.imul(h, 16777619); };

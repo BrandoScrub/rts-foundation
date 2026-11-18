@@ -10,6 +10,8 @@ value beside the number in `game/src/data.js`.
   what differs is in `docs/aoe2-research.md`. Do not code the Castle Age or later until the user says so; ask for
   direction first (open questions are listed in `docs/design.md`).
 - Gold: units pay iron where AoE2 charges gold, technologies pay crystal. Both ores generate like AoE2 gold.
+- The opponent (player 1) is a computer player (`aiInit`, `aiThink` in `world.js`; Opponent AI in `docs/design.md`).
+  It acts only through `world.issue()`, pays what the player pays and uses no randomness. Keep it that way.
 - Record every design decision the user makes in `docs/design.md`.
 
 ## Where things go
@@ -36,5 +38,5 @@ value beside the number in `game/src/data.js`.
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 
 ## Before you commit
-`node tests/sim_check.js`, `node tests/mechanics_check.js` and `node tests/feudal_check.js` print only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
+`node tests/sim_check.js`, `node tests/mechanics_check.js`, `node tests/feudal_check.js` and `node tests/ai_check.js` print only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
 browser and check the console is clean.

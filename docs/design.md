@@ -10,7 +10,7 @@ comes from in a comment.
 | Engine | Browser (HTML5 + JavaScript, no build step). Art through artkit (pinned in `artkit/`), WebGL batching through artkit's `glcanvas.js` (falls back to Canvas 2D; `?gl=0` forces it). |
 | View | 2D isometric, AoE2 style, artkit conventions: 2:1, 64 px tile, light from the upper left. |
 | Map | 300 x 300 tiles (AoE2 Giant is 240). Players start in opposite corners (north and south on screen). Smooth hills built into the ground (corner heights 0 to 6, at most one level per tile, so no cliffs yet). Point-symmetric so both starts are equal. |
-| Opponent | Idle placeholder: a full enemy start (Town Hall, 3 Peasants, Scout) that does nothing. Destroying everything it has wins. |
+| Opponent (first build) | Idle placeholder: a full enemy start (Town Hall, 3 Peasants, Scout) that does nothing. Destroying everything it has wins. |
 | Factions | One shared faction for both players. |
 | Resources | Basic: food, wood, stone (the foundation of the early game). Premium: **iron** (military, takes AoE2 gold's role for soldiers and armour) and **crystal** (magic, age-ups and mystic techs from tier 2). |
 | Creep camps | Clearing a camp **unwards the deposit it guards** (crystal or iron you cannot mine before) and **drops artifacts** that work like AoE2 relics. No XP (no heroes). |
@@ -18,6 +18,7 @@ comes from in a comment.
 | Tier 2 counters (Nov 17) | A fantasy races mix, built into the one shared faction (trained from normal buildings), in the classic set: dwarf pikemen (spear), elf archers (archer), halfling slingers (skirmisher), wolf riders (light cavalry), human men-at-arms (infantry upgrade). Same counters as AoE2. Not built yet. |
 | Tier 2 cost (Nov 17) | 500 food, no crystal, plus two tier 1 buildings: exactly AoE2's Feudal Age. Crystal first matters from tier 3. |
 | Opponent (Nov 17) | Stays idle for now. |
+| Opponent AI (Nov 17, begun) | "Begin work on enemy AI" (user). The opponent is now a computer player; `?ai=0` brings back the idle one. See Opponent AI below. |
 | River (Nov 17, built) | A river runs corner to corner between the players. Deep water blocks; five shallow fords cross it: the wide centre ford, held by the Ogre Stronghold and its crystal, and two pairs further out. Banks slope down into a valley. |
 | Fishing (Nov 17, built) | Shore fish only: schools along the river banks (AoE2 DE shore fish: 200 food, fisherman 0.43/s), gathered by peasants from the bank and dropped at a Mill or Town Hall. No Dock or boats. |
 | Art timing (Nov 17) | Not yet for buildings and units; the **ground is made through the art engine now** (user, Nov 17): style pack `styles/fantasy_realm/` (terrain.json recipes) -> `python3 tools/build_ground.py` -> `game/art/ground_realm_*.jpg`, blended on the height field in the game. |
@@ -102,6 +103,30 @@ comes from in a comment.
 - Changed to match AoE2: Militia 50 food 20 iron; Palisade 3 wood, 150 HP; Palisade Gate 30 wood; Town Watch moved
   to the Feudal Age; 6 berry bushes.
 
+## Opponent AI (begun Nov 17)
+Player 1 is a computer player (`new World(seed, { ai: true })`; the browser turns it on, `?ai=0` turns it off; tests
+and replays leave it off unless they ask). It lives in `game/src/world.js` (`aiInit`, `aiThink`), thinks once a second,
+uses no randomness, and acts only through `world.issue()` at the player's prices, so a game with it is still
+deterministic (to replay one: same seed, the opponent on, and the human's commands).
+- **Dark Age, the standard AoE2 opening:** six peasants on sheep (the scout fetches the further sheep and the flock
+  walks to the Town Hall), then wood, berries and a Mill, Farms round the Town Hall, a Lumber Camp on the wood line,
+  Cottages ahead of the population, a Barracks, then Loom and the Feudal Age at 21 peasants and the scout (22
+  population). It reaches the Feudal Age at about 12 minutes.
+- **Feudal Age:** Archery Range, Stable, Blacksmith, Mining Camps on iron and crystal, peasants to 45, all the Feudal
+  research as it can pay for it, a second Barracks, Range and Stable when wood piles up.
+- **Army by counters:** it counts what the enemy fields and trains against it, as AoE2's counters say: pikemen
+  against riders, slingers (and riders) against archers, archers and men-at-arms against infantry.
+- **Attack waves:** the first leaves with 8 soldiers (about minute 18), each later one needs 4 more (to 28), at least
+  two minutes apart. Waves cross the river by the two nearest fords in turn, never the centre one (the Ogre
+  Stronghold), go for the Town Hall, then for whatever the enemy has left. A wave beaten down to a quarter goes home.
+- **Defence:** soldiers at home answer any attack on the base; when raiders by the Town Hall outnumber them it rings
+  the Town Bell, and All Clear when they are gone.
+- **Not yet like a person (my choices, open to change):** it knows the whole map (no fog for it); it does not hunt
+  boar or deer, fish, wall, build towers, use the Market, clear camps on purpose or collect artifacts; one
+  difficulty. It beats a player who does nothing in about half an hour.
+- **Fixed on the way:** a unit on a move or attack-move that got stuck used to drop the order (and jump to its next
+  queued one); it now looks for a new way, up to six times.
+
 ## Creep camps (Warcraft III style)
 Guards stand at home, attack anything that comes within 5 tiles, call the whole camp in when one is hit, chase up to
 11 tiles from home, then walk back healing. Per side: 2 Wolf Dens (crystal x4), 2 Goblin Outposts (iron x7, 1
@@ -112,5 +137,6 @@ like AoE2 Arabia.
 ## Open questions
 1. Castle Age content (age 3): not started. Who carries artifacts once there is a temple (AoE2 Monastery and Monks)?
 2. Should crystal be buyable at the Market, or stay mine-only?
-3. An AI for the opponent (it is still idle).
+3. Opponent AI, next steps: should it play by the fog (scout first)? Should it clear camps and take artifacts? Hunt
+   boar and deer, towers and walls, the Market? Difficulty levels (AoE2 has Easiest to Extreme)?
 4. Art: approve or change the grey blockouts before any detail is added.

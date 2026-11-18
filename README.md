@@ -9,7 +9,7 @@ and no heroes. This build covers AoE2's **Dark Age and Feudal Age**.
 | `artkit/` | The art engine, a **pinned copy** of BrandoScrub/Game-Engine-System-Design (version in `artkit/VENDORED.json`). Never edited here. |
 | `styles/fantasy_realm/` | This game's art style pack (outside the engine): so far the ground recipes in `terrain.json`. |
 | `tools/` | `update_artkit.py <engine checkout>` brings in a new engine version; `check_artkit.py` catches edits to the pinned copy; `build_ground.py` renders the ground tiles through artkit into `game/art/`. |
-| `tests/` | `node tests/sim_check.js` (rules and economy) and `node tests/mechanics_check.js` (commands, determinism, replay, path budget, group paths, fog memory), and `node tests/feudal_check.js` (AoE2 damage, counters, ages, research, Market), all without a browser. |
+| `tests/` | `node tests/sim_check.js` (rules and economy) and `node tests/mechanics_check.js` (commands, determinism, replay, path budget, group paths, fog memory), `node tests/feudal_check.js` (AoE2 damage, counters, ages, research, Market) and `node tests/ai_check.js` (the computer opponent), all without a browser. |
 | `docs/design.md` | Every decision so far, how AoE2 was followed, and the open questions. |
 | `docs/aoe2-research.md` | How AoE2 works (damage, movement, map generation, art), with sources, and what is copied. |
 
@@ -17,7 +17,7 @@ and no heroes. This build covers AoE2's **Dark Age and Feudal Age**.
 ```
 python3 -m http.server 8000 -d game
 ```
-then open http://localhost:8000/. `?seed=N` makes a different map, `?gl=0` uses plain Canvas 2D, `?reveal=1` shows the whole map (testing).
+then open http://localhost:8000/. `?seed=N` makes a different map, `?gl=0` uses plain Canvas 2D, `?reveal=1` shows the whole map (testing), `?ai=0` leaves the opponent idle.
 Press **F1** in the game for every hotkey and the touch controls. Phones and narrow windows get the mobile interface (after Brass and Bone's); F1 can force Mobile or Desktop.
 
 ## Read first
