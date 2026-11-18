@@ -203,23 +203,23 @@ const Render = (() => {
   const uart = { meta: null, img: {} };
   function loadUnits() {
     fetch('art/units.json').then(r => r.json()).then(j => { uart.meta = j;
-      for (const k in j.units) for (const p of j.players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; } }).catch(() => { });
+      for (const k in j.units) for (const p of j.units[k].players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; } }).catch(() => { });
   }
   function drawUnit(e, sx, sy) {
-    if (!uart.meta || e.owner > 1 || e.carcass) return false;
+    if (!uart.meta || e.carcass) return false;
     const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type, im = uart.img[key + '_' + e.owner];
     if (!im) return false;
-    const M = uart.meta, [cw, ch] = M.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
+    const M = uart.meta, U = M.units[key], [cw, ch] = U.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
     let col = 0;
     const sw = e.swingT !== undefined ? W.time - e.swingT : 9;
     if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
-    const k = cam.zoom * M.draw * 1.15;
-    ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - M.origin[0] * k, sy - M.origin[1] * k, cw * k, ch * k);
+    const k = cam.zoom * M.draw;
+    ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - U.origin[0] * k, sy - U.origin[1] * k, cw * k, ch * k);
     if (e.carry && e.carry.amt >= 1) { ctx.fillStyle = DATA.RES_INFO[e.carry.res].color; ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(sx - 7 * cam.zoom, sy - 20 * cam.zoom, 3.2 * cam.zoom, 0, 7); ctx.fill(); ctx.stroke(); }
-    if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 44 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
+    if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 48 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
     return true;
   }
   function buildingSprite(b, team) {

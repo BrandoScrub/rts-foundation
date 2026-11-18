@@ -66,9 +66,11 @@ comes from in a comment.
   darker ground. Set in `styles/fantasy_realm/style.json` (`procedural`, `look`) and `terrain.json`.
 - **Units before building detail.**
 - **Figures stay oversized for visibility** (about twice what the doors imply).
-- Built: Peasant, Militia and Man-at-Arms as artkit jointed figures (`styles/fantasy_realm/units.py`), 8 headings,
-  idle, 8-frame walk and 5-frame strike, in both player colours (`tools/build_units.py`). The other units and all
-  creatures are still code-drawn.
+- **Fantasy, not medieval** (user, second note): each race gets its own build and an exaggerated signature, and
+  the realm's crystal glows on weapons and shields.
+- Built as artkit jointed figures (`styles/fantasy_realm/units.py`, `tools/build_units.py`), 8 headings, idle, walk
+  and attack, in both player colours: Peasant, Militia, Man-at-Arms, Dwarf Pikeman, Elf Archer, Halfling Slinger;
+  neutral: Goblin Raider, Ogre Brute. Still code-drawn: Wolf Rider, wolves, sheep, deer, boar.
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.

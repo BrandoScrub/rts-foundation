@@ -1,17 +1,5 @@
 {
- "players": [
-  "0",
-  "1"
- ],
- "cell": [
-  56,
-  76
- ],
- "origin": [
-  28.0,
-  62.4
- ],
- "draw": 0.5,
+ "draw": 0.575,
  "clips": {
   "idle": [
    0,
@@ -31,13 +19,122 @@
  },
  "units": {
   "villager": {
-   "parts": 17
+   "parts": 18,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
   },
   "militia": {
-   "parts": 18
+   "parts": 19,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
   },
   "militia_maa": {
-   "parts": 19
+   "parts": 21,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
+  },
+  "spearman": {
+   "parts": 19,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    72,
+    119
+   ],
+   "origin": [
+    36.0,
+    105.6
+   ]
+  },
+  "ogre": {
+   "parts": 19,
+   "players": [
+    "2"
+   ],
+   "cell": [
+    149,
+    153
+   ],
+   "origin": [
+    74.5,
+    128.4
+   ]
+  },
+  "archer": {
+   "parts": 20,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
+  },
+  "skirmisher": {
+   "parts": 19,
+   "players": [
+    "0",
+    "1"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
+  },
+  "goblin": {
+   "parts": 17,
+   "players": [
+    "2"
+   ],
+   "cell": [
+    68,
+    93
+   ],
+   "origin": [
+    34.0,
+    79.2
+   ]
   }
  }
 }
