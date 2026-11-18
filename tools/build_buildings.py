@@ -21,8 +21,8 @@ def materials(st, team_rgb):
         base = name.split('@')[0]
         if base not in P: base = 'stone'
         rgb, kind = P[base]
-        if base == 'roof': rgb, kind = list(t * 0.78 + 20), 'wood'       # roofs: the player colour, a little muted
-        if base == 'team': rgb, kind = list(np.minimum(255, t * 1.05 + 12)), 'plain'
+        if base == 'roof': rgb, kind = list(t * 0.52 + 16), 'wood'       # roofs: the player colour, dark and muted (slate with a tint)
+        if base == 'team': rgb, kind = list(t * 0.82 + 8), 'plain'
         return Material(procedural(rgb, kind, seed=sum(map(ord, base))).astype(np.float32), 'tile', 48 / 128, base == 'ember')
     return Materials(fallback=fb)
 

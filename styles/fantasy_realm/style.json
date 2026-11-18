@@ -16,25 +16,25 @@
  "procedural": {
   "stone": [
    [
-    176,
-    172,
-    160
+    122,
+    120,
+    116
    ],
    "rock"
   ],
   "timber": [
    [
-    150,
-    112,
-    72
+    92,
+    66,
+    44
    ],
    "wood"
   ],
   "thatch": [
    [
-    196,
-    168,
-    96
+    146,
+    124,
+    76
    ],
    "canvas"
   ],
@@ -48,49 +48,49 @@
   ],
   "canvas": [
    [
-    226,
-    214,
-    186
+    170,
+    158,
+    132
    ],
    "canvas"
   ],
   "earth": [
    [
-    134,
-    108,
-    72
+    94,
+    76,
+    54
    ],
    "dust"
   ],
   "dark": [
    [
-    44,
-    36,
-    30
+    26,
+    22,
+    20
    ],
    "plain"
   ],
   "iron": [
    [
-    104,
-    112,
-    126
+    72,
+    78,
+    90
    ],
    "rock"
   ],
   "crystal": [
    [
-    96,
-    216,
-    240
+    70,
+    180,
+    210
    ],
    "plain"
   ],
   "ember": [
    [
     255,
-    150,
-    50
+    140,
+    40
    ],
    "plain"
   ],
@@ -119,5 +119,6 @@
   "storey": 110,
   "figure": 100,
   "door": 96
- }
+ },
+ "look": "Darker, more fantasy, realistic (user, Nov 17): weathered stone and dark timber, muted player colours, steep spires; figures oversized for visibility."
 }

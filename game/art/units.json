@@ -1,0 +1,43 @@
+{
+ "players": [
+  "0",
+  "1"
+ ],
+ "cell": [
+  56,
+  76
+ ],
+ "origin": [
+  28.0,
+  62.4
+ ],
+ "draw": 0.5,
+ "clips": {
+  "idle": [
+   0,
+   1,
+   1
+  ],
+  "walk": [
+   1,
+   8,
+   10
+  ],
+  "attack": [
+   9,
+   5,
+   13
+  ]
+ },
+ "units": {
+  "villager": {
+   "parts": 17
+  },
+  "militia": {
+   "parts": 18
+  },
+  "militia_maa": {
+   "parts": 19
+  }
+ }
+}

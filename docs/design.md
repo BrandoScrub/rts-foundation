@@ -61,6 +61,15 @@ comes from in a comment.
 - **Picking.** In screen space against what is drawn: a unit's body, a building's silhouette, a tree's sprite; the
   front-most wins; a finger gets more slack. The canvas re-measures itself every frame, so taps and drawing agree.
 
+## Art direction (user, Nov 17)
+- **Darker, more fantasy, realistic.** Weathered stone, dark timber, player colours muted to a tint, steep spires,
+  darker ground. Set in `styles/fantasy_realm/style.json` (`procedural`, `look`) and `terrain.json`.
+- **Units before building detail.**
+- **Figures stay oversized for visibility** (about twice what the doors imply).
+- Built: Peasant, Militia and Man-at-Arms as artkit jointed figures (`styles/fantasy_realm/units.py`), 8 headings,
+  idle, 8-frame walk and 5-frame strike, in both player colours (`tools/build_units.py`). The other units and all
+  creatures are still code-drawn.
+
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.
 - **Counters:** Dwarf Pikeman (Spearman, +15 vs cavalry), Elf Archer (Archer), Halfling Slinger (Skirmisher, +3 vs

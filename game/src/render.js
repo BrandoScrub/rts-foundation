@@ -13,7 +13,7 @@ const Render = (() => {
   function init(world, cv) {
     W = world; canvas = cv;
     ctx = (typeof GLCanvas !== 'undefined' && !/[?&]gl=0/.test(location.search)) ? GLCanvas.create(canvas) : canvas.getContext('2d');
-    resize(); loadGround(); loadBuildings();
+    resize(); loadGround(); loadBuildings(); loadUnits();
   }
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -198,6 +198,30 @@ const Render = (() => {
     const m = bart.meta[b.type], k = cam.zoom * 0.5; ctx.globalAlpha = alpha;   // pictures are made at twice the game's tile size, so zooming in stays sharp
     ctx.drawImage(im, sx - m.cx * k, sy - m.cy * k, m.w * k, m.h * k); ctx.globalAlpha = 1;
   }
+  /* Figures from the art engine: styles/fantasy_realm/units.py -> tools/build_units.py -> art/u_<key>_<player>.png.
+     A sheet has 8 rows (headings, 45 degrees apart, row 0 = the game's +x) and columns idle | walk | strike. */
+  const uart = { meta: null, img: {} };
+  function loadUnits() {
+    fetch('art/units.json').then(r => r.json()).then(j => { uart.meta = j;
+      for (const k in j.units) for (const p of j.players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; } }).catch(() => { });
+  }
+  function drawUnit(e, sx, sy) {
+    if (!uart.meta || e.owner > 1 || e.carcass) return false;
+    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type, im = uart.img[key + '_' + e.owner];
+    if (!im) return false;
+    const M = uart.meta, [cw, ch] = M.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
+    let col = 0;
+    const sw = e.swingT !== undefined ? W.time - e.swingT : 9;
+    if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
+    else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
+    else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
+    const k = cam.zoom * M.draw * 1.15;
+    ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - M.origin[0] * k, sy - M.origin[1] * k, cw * k, ch * k);
+    if (e.carry && e.carry.amt >= 1) { ctx.fillStyle = DATA.RES_INFO[e.carry.res].color; ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(sx - 7 * cam.zoom, sy - 20 * cam.zoom, 3.2 * cam.zoom, 0, 7); ctx.fill(); ctx.stroke(); }
+    if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 44 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
+    return true;
+  }
   function buildingSprite(b, team) {
     const s = b.size, t = b.type, stage = b.built ? 'done' : (b.progress < 0.5 ? 'f0' : 'f1');
     const key = `b:${t}:${team}:${stage}:${t === 'farm' ? Math.min(4, Math.ceil((b.food / DATA.FARM.food) * 4)) : 0}`;
@@ -295,7 +319,7 @@ const Render = (() => {
       if (type !== 6) ell(g, 0, 2, 16, 7, 'rgba(0,0,0,0.22)');
       if (type === 1) {   // tree: broadleaf or conifer
         if (v < 2) { g.fillStyle = '#5b3c20'; g.fillRect(-2.5, -18, 5, 20);
-          ell(g, 0, -30, 17, 15, v ? '#2f5f2a' : '#3a6e2e', '#1d3a17'); ell(g, -6, -40, 12, 10, v ? '#386f30' : '#478236', '#1d3a17'); ell(g, 5, -45, 9, 8, v ? '#468039' : '#559440', '#1d3a17'); }
+          ell(g, 0, -30, 17, 15, v ? '#254a22' : '#2c5524', '#1d3a17'); ell(g, -6, -40, 12, 10, v ? '#2b5626' : '#35652b', '#1d3a17'); ell(g, 5, -45, 9, 8, v ? '#356330' : '#3f7332', '#1d3a17'); }
         else { g.fillStyle = '#4a3018'; g.fillRect(-2, -10, 4, 12);
           for (let k = 0; k < 3; k++) poly(g, [[-15 + k * 3, -6 - k * 14], [15 - k * 3, -6 - k * 14], [0, -32 - k * 14]], v === 2 ? '#2a5a3a' : '#24503a', '#14301f'); }
       } else if (type === 2) {
@@ -447,9 +471,11 @@ const Render = (() => {
         const s = artifactSprite(); blit(s, sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
         ctx.fillStyle = 'rgba(255,220,120,0.18)'; ctx.beginPath(); ctx.arc(sx, sy - 22 * k, 14 * k, 0, 7); ctx.fill();
       } else {
-        const frame = e.moving ? (Math.floor(e.walkT * 6) % 2) + 1 : (e.swingT && W.time - e.swingT < 0.3 ? 1 : 0);
-        const flip = Math.cos(e.facing) - Math.sin(e.facing) < 0;   // screen-left headings mirror the sprite
-        blit(unitSprite(e, team, frame), sx, sy, flip);
+        if (!drawUnit(e, sx, sy)) {
+          const frame = e.moving ? (Math.floor(e.walkT * 6) % 2) + 1 : (e.swingT && W.time - e.swingT < 0.3 ? 1 : 0);
+          const flip = Math.cos(e.facing) - Math.sin(e.facing) < 0;   // screen-left headings mirror the sprite
+          blit(unitSprite(e, team, frame), sx, sy, flip);
+        }
       }
       // health bar
       if (e.kind !== 'artifact' && !e.carcass && (selSet.has(e.id) || ui.hoverId === e.id || (e.hp < e.maxHp && e.kind === 'unit' && e.hitT && W.time - e.hitT < 4))) {

@@ -52,7 +52,7 @@ const UI = (() => {
     for (const e of W.ents) {
       if (e.dead || e.garrisoned || e.kind === 'building' || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * W.W + Math.floor(e.x); if (e.owner !== 0 && !P.vis[ti]) continue;
-      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 54 : e.type === 'scout' || e.type === 'archer' ? 32 : e.type === 'skirmisher' || e.type === 'spearman' ? 24 : e.kind === 'artifact' ? 30 : 28) * k;
+      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 54 : e.type === 'scout' || e.type === 'archer' ? 32 : e.type === 'skirmisher' || e.type === 'spearman' ? 24 : e.kind === 'artifact' ? 30 : e.type === 'villager' || e.type === 'militia' ? 36 : 28) * k;
       const half = (e.type === 'ogre' || e.type === 'scout' ? 15 : 10) * k + slop;
       const cy = sy - tall / 2, dx = (px - sx) / half, dy = (py - cy) / (tall / 2 + slop);   // inside the body's ellipse
       const d = dx * dx + dy * dy; if (d > 1) continue;
