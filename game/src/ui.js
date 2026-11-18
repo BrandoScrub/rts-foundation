@@ -466,8 +466,11 @@ const UI = (() => {
     const p = IC && IC.icons[key]; if (!p) return `<i class="ico" style="width:${size}px;height:${size}px;background:#241b12"></i>`;
     return `<i class="ico" style="width:${size}px;height:${size}px;background-size:${IC.cols * size}px ${IC.rows * size}px;background-position:-${p[0] * size}px -${p[1] * size}px"></i>`;
   }
-  function costHtml(c) { const P = W.players[0]; return Object.entries(c).map(([k, v]) => `<span class="cost${P.res[k] < v ? ' short' : ''}">${ico('r_' + k, 16)}${v}</span>`).join(''); }
-  const tipHtml = (name, cost, time, text, note) => `<b>${name}</b>${cost ? `<div class="costs">${costHtml(cost)}${time ? `<span class="cost dim">${time}s</span>` : ''}</div>` : '<br>'}${text || ''}${note ? `<br><em>${note}</em>` : ''}`;
+  function costHtml(c) { const P = W.players[0]; return Object.entries(c).map(([k, v]) => `<span class="cost${P.res[k] < v ? ' short' : ''}" title="${DATA.RES_INFO[k].name}">${ico('r_' + k, 20)}${v}${P.res[k] < v ? ` <small>(need ${Math.ceil(v - P.res[k])} more)</small>` : ''}</span>`).join(''); }
+  /* A tooltip reads top to bottom in the order a player needs it: what it is, what it is for, what it costs, what it
+     beats and what beats it, the detail, and last why it cannot be used. Never colour alone: every line has a word. */
+  const roleHtml = k => { const R = DATA.ROLES[k]; if (!R) return ''; return `<div class="role">${R.role}<span> · ${R.does}</span></div>` + (R.strong ? `<div class="vs good"><b>Strong against</b> ${R.strong}</div>` : '') + (R.weak ? `<div class="vs bad"><b>Weak against</b> ${R.weak}</div>` : ''); };
+  const tipHtml = (name, cost, time, text, note, unit) => `<b>${name}</b>${unit ? roleHtml(unit) : ''}${cost ? `<div class="costs">${costHtml(cost)}${time ? `<span class="cost dim" title="Time">⏱ ${time}s</span>` : ''}</div>` : ''}<div class="txt">${(text || '').replace(/\s*\(AoE2[^)]*\)/g, '')}</div>${note ? `<div class="note">${/^Needs|being|Not|need/i.test(note) ? '⚠ ' : ''}${note}</div>` : ''}`;
   const ORDER = ['wood', 'food', 'iron', 'stone', 'crystal'];   // AoE2: wood, food, gold, stone; iron stands where gold does
   function buildTop() {
     $('res').innerHTML = ORDER.map(r => `<div class="r" title="${DATA.RES_INFO[r].name}${DATA.RES_INFO[r].basic ? '' : ' (premium)'}: stockpile, and the peasants gathering it">${ico('r_' + r, 30)}<b id="r-${r}">0</b><small id="v-${r}"></small></div>`).join('') +
@@ -550,7 +553,7 @@ const UI = (() => {
       const b = blds[0], D = b.D;
       if (b.built) {
         (D.trains || []).forEach((t, i) => { const U = DATA.UNITS[t], young = (U.age || 1) > P.age, cost = W.unitCost(0, t), maa = t === 'militia' && W.tech(0, 'man_at_arms'), name = maa ? 'Man-at-Arms' : U.name;
-          add(button(GRID[i], `Create ${name}`, tipHtml('Create ' + name, cost, U.time, U.tip, young ? `Needs the ${DATA.AGE_NAMES[U.age]}.` : 'Shift-click: 5'),
+          add(button(GRID[i], `Create ${name}`, tipHtml('Create ' + name, cost, U.time, U.tip, young ? `Needs the ${DATA.AGE_NAMES[U.age]}.` : 'Shift-click creates five.', t),
             ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { icon: 'u_' + (maa ? 'militia_maa' : t), cost, disabled: young })); });
         (D.researches || []).filter(t => !P.techs.has(t) && !(DATA.TECHS[t].isAge && P.age >= DATA.TECHS[t].isAge)).forEach((t, i) => { const T = DATA.TECHS[t], why = W.techBlock(0, t);
           add(button(GRID[5 + i], T.name, tipHtml((T.isAge ? '' : 'Research ') + T.name, T.cost, T.time, T.tip, why || ''), () => cmd({ c: 'research', id: b.id, tech: t }), { icon: 't_' + t, disabled: !!why, cost: T.cost })); });
@@ -574,7 +577,7 @@ const UI = (() => {
   let infoKey = '';
   const WHO = ['You', 'Enemy', 'Wild'];
   const artKey = e => e.kind === 'artifact' ? 'p_relic' : e.kind === 'building' ? 'b_' + e.type : 'u_' + (e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type);
-  const stat = (icon, v, title) => `<span title="${title}">${ico(icon, 18)}${v}</span>`;
+  const stat = (icon, v, title) => `<span title="${title}">${ico(icon, 22)}<b>${v}</b><small>${title}</small></span>`;
   function info() {
     const list = sel.list(), el = $('info'); let h;
     if (!list.length) {
@@ -592,13 +595,15 @@ const UI = (() => {
     }
     const e = list[0], D = e.D;
     h = `<div class="selp"><div class="port">${ico(artKey(e), 84)}${e.kind !== 'artifact' ? `<div class="hp"><i style="width:${100 * e.hp / e.maxHp}%"></i><span>${Math.ceil(e.hp)}/${e.maxHp}</span></div>` : ''}</div><div class="selb">`;
-    h += `<h3>${e.kind === 'unit' ? W.unitName(e) : D.name}</h3><div class="own">${e.kind === 'artifact' ? 'Relic' : e.owner === 2 && D.creep ? 'Creep' : WHO[e.owner]}${e.kind === 'unit' && e.owner === 0 && e.type !== 'villager' && e.type !== 'sheep' ? ` · ${DATA.STANCE_NAMES[e.stance]} · ${DATA.FORMATION_NAMES[e.formation]}` : ''}</div>`;
+    const RL = e.kind === 'unit' && DATA.ROLES[e.type];
+    h += `<h3>${e.kind === 'unit' ? W.unitName(e) : D.name}${RL ? ` <small>${RL.role}</small>` : ''}</h3><div class="own">${e.kind === 'artifact' ? 'Relic' : e.owner === 2 && D.creep ? 'Creep' : WHO[e.owner]}${e.kind === 'unit' && e.owner === 0 && e.type !== 'villager' && e.type !== 'sheep' ? ` · ${DATA.STANCE_NAMES[e.stance]} · ${DATA.FORMATION_NAMES[e.formation]}` : ''}</div>`;
     if (e.kind === 'unit') {
       if (e.carcass) h += `<p class="stats">${stat('r_food', Math.ceil(e.food), 'Food left')}</p>`;
       else {
         const S = W.S(e), bon = Object.entries(S.bonus).map(([k, v]) => `+${v} vs ${k}`).join(', ');
         h += `<p class="stats">${stat('s_attack', S.melee || S.pierce, 'Attack')}${stat('s_armor', S.armor[0], 'Melee armour')}${stat('s_pierce', S.armor[1], 'Pierce armour')}${S.range ? stat('s_range', S.range, 'Range') : ''}${stat('s_los', S.los, 'Line of sight')}${stat('s_speed', +S.speed.toFixed(2), 'Speed')}</p>`;
-        if (bon) h += `<p class="dim">${bon}</p>`;
+        if (RL && (RL.strong || RL.weak) && e.owner !== 2) h += `<p class="vsl">${RL.strong ? `<span class="good"><b>Strong against</b> ${RL.strong}</span>` : ''}${RL.weak ? ` <span class="bad"><b>Weak against</b> ${RL.weak}</span>` : ''}</p>`;
+        else if (bon) h += `<p class="dim">${bon}</p>`;
         if (e.type === 'villager') h += `<p class="stats">${e.carry.amt >= 0.5 ? stat('r_' + e.carry.res, Math.floor(e.carry.amt), 'Carrying') : ''}<span>${e.order ? taskName(e) : 'idle'}</span></p>`;
         if (e.artifact) h += '<p>Carrying an artifact: bring it to a Town Hall.</p>';
         if (D.food && !e.carcass) h += `<p class="stats">${stat('r_food', D.food, 'Food')}</p>`;

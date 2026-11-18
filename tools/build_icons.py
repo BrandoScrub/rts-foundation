@@ -25,7 +25,7 @@ def fit(src, box=56, top=False):
 def unit(key, owner):
     M = json.load(open(os.path.join(ART, 'units.json')))['units'][key]; cw, ch = M['cell']
     fr = Image.open(os.path.join(ART, f'u_{key}_{owner}.png')).convert('RGBA').crop((0, ch, cw, 2 * ch))       # idle, facing the camera
-    x0, y0, x1, y1 = fr.getbbox(); side = max(x1 - x0, (y1 - y0) * .78); cx = (x0 + x1) / 2
+    x0, y0, x1, y1 = fr.getbbox(); side = (y1 - y0) * .66; cx = (x0 + x1) / 2     # head and shoulders: a face-sized picture reads; a whole figure in a button does not
     return fit(fr.crop((int(cx - side / 2), y0, int(cx + side / 2), int(y0 + side))), 60)
 
 

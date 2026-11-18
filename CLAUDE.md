@@ -36,6 +36,9 @@ value beside the number in `game/src/data.js`.
   fish, fire and carried loads: new map art goes through the engine so everything keeps one style.
 - HUD: AoE2's layout (see Interface in `docs/design.md`). Buttons are pictures from `game/art/icons.png`; after changing
   unit, building or prop art run `python3 tools/build_icons.py`. A new command needs an icon key and a grid slot.
+- Readability comes before detail (`docs/readability.md`): after changing a unit run `python3 tools/readability_check.py`
+  and look at its sheet; a new unit needs its own silhouette, its own place for the owner's colour, and a ROLES entry
+  in `game/src/data.js`. HUD text stays at 4.5:1 or better and nothing is said by colour alone.
 - This game's art content (its style pack) lives in `styles/fantasy_realm/`, outside the engine. Any new building, unit
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 
