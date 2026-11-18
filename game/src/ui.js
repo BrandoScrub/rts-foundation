@@ -35,7 +35,8 @@ const UI = (() => {
   /* ---------------- picking ---------------- */
   /* Picking works in screen space against what is drawn: a unit by its body, a building by its silhouette (the
      footprint and the same footprint raised to the roof), a tree or mine by its sprite. A finger gets more slack. */
-  const BH = { town_hall: 118, cottage: 40, mill: 62, lumber_camp: 34, mining_camp: 34, farm: 4, barracks: 52, palisade: 26, gate: 30, watchpost: 82 };
+  const BH = { town_hall: 118, cottage: 40, mill: 62, lumber_camp: 34, mining_camp: 34, farm: 4, barracks: 52, palisade: 26, gate: 30, watchpost: 82,
+    blacksmith: 50, market: 46, archery_range: 48, stable: 46, watch_tower: 78, stone_wall: 24, stone_gate: 34 };
   function inPoly(px, py, pts) { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
     const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) c = !c; } return c; }
   function buildingHit(b, px, py, slop) {
@@ -51,7 +52,7 @@ const UI = (() => {
     for (const e of W.ents) {
       if (e.dead || e.garrisoned || e.kind === 'building' || (e.kind === 'artifact' && e.carrier)) continue;
       const ti = Math.floor(e.y) * W.W + Math.floor(e.x); if (e.owner !== 0 && !P.vis[ti]) continue;
-      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 54 : e.type === 'scout' ? 30 : e.kind === 'artifact' ? 30 : 28) * k;
+      const [sx, sy] = R.toScreen(e.x, e.y, W.h(e.x, e.y)), tall = (e.type === 'ogre' ? 54 : e.type === 'scout' || e.type === 'archer' ? 32 : e.type === 'skirmisher' || e.type === 'spearman' ? 24 : e.kind === 'artifact' ? 30 : 28) * k;
       const half = (e.type === 'ogre' || e.type === 'scout' ? 15 : 10) * k + slop;
       const cy = sy - tall / 2, dx = (px - sx) / half, dy = (py - cy) / (tall / 2 + slop);   // inside the body's ellipse
       const d = dx * dx + dy * dy; if (d > 1) continue;
@@ -115,7 +116,7 @@ const UI = (() => {
       if (D.wall || D.gate) { P.mode = 'wall'; st.wallStart = tileAt(px, py, 1); updateGhost(); return; }
       P.mode = 'place'; return;
     }
-    if (st.mode === 'amove') { P.mode = 'amove'; return; }
+    if (st.mode === 'amove' || st.mode === 'patrol') { P.mode = 'amove'; return; }
     P.mode = touch ? (Mobile.box ? 'box' : 'tap') : 'box';
     if (P.mode === 'box') st.box = [px, py, px, py];
     clearTimeout(P.lp);
@@ -159,7 +160,7 @@ const UI = (() => {
         return Mobile.pinTap(px, py);
       case 'amove': {
         if (P.touch && P.moved) return;
-        const [x, y] = R.toWorld(px, py); cmd({ c: 'move', ids: ownIds(), x, y, shift, attack: true }); mark(x, y, '#ff6040'); if (!shift) st.mode = null; refresh(); return; }
+        const [x, y] = R.toWorld(px, py); if (st.mode === 'patrol') cmd({ c: 'patrol', ids: ownIds(), x, y }); else cmd({ c: 'move', ids: ownIds(), x, y, shift, attack: true }); mark(x, y, '#ff6040'); if (!shift) st.mode = null; refresh(); return; }
       case 'tap': if (!P.moved) tapAt(px, py); return;
       case 'box': {
         const box = st.box; st.box = null; if (P.touch) Mobile.box = false;
@@ -253,9 +254,10 @@ const UI = (() => {
   function tileAt(px, py, s) { const [x, y] = R.toWorld(px, py); return [Math.round(x - s / 2), Math.round(y - s / 2)]; }
   function startPlacing(type) {
     const D = DATA.BUILDINGS[type];
+    if ((D.age || 1) > W.players[0].age) return msg(`Needs the ${DATA.AGE_NAMES[D.age]}.`);
     if (D.needs && !W.has(0, D.needs)) return msg(`Needs a ${DATA.BUILDINGS[D.needs].name} first.`);
     if (!W.canAfford(0, D.cost)) return msg(`Not enough resources for a ${D.name}.`);
-    st.placing = type; st.menu = 'build'; Mobile.pin = null; if (Mobile.on) Mobile.startPin(); updateGhost(); refresh();
+    st.placing = type; st.menu = DATA.BUILDINGS[type].menu || 'eco'; Mobile.pin = null; if (Mobile.on) Mobile.startPin(); updateGhost(); refresh();
   }
   function wallLine(a, b) {   // straight or diagonal, the way AoE2 lays palisades
     const out = [], dx = b[0] - a[0], dy = b[1] - a[1], n = Math.max(Math.abs(dx), Math.abs(dy));
@@ -348,7 +350,7 @@ const UI = (() => {
         if (!(D.wall || D.gate)) h += rb('here', 'Place', this.pin ? (g && g.ok ? 'go2' : 'off') : 'off');
         h += rb('repeat', 'Repeat', this.repeat ? 'on' : '') + rb('clear', 'Cancel');
       } else {
-        h += rb('build', 'Build', st.menu === 'build' ? 'on' : '') + rb('box', 'Box', this.box ? 'on' : '') + rb('idle', 'Idle') + rb('army', 'Army') + rb('screen', 'Screen');
+        h += rb('build', 'Build', inMenu() ? 'on' : '') + rb('box', 'Box', this.box ? 'on' : '') + rb('idle', 'Idle') + rb('army', 'Army') + rb('screen', 'Screen');
         if (units) h += this.tapOrder === 'move' ? rb('move', 'Move') : rb('amove', 'Attack', 'on');
         if (has) h += rb('clear', 'Clear');
         h += rb('map', 'Map', document.body.classList.contains('m-mapoff') ? '' : 'on');
@@ -357,7 +359,7 @@ const UI = (() => {
     },
     act(a) {
       if (a === 'build') {
-        if (st.menu === 'build') { st.menu = null; return refresh(); }
+        if (inMenu()) { st.menu = null; return refresh(); }
         let v = ownUnits().filter(u => u.type === 'villager');
         if (!v.length) {   // no peasant selected: take an idle one, else the nearest to the middle of the screen
           const [cx, cy] = R.toWorld(R.vw / 2, R.vh / 2), all = W.ents.filter(u => !u.dead && u.owner === 0 && u.type === 'villager' && !u.garrisoned);
@@ -365,7 +367,7 @@ const UI = (() => {
           pool.sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));
           if (!pool.length) return msg('No peasants.'); sel.set = new Set([pool[0].id]); msg('Building with the nearest peasant.');
         }
-        st.menu = 'build'; return refresh();
+        st.menu = 'eco'; return refresh();
       }
       if (a === 'box') { this.box = !this.box; if (this.box) msg('Drag on the map to select.'); return this.rail(); }
       if (a === 'idle') return idleVillager();
@@ -450,7 +452,7 @@ const UI = (() => {
   function costHtml(c) { return Object.entries(c).map(([k, v]) => `<span class="cost"><i style="background:${DATA.RES_INFO[k].color}"></i>${v}</span>`).join(' '); }
   function buildTop() {
     $('res').innerHTML = DATA.RES.map(r => `<div class="r" title="${DATA.RES_INFO[r].name}${DATA.RES_INFO[r].basic ? '' : ' (premium)'}"><i style="background:${DATA.RES_INFO[r].color}"></i><b id="r-${r}">0</b><small id="v-${r}"></small></div>`).join('') +
-      `<div class="r" title="Population"><i class="pop"></i><b id="r-pop">0/0</b></div>`;
+      `<div class="r" title="Population"><i class="pop"></i><b id="r-pop">0/0</b></div><div class="r" id="age" title="Your age"></div>`;
   }
   function button(key, label, tip, onclick, opts = {}) {
     const b = document.createElement('button'); b.dataset.key = key;
@@ -467,35 +469,52 @@ const UI = (() => {
   function hideTip() { $('tip').style.display = 'none'; }
   const GRID = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'Z', 'X', 'C', 'V', 'B', 'N', 'U'];
 
+  const inMenu = () => st.menu === 'eco' || st.menu === 'mil';
   function refresh() {
     const cmds = $('cmds'); cmds.innerHTML = ''; hideTip();
     const list = sel.list(), mine = list.filter(own), units = mine.filter(e => e.kind === 'unit'), blds = mine.filter(e => e.kind === 'building');
-    const add = b => cmds.appendChild(b);
+    const add = b => cmds.appendChild(b), P = W.players[0];
     if (units.length) {
-      const vils = units.filter(u => u.type === 'villager');
-      if (vils.length && st.menu === 'build') {
-        DATA.BUILD_MENU.forEach(t => { const D = DATA.BUILDINGS[t], need = D.needs && !W.has(0, D.needs);
-          add(button(D.hotkey, D.name, `<b>${D.name}</b> ${costHtml(D.cost)}<br>${D.tip}${need ? `<br><em>Needs a ${DATA.BUILDINGS[D.needs].name}.</em>` : ''}`, () => startPlacing(t), { disabled: need, cls: st.placing === t ? 'on' : '', cost: D.cost })); });
+      const vils = units.filter(u => u.type === 'villager'), army = units.filter(u => u.type !== 'villager' && u.type !== 'sheep');
+      if (vils.length && inMenu()) {   // AoE2's two build pages: economic and military
+        DATA.BUILD_MENU[st.menu].forEach((t, i) => { const D = DATA.BUILDINGS[t], young = (D.age || 1) > P.age, need = D.needs && !W.has(0, D.needs);
+          add(button(GRID[i], D.name, `<b>${D.name}</b> ${costHtml(D.cost)}<br>${D.tip}${young ? `<br><em>Needs the ${DATA.AGE_NAMES[D.age]}.</em>` : need ? `<br><em>Needs a ${DATA.BUILDINGS[D.needs].name}.</em>` : ''}`,
+            () => startPlacing(t), { disabled: young || need, cls: st.placing === t ? 'on' : young ? 'locked' : '', cost: D.cost })); });
+        add(button('Z', st.menu === 'eco' ? 'Military ▸' : 'Economy ▸', 'The other build page', () => { st.menu = st.menu === 'eco' ? 'mil' : 'eco'; cancelModes(); }));
         add(button('X', '◀ Back', 'Back (Esc)', () => { st.menu = null; cancelModes(); }));
       } else {
-        if (vils.length) add(button('Q', 'Build', '<b>Build</b><br>Economic and military buildings', () => { st.menu = 'build'; refresh(); }));
-        if (units.some(u => u.type !== 'villager' && u.type !== 'sheep')) add(button('A', 'Attack-move', '<b>Attack-move</b><br>Click a destination; units fight anything on the way.', () => { st.mode = 'amove'; msg('Attack-move: click a destination.'); }));
+        if (vils.length) {
+          add(button('Q', 'Build economy', '<b>Economic buildings</b><br>Cottage, Mill, camps, Farm, Blacksmith, Market', () => { st.menu = 'eco'; refresh(); }));
+          add(button('W', 'Build military', '<b>Military buildings</b><br>Barracks, Archery Range, Stable, walls, gates, towers', () => { st.menu = 'mil'; refresh(); }));
+        }
+        if (army.length) {
+          add(button('A', 'Attack-move', '<b>Attack-move</b><br>Click a destination; units fight anything on the way.', () => { st.mode = 'amove'; msg('Attack-move: click a destination.'); }));
+          add(button('F', 'Patrol', '<b>Patrol</b><br>Click a point: units walk back and forth between here and there, attacking what they meet. (AoE2 Patrol)', () => { st.mode = 'patrol'; msg('Patrol: click the far end.'); }));
+          const stn = army[0].stance, fm = army[0].formation;
+          add(button('Z', DATA.STANCE_NAMES[stn], '<b>Stance</b> (press to change)<br><b>Aggressive</b>: chase what comes into sight. <b>Defensive</b>: chase a short way, then return. <b>Stand Ground</b>: fight only what is in reach. <b>No Attack</b>: never fight. (AoE2 stances)',
+            () => cmd({ c: 'stance', ids: army.map(u => u.id), stance: DATA.STANCES[(DATA.STANCES.indexOf(stn) + 1) % 4] })));
+          add(button('X', DATA.FORMATION_NAMES[fm], '<b>Formation</b> (press to change)<br><b>Line</b>: wide ranks, melee in front, ranged behind. <b>Staggered</b>: spread out against area damage. <b>Box</b>: a square. <b>Flank</b>: two wings. (AoE2 formations)',
+            () => cmd({ c: 'formation', ids: army.map(u => u.id), formation: DATA.FORMATIONS[(DATA.FORMATIONS.indexOf(fm) + 1) % 4] })));
+        }
         add(button('S', 'Stop', '<b>Stop</b>', () => cmd({ c: 'stop', ids: ownIds() })));
         if (units.some(u => u.D.carries) && W.ents.some(a => !a.dead && a.kind === 'artifact' && !a.carrier && W.players[0].vis[Math.floor(a.y) * W.W + Math.floor(a.x)]))
           add(button('D', 'Get artifact', '<b>Pick up the nearest visible artifact</b>', () => cmd({ c: 'pickup', ids: ownIds() })));
-        add(button('G', 'Garrison', '<b>Garrison</b> in the nearest Town Hall', () => cmd({ c: 'garrison', ids: ownIds() })));
+        add(button('G', 'Garrison', '<b>Garrison</b> in the nearest Town Hall or Watch Tower with room', () => cmd({ c: 'garrison', ids: ownIds() })));
         add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { cmd({ c: 'delete', ids: ownIds() }); sel.set.clear(); refresh(); }));
       }
     } else if (blds.length === 1 || (blds.length && blds.every(b => b.type === blds[0].type))) {
       const b = blds[0], D = b.D;
       if (b.built) {
-        for (const t of D.trains || []) { const U = DATA.UNITS[t];
-          add(button(U.hotkey, `Train ${U.name}`, `<b>${U.name}</b> ${costHtml(U.cost)} · ${U.time}s<br>${U.tip}<br><em>Shift-click: 5</em>`, ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { cost: U.cost })); }
-        for (const t of D.researches || []) { const T = DATA.TECHS[t], done = W.players[0].techs.has(t), busy = W.ents.some(e => !e.dead && e.kind === 'building' && e.owner === 0 && e.queue.some(q => q.what === t));
-          if (done) continue;
-          add(button(T.hotkey, T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}`, () => cmd({ c: 'research', id: b.id, tech: t }), { disabled: T.locked || busy, cls: T.locked ? 'locked' : '', cost: T.cost })); }
+        (D.trains || []).forEach((t, i) => { const U = DATA.UNITS[t], young = (U.age || 1) > P.age, cost = W.unitCost(0, t), name = t === 'militia' && W.tech(0, 'man_at_arms') ? 'Man-at-Arms' : U.name;
+          add(button(GRID[i], `Train ${name}`, `<b>${name}</b> ${costHtml(cost)} · ${U.time}s<br>${U.tip}${young ? `<br><em>Needs the ${DATA.AGE_NAMES[U.age]}.</em>` : '<br><em>Shift-click: 5</em>'}`,
+            ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { cost, disabled: young, cls: young ? 'locked' : '' })); });
+        (D.researches || []).filter(t => !P.techs.has(t) && !(DATA.TECHS[t].isAge && P.age >= DATA.TECHS[t].isAge)).forEach((t, i) => { const T = DATA.TECHS[t], why = W.techBlock(0, t);
+          add(button(GRID[5 + i], T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}${why ? `<br><em>${why}</em>` : ''}`, () => cmd({ c: 'research', id: b.id, tech: t }), { disabled: !!why, cls: why && !/being/.test(why) ? 'locked' : '', cost: T.cost })); });
+        if (D.market) ['food', 'wood', 'stone'].forEach((r, i) => { const pr = W.market[r], M = DATA.MARKET, buy = Math.round(pr * (1 + M.fee)), sellv = Math.round(pr * (1 - M.fee));
+          add(button(GRID[i], `Buy ${r}`, `<b>Buy 100 ${r}</b> for ${buy} iron<br>The price rises with each purchase. (AoE2 Market: price + 30% fee)`, () => cmd({ c: 'buy', res: r }), { cost: { iron: buy } }));
+          add(button(GRID[5 + i], `Sell ${r}`, `<b>Sell 100 ${r}</b> for ${sellv} iron<br>The price falls with each sale. (AoE2 Market: price - 30% fee)`, () => cmd({ c: 'sell', res: r }), { cost: { [r]: 100 } })); });
         if (b.type === 'town_hall') {
-          add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides; its arrows grow. (AoE2 Town Bell)', () => cmd({ c: 'bell' })));
+          add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides inside; a Town Hall shoots one arrow for each. (AoE2 Town Bell)', () => cmd({ c: 'bell' })));
           add(button('N', 'All Clear', '<b>All Clear</b><br>Everyone back to work.', () => cmd({ c: 'allclear' })));
         }
         if (b.garrison.length) add(button('U', 'Ungarrison', '<b>Ungarrison</b> all', () => cmd({ c: 'ungarrison', ids: [b.id] })));
@@ -505,7 +524,7 @@ const UI = (() => {
     // order buttons in grid order
     const bs = [...cmds.children].sort((a, b) => GRID.indexOf(a.dataset.key) - GRID.indexOf(b.dataset.key));
     cmds.innerHTML = ''; for (const b of bs) cmds.appendChild(b);
-    document.body.classList.toggle('m-empty', !sel.set.size && st.menu !== 'build' && !st.placing && !(st.nodeSel >= 0));
+    document.body.classList.toggle('m-empty', !sel.set.size && !inMenu() && !st.placing && !(st.nodeSel >= 0));
     Mobile.rail(); Mobile.groups();
     info();
   }
@@ -520,18 +539,20 @@ const UI = (() => {
       return;
     }
     if (list.length > 1) {
-      el.innerHTML = `<h3>${list.length} selected</h3><div class="multi">` + list.map(e => `<span class="ic" data-id="${e.id}" title="${e.D.name}" style="--c:${W.players[e.owner].color}">${e.D.name.slice(0, 2)}<i style="width:${100 * e.hp / e.maxHp}%"></i></span>`).join('') + '</div>';
+      el.innerHTML = `<h3>${list.length} selected</h3><div class="multi">` + list.map(e => `<span class="ic" data-id="${e.id}" title="${e.D.name}" style="--c:${W.players[e.owner].color}">${(e.kind === 'unit' ? W.unitName(e) : e.D.name).slice(0, 2)}<i style="width:${100 * e.hp / e.maxHp}%"></i></span>`).join('') + '</div>';
       el.querySelectorAll('.ic').forEach(s => s.onclick = ev => { if (ev.shiftKey) sel.set.delete(+s.dataset.id); else sel.set = new Set([+s.dataset.id]); refresh(); });
       return;
     }
     const e = list[0], D = e.D, P = W.players[e.owner];
-    let h = `<h3>${D.name}${e.owner === 1 ? ' <small>(enemy)</small>' : e.owner === 2 && D.creep ? ' <small>(creep)</small>' : ''}</h3>`;
+    let h = `<h3>${e.kind === 'unit' ? W.unitName(e) : D.name}${e.owner === 1 ? ' <small>(enemy)</small>' : e.owner === 2 && D.creep ? ' <small>(creep)</small>' : ''}</h3>`;
     if (e.kind !== 'artifact') h += `<div class="hp"><i style="width:${100 * e.hp / e.maxHp}%"></i><span>${Math.ceil(e.hp)} / ${e.maxHp}</span></div>`;
     if (e.kind === 'unit') {
       if (e.carcass) h += `<p>${Math.ceil(e.food)} food left</p>`;
       else {
-        const arm = [(D.armor || [0, 0])[0] + W.armorBonus(e, false), (D.armor || [0, 0])[1] + W.armorBonus(e, true)];
-        h += `<p class="stats">⚔ ${D.atk || 0} &nbsp; 🛡 ${arm[0]}/${arm[1]} &nbsp; 👁 ${D.los} &nbsp; ➜ ${D.speed}</p>`;
+        const S = W.S(e), bon = Object.entries(S.bonus).map(([k, v]) => `+${v} vs ${k}`).join(', ');
+        h += `<p class="stats">⚔ ${S.melee || S.pierce}${S.range ? ` · range ${S.range}` : ''} &nbsp; 🛡 ${S.armor[0]}/${S.armor[1]} &nbsp; 👁 ${S.los} &nbsp; ➜ ${+S.speed.toFixed(2)}</p>`;
+        if (bon) h += `<p class="dim">${bon}</p>`;
+        if (e.owner === 0 && e.type !== 'villager' && e.type !== 'sheep') h += `<p class="dim">${DATA.STANCE_NAMES[e.stance]} · ${DATA.FORMATION_NAMES[e.formation]} formation</p>`;
         if (e.type === 'villager') h += `<p>${e.carry.amt >= 0.5 ? `Carrying ${Math.floor(e.carry.amt)} ${e.carry.res}` : ''} ${e.order ? '· ' + taskName(e) : '· idle'}</p>`;
         if (e.artifact) h += '<p>Carrying an artifact: bring it to a Town Hall.</p>';
         if (D.food && !e.carcass) h += `<p>${D.food} food</p>`;
@@ -539,6 +560,7 @@ const UI = (() => {
       }
     } else if (e.kind === 'building') {
       if (!e.built) h += `<p>Under construction: ${Math.floor(e.progress * 100)}%</p>`;
+      if (D.armor) h += `<p class="stats">🛡 ${D.armor[0]}/${D.armor[1]}${D.arrows ? ` &nbsp; ⚔ ${D.arrows.atk} · range ${D.arrows.range}` : ''}</p>`;
       if (e.type === 'farm') h += `<p>${Math.ceil(e.food)} food left</p>`;
       if (D.garrison) h += `<p>Garrison ${e.garrison.length}/${D.garrison}${e.artifacts ? ` · Artifacts ${e.artifacts} (+${(e.artifacts * DATA.ARTIFACT_RATE).toFixed(1)} crystal/s)` : ''}</p>`;
       if (D.drop) h += `<p class="dim">Drop-off: ${D.drop.join(', ')}</p>`;
@@ -553,7 +575,7 @@ const UI = (() => {
   function taskName(u) {
     const o = u.order; if (!o) return 'idle';
     if (o.type === 'gather') { const r = u.lastGather && u.lastGather.res; return { food: 'gathering food', wood: 'chopping wood', stone: 'mining stone', iron: 'mining iron', crystal: 'mining crystal' }[r] || 'gathering'; }
-    return { build: 'building', repair: 'repairing', dropoff: 'dropping off', move: 'moving', amove: 'attack-moving', attack: 'attacking', garrison: 'garrisoning', pickup: 'fetching artifact', deliver: 'delivering artifact' }[o.type] || o.type;
+    return { build: 'building', repair: 'repairing', dropoff: 'dropping off', move: 'moving', amove: 'attack-moving', attack: 'attacking', patrol: 'patrolling', garrison: 'garrisoning', pickup: 'fetching artifact', deliver: 'delivering artifact' }[o.type] || o.type;
   }
 
   function frame(dt) {
@@ -567,6 +589,7 @@ const UI = (() => {
     const on = { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 }; let idle = 0;
     for (const u of W.ents) if (!u.dead && u.owner === 0 && u.type === 'villager') { if (!u.order && !u.garrisoned) idle++; else if (u.order && (u.order.type === 'gather' || u.order.type === 'dropoff') && u.lastGather) on[u.lastGather.res]++; }
     for (const r of DATA.RES) $('v-' + r).textContent = on[r] ? on[r] : '';
+    $('age').textContent = DATA.AGE_NAMES[P.age];
     const pe = $('r-pop'); pe.textContent = `${P.pop}/${P.popCap}`; pe.className = P.pop >= P.popCap ? 'capped' : '';
     $('btn-idle').textContent = `Idle ${idle}`; $('btn-idle').className = idle ? 'hot' : '';
     const t = Math.floor(W.time); $('clock').textContent = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;

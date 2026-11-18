@@ -175,15 +175,24 @@ const MapGen = (() => {
     /* ---- each player's home: AoE2 Arabia-like layout around the Town Hall ---- */
     const home = (d0, d1) => [sx, sy, d0, d1];
     for (let k = 0; k < 6; k++) { const [x, y] = polar(...home(5, 8)); if (freeBoth(x, y) && clearOf(x, y, 1)) put(x, y, N.TREE, 100); }  // stragglers
-    cluster(...home(9, 11), 7, N.BERRY, DATA.NODES.berry.amount);
-    cluster(...home(10, 12), 7, N.IRON, DATA.NODES.iron.amount);
-    cluster(...home(17, 23), 4, N.IRON, DATA.NODES.iron.amount);
-    cluster(...home(18, 24), 4, N.IRON, DATA.NODES.iron.amount);
-    cluster(...home(12, 18), 5, N.STONE, DATA.NODES.stone.amount);
-    cluster(...home(16, 21), 5, N.STONE, DATA.NODES.stone.amount);
+    cluster(...home(9, 12), 6, N.BERRY, DATA.NODES.berry.amount);               // AoE2 Arabia: 6 forage bushes
+    // AoE2 Arabia gold: one 7-tile mine close to home and two 4-tile mines further out. Iron and crystal each get the full set.
+    for (const ore of [N.IRON, N.CRYSTAL]) {
+      const amt = DATA.NODES[NODE_KEY[ore]].amount;
+      cluster(...home(10, 13), 7, ore, amt);
+      cluster(...home(18, 24), 4, ore, amt);
+      cluster(...home(19, 26), 4, ore, amt);
+    }
+    cluster(...home(13, 17), 5, N.STONE, DATA.NODES.stone.amount);              // AoE2 Arabia stone: a 5-tile and a 4-tile mine
+    cluster(...home(17, 22), 4, N.STONE, DATA.NODES.stone.amount);
     for (let k = 0; k < 3; k++) cluster(...home(18, 26), 90 + Math.floor(R() * 60), N.TREE, 100, -1, 300);  // home woodlines
     // open-map extras, unguarded
-    for (const [n, type, d0, d1] of [[5, N.IRON, 60, 110], [5, N.IRON, 70, 130], [5, N.STONE, 60, 120], [7, N.BERRY, 40, 80]])
+    // AoE2 scatters neutral 3-tile gold and 2-tile stone piles over the map; this map is far larger, so more of them
+    const extras = [];
+    for (let k = 0; k < 8; k++) extras.push([3, N.IRON, 40 + k * 14, 70 + k * 14], [3, N.CRYSTAL, 40 + k * 14, 70 + k * 14]);
+    for (let k = 0; k < 6; k++) extras.push([2, N.STONE, 45 + k * 18, 80 + k * 18]);
+    extras.push([6, N.BERRY, 40, 80]);
+    for (const [n, type, d0, d1] of extras)
       cluster(sx, sy, d0, d1, n, type, DATA.NODES[NODE_KEY[type]].amount, -1, 300, -0.2, Math.PI / 2 + 0.2);
 
     // wildlife (AoE2: 4 sheep near the TC + 4 further, 2 boar, a herd of deer)

@@ -6,8 +6,10 @@ no heroes. When in doubt, research how Age of Empires II (Definitive Edition) ha
 value beside the number in `game/src/data.js`.
 
 ## Scope
-- Only tier 1 (AoE2's Dark Age) is built. Do not code tier 2 or later until the user says so; ask for direction
-  first (open questions are listed in `docs/design.md`).
+- The Dark Age and the Feudal Age (ages 1 and 2) are built, as close to AoE2 as possible; what was researched and
+  what differs is in `docs/aoe2-research.md`. Do not code the Castle Age or later until the user says so; ask for
+  direction first (open questions are listed in `docs/design.md`).
+- Gold: units pay iron where AoE2 charges gold, technologies pay crystal. Both ores generate like AoE2 gold.
 - Record every design decision the user makes in `docs/design.md`.
 
 ## Where things go
@@ -25,5 +27,5 @@ value beside the number in `game/src/data.js`.
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 
 ## Before you commit
-`node tests/sim_check.js` and `node tests/mechanics_check.js` print only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
+`node tests/sim_check.js`, `node tests/mechanics_check.js` and `node tests/feudal_check.js` print only PASS lines; `python3 tools/check_artkit.py` prints OK; load the game in a
 browser and check the console is clean.

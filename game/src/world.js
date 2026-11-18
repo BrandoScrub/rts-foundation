@@ -8,12 +8,13 @@ class World {
     const m = this.map = MapGen.generate(seed);
     this.W = m.W; this.H = m.H; this.time = 0; this.tick = 0; this.nextId = 1;
     this.rand = MapGen.rng(seed * 7919 + 13);   // every random choice in the simulation comes from here: same seed + same commands = same game
-    this.pending = []; this.log = []; this.pathBudget = 0;
+    this.pending = []; this.log = []; this.pathBudget = 0; this.shots = [];
+    this.market = Object.assign({}, DATA.MARKET.start);   // AoE2: one set of market prices for the whole game
     this.ents = []; this.byId = new Map(); this.fx = []; this.alerts = []; this.messages = [];
     this.occ = new Int32Array(this.W * this.H);
     Path.init(this.W, this.H);
     this.players = [0, 1, 2].map(id => ({ id, color: DATA.PLAYER_COLORS[id], res: Object.assign({}, DATA.START_RES),
-      techs: new Set(), popCap: 0, pop: 0, gathered: { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 },
+      techs: new Set(), age: 1, rev: 1, popCap: 0, pop: 0, gathered: { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 },
       vis: new Uint8Array(this.W * this.H), explored: new Uint8Array(this.W * this.H), seen: new Map(), defeated: false }));
     this.players[2].res = {};
     this.camps = m.camps.map(c => Object.assign(c, { members: [], cleared: false }));
@@ -46,15 +47,16 @@ class World {
   addUnit(type, owner, x, y) {
     const D = DATA.UNITS[type] || DATA.WILD[type];
     const u = this.add({ kind: 'unit', type, owner, x, y, D, hp: D.hp, maxHp: D.hp, r: D.r, order: null, queue: [],
-      path: null, cool: 0, carry: { res: null, amt: 0 }, facing: this.rand() * 6.28, moving: false, walkT: 0, stuck: 0, repathT: 0 });
-    if (owner < 2 && this.players[owner].techs.has('loom') && type === 'villager') { u.maxHp += 15; u.hp += 15; }
+      path: null, cool: 0, carry: { res: null, amt: 0 }, facing: this.rand() * 6.28, moving: false, walkT: 0, stuck: 0, repathT: 0,
+      stance: 'aggressive', formation: 'line' });
+    u.maxHp = u.hp = this.hpOf(u);
     return u;
   }
   addBuilding(type, owner, tx, ty, complete = false) {
     const D = DATA.BUILDINGS[type], s = D.size;
     const b = this.add({ kind: 'building', type, owner, D, tx, ty, size: s, x: tx + s / 2, y: ty + s / 2, r: s * 0.5,
       hp: complete ? D.hp : 1, maxHp: D.hp, progress: complete ? 1 : 0, built: complete, queue: [], rally: null,
-      garrison: [], artifacts: 0, food: D.walk ? DATA.FARM.food : 0, farmer: 0, cool: 0, builders: 0 });
+      garrison: [], artifacts: 0, food: D.walk ? this.farmFood(owner) : 0, farmer: 0, cool: 0, builders: 0 });
     for (let y = ty; y < ty + s; y++) for (let x = tx; x < tx + s; x++) this.occ[y * this.W + x] = b.id;
     this.recount(owner);
     return b;
@@ -78,6 +80,58 @@ class World {
       if (e.kind === 'unit' && DATA.UNITS[e.type]) pop++;
     }
     this.players[p].popCap = Math.min(DATA.POP_MAX, cap); this.players[p].pop = pop;
+  }
+
+  /* ------------------------------------------------------------ stats: base numbers plus research and age */
+  tech(p, k) { return p < 2 && this.players[p].techs.has(k); }
+  farmFood(p) { return DATA.FARM.food + (this.tech(p, 'horse_collar') ? 75 : 0); }
+  carryCap(p) { return DATA.CARRY * (this.tech(p, 'wheelbarrow') ? 1.25 : 1); }
+  unitCost(p, type) { const c = Object.assign({}, DATA.UNITS[type].cost); if (type === 'militia' && this.tech(p, 'supplies')) c.food -= 15; return c; }
+  unitName(u) { return u.type === 'militia' && this.tech(u.owner, 'man_at_arms') ? 'Man-at-Arms' : u.D.name; }
+  hpOf(u) {
+    const p = u.owner, c = u.D.cls || []; let hp = u.D.hp;
+    if (u.type === 'villager' && this.tech(p, 'loom')) hp += 15;
+    if (u.type === 'militia' && this.tech(p, 'man_at_arms')) hp = 45;
+    if (c.includes('cavalry') && this.tech(p, 'bloodlines')) hp += 20;
+    return hp;
+  }
+  /* S(u): a unit's effective stats, cached until its player's research changes */
+  S(u) {
+    const p = u.owner, rev = p < 2 ? this.players[p].rev : 0;
+    if (u.sRev === rev && u.sCache) return u.sCache;
+    const D = u.D, c = D.cls || [], T = k => this.tech(p, k);
+    let melee = D.atk.melee || 0, pierce = D.atk.pierce || 0, am = D.armor[0], ap = D.armor[1], range = D.range || 0, speed = D.speed, los = D.los, bonus = D.bonus || {};
+    const inf = c.includes('infantry'), cav = c.includes('cavalry'), arch = c.includes('archer');
+    if (p < 2) {
+      if (u.type === 'villager') { if (T('loom')) { am += 1; ap += 2; } if (T('wheelbarrow')) speed *= 1.1; }
+      if (u.type === 'militia' && T('man_at_arms')) { melee = 6; bonus = { building: 2 }; }
+      if (u.type === 'scout' && this.players[p].age >= 2) { melee += DATA.FEUDAL_SCOUT.atk; los += DATA.FEUDAL_SCOUT.los; speed = DATA.FEUDAL_SCOUT.speed; }
+      if ((inf || cav) && T('forging')) melee += 1;
+      if (inf && T('scale_mail')) { am++; ap++; }
+      if (cav && T('scale_barding')) { am++; ap++; }
+      if (arch && T('fletching')) { pierce++; range++; }
+      if (arch && T('padded_archer')) { am++; ap++; }
+    }
+    u.sRev = rev;
+    return u.sCache = { melee, pierce, bonus, armor: [am, ap], range, min: D.min || 0, acc: D.acc || 1, reload: D.reload || 2, speed, los };
+  }
+  /* AoE2's damage formula: each attack class against its armour, never below 0 each, at least 1 in total, times the hill factor */
+  damage(A, t, sx, sy) {
+    let am, ap, cls;
+    if (t.kind === 'building') { am = t.D.armor[0]; ap = t.D.armor[1]; cls = ['building']; }
+    else { const S = this.S(t); am = S.armor[0]; ap = S.armor[1]; cls = t.D.cls || []; }
+    let d = (A.melee ? Math.max(0, A.melee - am) : 0) + (A.pierce ? Math.max(0, A.pierce - ap) : 0);
+    if (A.bonus) for (const k in A.bonus) if (cls.includes(k)) d += A.bonus[k];
+    const dh = this.h(sx, sy) - this.h(t.x, t.y);
+    if (dh > 0.5) d *= 1 + DATA.ELEV_BONUS; else if (dh < -0.5) d *= 1 - DATA.ELEV_BONUS;
+    return Math.max(1, d);
+  }
+  /* loose an arrow: it flies at AoE2's arrow speed and lands (or misses) when it arrives */
+  shoot(src, t, A, acc, z0) {
+    const d = Math.hypot(t.x - src.x, t.y - src.y), life = Math.max(0.12, d / DATA.ARROW_SPEED), hit = this.rand() < acc;
+    const ox = hit ? 0 : (this.rand() - 0.5) * 1.6, oy = hit ? 0 : (this.rand() - 0.5) * 1.6;
+    this.shots.push({ src: { id: src.id, owner: src.owner, x: src.x, y: src.y, kind: src.kind }, target: t.id, A, t: 0, life, hit });
+    this.fx.push({ kind: 'arrow', x0: src.x, y0: src.y, z0, x1: t.x + ox, y1: t.y + oy, t: 0, life });
   }
 
   /* ------------------------------------------------------------ geometry */
@@ -141,6 +195,7 @@ class World {
   }
   place(type, p, tx, ty) {   // a foundation; resources are paid now (AoE2 charges when the foundation is placed)
     const D = DATA.BUILDINGS[type];
+    if (p < 2 && (D.age || 1) > this.players[p].age) return null;
     if (D.needs && !this.has(p, D.needs)) return null;
     if (!this.canPlace(type, p, tx, ty) || !this.canAfford(p, D.cost)) return null;
     this.pay(p, D.cost);
@@ -160,29 +215,50 @@ class World {
   }
   nextOrder(u) { u.order = null; u.path = null; if (u.queue.length) this.setOrder(u, u.queue.shift()); }
 
-  /* group move: spread units into a block around the point so they don't fight over one tile */
-  /* group move: one path for the group (found once, from the unit nearest the group's middle), shared by every
-     unit that stands near it; each unit ends at its own slot of a block around the point, so they don't fight
-     over one tile. Units far from the group path on their own. */
-  groupMove(units, x, y, shift, attackMove = false) {
+  /* AoE2 formations. Slots are laid out facing the direction of travel: melee infantry in the front ranks, then
+     cavalry, then ranged, then peasants ("the strongest up front"). Local x runs across the front, y back from it. */
+  formationSlots(n, kind) {
+    const out = [], sp = kind === 'staggered' ? 1.5 : 0.8;
+    let cols = kind === 'box' ? Math.ceil(Math.sqrt(n)) : Math.max(1, Math.min(n, Math.ceil(Math.sqrt(n * 2.5))));
+    if (kind === 'flank') cols = Math.max(2, cols + (cols % 2));
+    for (let k = 0; k < n; k++) {
+      const row = Math.floor(k / cols), inRow = Math.min(cols, n - row * cols), c = k % cols;
+      let x = (c - (inRow - 1) / 2) * sp;
+      if (kind === 'flank') x += (c < inRow / 2 ? -1 : 1) * 2.5;   // two wings with a gap between them
+      out.push({ x, y: row * sp, row });
+    }
+    return out;
+  }
+  /* group move, the AoE2 way: one path for the group (found once, shared by every unit that stands near it), the
+     whole group walks at the speed of its slowest member, and each unit ends in its own slot of the formation. */
+  groupMove(units, x, y, shift, attackMove = false, patrol = false) {
     units = units.filter(u => !u.dead && u.kind === 'unit'); const n = units.length; if (!n) return;
-    const cols = Math.ceil(Math.sqrt(n)), sp = 0.75;
+    const mx = units.reduce((a, u) => a + u.x, 0) / n, my = units.reduce((a, u) => a + u.y, 0) / n;
     let shared = null;
     if (n >= 3 && !shift) {
-      const mx = units.reduce((a, u) => a + u.x, 0) / n, my = units.reduce((a, u) => a + u.y, 0) / n;
       const lead = units.slice().sort((a, b) => Math.hypot(a.x - mx, a.y - my) - Math.hypot(b.x - mx, b.y - my))[0];
       const tx = Math.floor(x), ty = Math.floor(y), walk = this.walkFn(lead.owner);
       const r = Path.find(Math.floor(lead.x), Math.floor(lead.y), [tx, ty, tx, ty], walk, 0, 90000);
       this.pathBudget -= r.n || 0;
       shared = { from: [lead.x, lead.y], pts: Path.smooth(r.tiles, walk).slice(1).map(([a, b]) => [a + 0.5, b + 0.5]), reached: r.reached };
     }
-    const sorted = units.slice().sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y));
-    sorted.forEach((u, k) => {
-      const ox = n === 1 ? 0 : ((k % cols) - (cols - 1) / 2) * sp, oy = n === 1 ? 0 : (Math.floor(k / cols) - (Math.ceil(n / cols) - 1) / 2) * sp;
-      const o = { type: attackMove ? 'amove' : 'move', x: x + ox, y: y + oy };
-      if (shared && Math.hypot(u.x - shared.from[0], u.y - shared.from[1]) < 8) o.shared = shared;
-      this.order(u, o, shift);
-    });
+    const dl = Math.hypot(x - mx, y - my) || 1, fx = (x - mx) / dl, fy = (y - my) / dl, rx = -fy, ry = fx;   // forward and right
+    const gspeed = n > 1 ? Math.min(...units.map(u => this.S(u).speed)) : 0;
+    const kind = units[0].formation || 'line', slots = this.formationSlots(n, kind);
+    const ranked = units.slice().sort((a, b) => ((a.D.line === undefined ? 3 : a.D.line) - (b.D.line === undefined ? 3 : b.D.line)) || (a.id - b.id));
+    for (let i = 0; i < n;) {   // fill rank by rank; inside a rank, left to right as the units already stand
+      let j = i; while (j < n && slots[j].row === slots[i].row) j++;
+      const rank = ranked.slice(i, j).sort((a, b) => ((a.x - mx) * rx + (a.y - my) * ry) - ((b.x - mx) * rx + (b.y - my) * ry));
+      const rs = slots.slice(i, j).sort((a, b) => a.x - b.x);
+      rank.forEach((u, k) => {
+        const s = rs[k], px = n === 1 ? x : x + rx * s.x - fx * s.y, py = n === 1 ? y : y + ry * s.x - fy * s.y;
+        const o = patrol ? { type: 'patrol', a: [u.x, u.y], b: [px, py], x: px, y: py, leg: 1 } : { type: attackMove ? 'amove' : 'move', x: px, y: py };
+        if (gspeed) o.gspeed = gspeed;
+        if (shared && Math.hypot(u.x - shared.from[0], u.y - shared.from[1]) < 8) o.shared = shared;
+        this.order(u, o, shift);
+      });
+      i = j;
+    }
   }
 
   /* the smart right-click: what does clicking on this target mean for this unit */
@@ -197,7 +273,7 @@ class World {
         if (u.artifact && target.type === 'town_hall') return this.order(u, { type: 'deliver', id: target.id }, shift);
         if (vil && target.hp < target.maxHp) return this.order(u, { type: 'repair', id: target.id }, shift);
         if (vil && u.carry.amt > 0 && target.D.drop && target.D.drop.includes(u.carry.res)) return this.order(u, { type: 'dropoff', id: target.id, then: null }, shift);
-        if (target.D.garrison && (vil || u.D.cls.includes('infantry'))) return this.order(u, { type: 'garrison', id: target.id }, shift);
+        if (target.D.garrison && target.built && (vil || u.D.cls.includes('infantry') || u.D.cls.includes('archer'))) return this.order(u, { type: 'garrison', id: target.id }, shift);
       }
       if (target.kind === 'unit' && vil && target.owner === 2 && target.D.food) return this.order(u, { type: 'gather', ent: target.id }, shift);
       if (target.kind === 'unit' && target.owner === p && target.type === 'sheep' && vil) return this.order(u, { type: 'gather', ent: target.id }, shift);
@@ -263,7 +339,8 @@ class World {
     u.moving = false;
     if (!u.path || !u.path.length) return true;
     const [tx, ty] = u.path[0], dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
-    const sp = u.D.speed * (u.artifact ? 0.8 : 1) * dt;
+    const gs = u.order && u.order.gspeed, S = this.S(u);
+    const sp = (gs ? Math.min(gs, S.speed) : S.speed) * (u.artifact ? 0.8 : 1) * dt;
     if (d <= sp) { u.x = tx; u.y = ty; u.path.shift(); u.moving = true; return !u.path.length; }
     if (u.path.length > 1 && d < 0.7) { u.path.shift(); return this.follow(u, dt); }   // a corner on the way: close is enough (a crowd can't all stand on it)
     let nx = u.x + dx / d * sp, ny = u.y + dy / d * sp;
@@ -286,6 +363,10 @@ class World {
       else if (e.kind === 'building') this.buildingTick(e, dt);
     }
     this.separate();
+    if (this.shots.length) {
+      for (const sh of this.shots) { sh.t += dt; if (sh.t >= sh.life) { const t = sh.hit ? this.get(sh.target) : null; if (t && !t.garrisoned) this.hit(sh.src, t, sh.A); } }
+      this.shots = this.shots.filter(sh => sh.t < sh.life);
+    }
     for (const f of this.fx) f.t += dt;
     this.fx = this.fx.filter(f => f.t < f.life);
     this.slowTimer -= dt;
@@ -373,10 +454,13 @@ class World {
         else if (!u.path || !u.path.length) this.nextOrder(u);
         break;
       }
-      case 'amove': {
-        if (!o.scan || this.time > o.scan) { o.scan = this.time + 0.4; const t = this.findEnemy(u, u.D.los); if (t) { u.queue.unshift(o); this.setOrder(u, { type: 'attack', id: t.id, auto: true }); break; } }
-        if (!u.path || u.pathTarget !== o) { if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
-        if (this.follow(u, dt) || !u.path || !u.path.length) this.nextOrder(u);
+      case 'amove': case 'patrol': {   // walk, fighting whatever comes into sight; a patrol turns round at each end (AoE2 Patrol)
+        if (!o.scan || this.time > o.scan) { o.scan = this.time + 0.4; const t = this.findEnemy(u, this.S(u).los); if (t) { u.queue.unshift(o); o.resume = true; this.setOrder(u, { type: 'attack', id: t.id, auto: true, roam: true }); break; } }
+        if (!u.path || u.pathTarget !== o || o.resume) { o.resume = false; if (!this.goTo(u, [Math.floor(o.x), Math.floor(o.y), Math.floor(o.x), Math.floor(o.y)], 0, [o.x, o.y], o.shared)) { u.moving = false; break; } u.pathTarget = o; o.shared = null; }
+        if (this.follow(u, dt) || !u.path || !u.path.length) {
+          if (o.type === 'patrol' && !u.queue.length) { o.leg ^= 1; const q = o.leg ? o.b : o.a; o.x = q[0]; o.y = q[1]; o.gspeed = 0; u.path = null; u.pathTarget = null; }
+          else this.nextOrder(u);
+        }
         break;
       }
       case 'attack': return this.attackTick(u, o, dt);
@@ -408,10 +492,10 @@ class World {
   }
   idleTick(u, dt) {
     u.moving = false;
-    if (u.type === 'sheep') return;
-    if (u.type !== 'villager' && (!u.scanT || this.time > u.scanT)) {   // aggressive stance: engage what comes into sight
+    if (u.type === 'sheep' || u.type === 'villager' || u.stance === 'passive') return;
+    if (!u.scanT || this.time > u.scanT) {   // AoE2 stances: aggressive and defensive units engage what comes into sight; stand ground only what is in reach
       u.scanT = this.time + 0.5;
-      const t = this.findEnemy(u, u.D.los, true);
+      const S = this.S(u), t = this.findEnemy(u, u.stance === 'ground' ? (S.range || 0.6) : S.los, true);
       if (t) this.setOrder(u, { type: 'attack', id: t.id, auto: true, home: [u.x, u.y] });
     }
   }
@@ -432,34 +516,41 @@ class World {
     return best;
   }
   attackTick(u, o, dt) {
-    const t = this.get(o.id);
+    const t = this.get(o.id), S = this.S(u);
     if (!t || t.garrisoned || (t.carcass)) {
-      if (o.auto || u.type !== 'villager') { const n = this.findEnemy(u, u.D.los, true); if (n && u.owner !== 2) { o.id = n.id; return; } }
+      if ((o.auto || u.type !== 'villager') && u.owner !== 2 && u.stance !== 'passive') { const n = this.findEnemy(u, u.stance === 'ground' ? (S.range || 0.6) : S.los, true); if (n) { o.id = n.id; return; } }
+      if (o.auto && o.home && u.owner < 2 && !u.queue.length && Math.hypot(u.x - o.home[0], u.y - o.home[1]) > 1) return this.setOrder(u, { type: 'move', x: o.home[0], y: o.home[1] });   // back to its post
       return this.nextOrder(u);
     }
-    if (o.auto && o.home && u.owner < 2 && Math.hypot(u.x - o.home[0], u.y - o.home[1]) > 8 && !u.queue.length) { this.setOrder(u, { type: 'move', x: o.home[0], y: o.home[1] }); return; }
-    if (this.approach(u, t, u.r + 0.3 + (u.D.range || 0), dt)) {
+    const reach = S.range > 0 ? S.range : u.r + 0.3, d = this.distTo(u, t);
+    if (o.auto && u.owner < 2 && !o.roam) {   // stances limit how far a unit follows on its own
+      if (u.stance === 'ground' && d > reach) return this.nextOrder(u);
+      if (u.stance === 'defensive' && o.home && Math.hypot(u.x - o.home[0], u.y - o.home[1]) > 5 && !u.queue.length) return this.setOrder(u, { type: 'move', x: o.home[0], y: o.home[1] });
+      if (u.stance === 'aggressive' && d > S.los + 4) return this.nextOrder(u);
+    }
+    if (this.approach(u, t, reach, dt)) {
       u.facing = Math.atan2(t.y - u.y, t.x - u.x);
-      if (u.cool <= 0) { u.cool = u.D.reload || 2; this.hit(u, t, this.attackOf(u)); u.swingT = this.time; }
+      if (S.min && d < S.min - 0.3 && t.kind === 'unit') return;   // AoE2: slingers cannot fire at point-blank
+      if (u.cool <= 0) {
+        u.cool = S.reload; u.swingT = this.time;
+        const A = { melee: S.melee, pierce: S.pierce, bonus: S.bonus };
+        if (S.range > 0) this.shoot(u, t, A, S.acc, 0.7); else this.hit(u, t, A);
+      }
     }
   }
-  attackOf(u) { return u.D.atk; }
-  hit(src, t, atk, pierce = false) {
-    const armor = t.kind === 'unit' ? (t.D.armor || [0, 0])[pierce ? 1 : 0] + this.armorBonus(t, pierce) : (pierce ? 8 : 0);
-    let dmg = Math.max(1, atk - armor);                                 // AoE2: at least 1 damage
-    const dh = this.h(src.x, src.y) - this.h(t.x, t.y);
-    if (dh > 0.5) dmg *= 1 + DATA.ELEV_BONUS; else if (dh < -0.5) dmg *= 1 - DATA.ELEV_BONUS;   // AoE2 elevation
+  /* apply an attack. src may be a snapshot of the attacker (an arrow in flight outlives the archer) */
+  hit(src, t, A) {
+    const dmg = this.damage(A, t, src.x, src.y);
     t.hp -= dmg; t.hitT = this.time;
     if (t.owner === 0 && src.owner !== 0) this.alert(t, t.kind === 'building' ? 'A building is under attack!' : 'You are under attack!');
     // retaliation and calls for help
     if (t.kind === 'unit' && t.hp > 0) {
-      if (t.owner === 2) this.provoke(t, src);
-      else if (!t.order && t.type !== 'villager' && t.type !== 'sheep') this.setOrder(t, { type: 'attack', id: src.id, auto: true, home: [t.x, t.y] });
-      else if (!t.order && t.type === 'villager' && src.kind === 'unit') this.setOrder(t, { type: 'attack', id: src.id, auto: true, home: [t.x, t.y] });
+      const a = this.get(src.id);
+      if (t.owner === 2) { if (a) this.provoke(t, a); }
+      else if (a && a.kind === 'unit' && !t.order && t.type !== 'sheep' && (t.type === 'villager' || t.stance !== 'passive')) this.setOrder(t, { type: 'attack', id: a.id, auto: true, home: [t.x, t.y] });
     }
     if (t.hp <= 0) this.kill(t, src);
   }
-  armorBonus(t, pierce) { return t.type === 'villager' && t.owner < 2 && this.players[t.owner].techs.has('loom') ? (pierce ? 2 : 1) : 0; }
   kill(t, src) {
     if (t.kind === 'unit' && t.D.food && !t.carcass) {   // hunted animals leave a carcass to gather from
       t.carcass = true; t.food = t.D.food; t.order = null; t.path = null; t.owner = 2; t.hp = 1; return;
@@ -522,6 +613,9 @@ class World {
       const k = MapGen.NODE_KEY[this.map.node[node]];
       if (!k || this.wardedBy(node)) { if (k && u.owner === 0 && !o.warned) { o.warned = true; this.message('That vein is warded by a creep camp. Clear the camp first.'); } return this.findNext(u, o, node); }
       res = DATA.NODES[k].res; rate = DATA.NODES[k].rate; src = node; o.nodeType = this.map.node[node];
+      if (k === 'tree' && this.tech(u.owner, 'double_bit_axe')) rate *= 1.2;
+      if ((k === 'iron' || k === 'crystal') && this.tech(u.owner, 'ore_mining')) rate *= 1.15;
+      if (k === 'stone' && this.tech(u.owner, 'stone_mining')) rate *= 1.15;
     } else {
       const e = this.get(o.ent);
       if (!e) return this.findNext(u, o, -1);
@@ -529,13 +623,14 @@ class World {
         res = 'food'; rate = DATA.FARM.rate; src = e; }
       else if (e.kind === 'unit' && !e.carcass) {   // hunt or slaughter first
         if (e.owner !== 2 && e.owner !== u.owner) return this.nextOrder(u);
-        if (this.approach(u, e, u.r + 0.3, dt)) { if (u.cool <= 0) { u.cool = 1.5; this.hit(u, e, e.type === 'sheep' ? 99 : 3); } }
+        if (this.approach(u, e, u.r + 0.3, dt)) { if (u.cool <= 0) { u.cool = 1.5; this.hit(u, e, { melee: e.type === 'sheep' ? 99 : 3 }); } }
         return;
       } else { res = 'food'; rate = e.type === 'sheep' ? 0.33 : 0.41; src = e; }   // shepherd / hunter
     }
     if (u.carry.res !== res) u.carry = { res, amt: 0 };   // AoE2: switching resource drops what was carried
     u.lastGather = { node: node >= 0 ? node : undefined, ent: node < 0 ? o.ent : undefined, res };
-    if (u.carry.amt >= DATA.CARRY) { const ds = this.dropsite(u, res); if (!ds) { u.moving = false; return; }
+    const cap = this.carryCap(u.owner);
+    if (u.carry.amt >= cap) { const ds = this.dropsite(u, res); if (!ds) { u.moving = false; return; }
       u.queue.unshift(o); this.setOrder(u, { type: 'dropoff', id: ds.id }); return; }
     const isFarm = src && src.kind === 'building';
     const there = isFarm ? this.approach(u, src, 0.01, dt) : node >= 0 ? this.approach(u, node, 0.75, dt) : this.approach(u, src, u.r + 0.25, dt);
@@ -551,14 +646,14 @@ class World {
     } else if (isFarm) {
       const got = Math.min(take, src.food); src.food -= got; u.carry.amt += got;
       if (src.food <= 0.001) {
-        if (this.canAfford(u.owner, DATA.BUILDINGS.farm.cost)) { this.pay(u.owner, DATA.BUILDINGS.farm.cost); src.food = DATA.FARM.food; }  // auto-reseed
+        if (this.canAfford(u.owner, DATA.BUILDINGS.farm.cost)) { this.pay(u.owner, DATA.BUILDINGS.farm.cost); src.food = this.farmFood(u.owner); }  // auto-reseed
         else { src.farmer = 0; this.remove(src); this.nextOrder(u); if (u.owner === 0) this.message('A farm ran out (not enough wood to reseed).', src.x, src.y); }
       }
     } else {
       const got = Math.min(take, src.food); src.food -= got; u.carry.amt += got;
       if (src.food <= 0.001) { this.remove(src); return this.findNext(u, o, -1, src); }
     }
-    u.carry.amt = Math.min(u.carry.amt, DATA.CARRY);
+    u.carry.amt = Math.min(u.carry.amt, cap);
   }
   /* AoE2: when a resource runs out the villager moves to the nearest one of the same kind nearby */
   findNext(u, o, node, oldEnt) {
@@ -642,42 +737,62 @@ class World {
           if (q.t >= q.time) { b.queue.shift(); this.trainDone(b, q.what); } }
       }
     }
-    // arrows (AoE2 Town Center: one arrow, plus one per garrisoned villager)
+    // arrows. AoE2: a Town Center shoots only with units inside; a tower shoots one arrow and more with a garrison
     if (b.D.arrows) {
       b.cool -= dt;
       if (b.cool <= 0) {
-        const A = b.D.arrows; let t = null, bd = A.range;
-        for (const e of this.ents) {
+        const A = b.D.arrows, fl = this.tech(b.owner, 'fletching');
+        const n = (A.base || 0) + b.garrison.filter(id => { const g = this.get(id); return g && (g.type === 'villager' || g.D.range); }).length;
+        const range = A.range + (fl && A.base ? 1 : 0); let t = null, bd = range;
+        if (n > 0) for (const e of this.ents) {
           if (e.dead || e.kind !== 'unit' || e.garrisoned || e.carcass || !this.isHostile(b, e)) continue;
-          const d = this.distTo(e, b); if (d < bd) { bd = d; t = e; }
+          const d = this.distTo(e, b); if (d < bd && d >= (A.min || 0)) { bd = d; t = e; }
         }
-        if (t) {
-          b.cool = A.reload; const n = 1 + b.garrison.filter(id => { const g = this.get(id); return g && g.type === 'villager'; }).length;
-          for (let k = 0; k < n; k++) { this.fx.push({ kind: 'arrow', x0: b.x, y0: b.y, z0: 2.5, x1: t.x + (this.rand() - 0.5) * 0.4, y1: t.y + (this.rand() - 0.5) * 0.4, t: -k * 0.08, life: 0.5 }); }
-          for (let k = 0; k < n; k++) { if (t.hp > 0) this.hit(b, t, A.atk, true); }
-        } else b.cool = 0.3;
+        if (t) { b.cool = A.reload; for (let k = 0; k < n; k++) this.shoot(b, t, { pierce: A.atk + (fl ? 1 : 0) }, 1, 2.5); }
+        else b.cool = 0.3;
       }
     }
     // garrisoned units heal
     for (const id of b.garrison) { const g = this.get(id); if (g) g.hp = Math.min(g.maxHp, g.hp + dt * 0.5); }
   }
   queueTrain(b, what, n = 1) {
-    const U = DATA.UNITS[what]; let k = 0;
+    const U = DATA.UNITS[what], P = this.players[b.owner]; let k = 0;
+    if ((U.age || 1) > P.age) return 0;
     for (; k < n; k++) {
-      if (b.queue.length >= 15 || !this.canAfford(b.owner, U.cost)) break;   // AoE2 DE queue holds 15
-      this.pay(b.owner, U.cost); b.queue.push({ kind: 'unit', what, t: 0, time: U.time });
+      const cost = this.unitCost(b.owner, what);
+      if (b.queue.length >= 15 || !this.canAfford(b.owner, cost)) break;   // AoE2 DE queue holds 15
+      this.pay(b.owner, cost); b.queue.push({ kind: 'unit', what, t: 0, time: U.time, cost });
     }
     return k;
   }
+  /* why a technology cannot be researched now, or '' */
+  techBlock(p, what) {
+    const T = DATA.TECHS[what], P = this.players[p];
+    if (T.locked) return 'Not in this build.';
+    if (P.techs.has(what) || (T.isAge && P.age >= T.isAge)) return 'Already researched.';
+    if ((T.age || 1) > P.age) return `Needs the ${DATA.AGE_NAMES[T.age]}.`;
+    if (this.ents.some(e => !e.dead && e.kind === 'building' && e.owner === p && e.queue.some(q => q.what === what))) return 'Already being researched.';
+    if (T.isAge === 2 && DATA.FEUDAL_NEEDS.filter(t => this.has(p, t)).length < 2) return 'Needs two of: Barracks, Mill, Lumber Camp, Mining Camp.';
+    return '';
+  }
   queueTech(b, what) {
-    const T = DATA.TECHS[what], p = this.players[b.owner];
-    if (T.locked || p.techs.has(what) || this.ents.some(e => !e.dead && e.kind === 'building' && e.owner === b.owner && e.queue.some(q => q.what === what))) return false;
-    if (!this.canAfford(b.owner, T.cost)) return false;
-    this.pay(b.owner, T.cost); b.queue.push({ kind: 'tech', what, t: 0, time: T.time }); return true;
+    const T = DATA.TECHS[what];
+    if (this.techBlock(b.owner, what) || !this.canAfford(b.owner, T.cost)) return false;
+    this.pay(b.owner, T.cost); b.queue.push({ kind: 'tech', what, t: 0, time: T.time, cost: T.cost }); return true;
   }
   cancel(b, i) {
     const q = b.queue[i]; if (!q) return;
-    b.queue.splice(i, 1); this.pay(b.owner, (q.kind === 'tech' ? DATA.TECHS : DATA.UNITS)[q.what].cost, -1);
+    b.queue.splice(i, 1); this.pay(b.owner, q.cost, -1);
+  }
+  /* AoE2 Market: buy or sell 100 of a commodity for iron; the price moves 3 with every trade */
+  trade(p, res, buy) {
+    const M = DATA.MARKET, P = this.players[p], price = this.market[res];
+    if (price === undefined || !this.ents.some(e => !e.dead && e.owner === p && e.D.market && e.built)) return 'Needs a Market.';
+    if (buy) { const cost = Math.round(price * (1 + M.fee)); if (P.res[M.coin] < cost) return 'Not enough iron.';
+      P.res[M.coin] -= cost; P.res[res] += M.lot; this.market[res] = Math.min(M.max, price + M.step); }
+    else { if (P.res[res] < M.lot) return `Not enough ${res}.`;
+      P.res[res] -= M.lot; P.res[M.coin] += Math.round(price * (1 - M.fee)); this.market[res] = Math.max(M.min, price - M.step); }
+    return '';
   }
   trainDone(b, what) {
     const sp = this.spawnPoint(b, b.rally ? [b.rally.x, b.rally.y] : null);
@@ -693,11 +808,15 @@ class World {
     return u;
   }
   applyTech(p, what) {
-    const P = this.players[p]; P.techs.add(what);
-    if (what === 'loom') for (const e of this.ents) if (!e.dead && e.owner === p && e.type === 'villager') { e.maxHp += 15; e.hp += 15; }
-    if (p === 0) this.message(`${DATA.TECHS[what].name} researched.`);
+    const P = this.players[p], T = DATA.TECHS[what]; P.techs.add(what); P.rev++;
+    if (T.isAge) P.age = T.isAge;
+    for (const e of this.ents) if (!e.dead && e.owner === p) {
+      if (e.kind === 'unit') { const hp = this.hpOf(e); if (hp !== e.maxHp) { e.hp += hp - e.maxHp; e.maxHp = hp; } }   // Loom, Bloodlines, Man-at-Arms
+      if (what === 'horse_collar' && e.type === 'farm') e.food += 75;
+    }
+    if (p === 0) this.message(T.isAge ? `You have advanced to the ${DATA.AGE_NAMES[T.isAge]}.` : `${T.name} researched.`);
   }
-  losOf(e) { let l = e.D.los || 4; if (e.kind === 'building' && e.built && e.owner < 2 && this.players[e.owner].techs.has('town_watch')) l += 4; return l; }
+  losOf(e) { let l = e.kind === 'unit' ? this.S(e).los : (e.D.los || 4); if (e.kind === 'building' && e.built && e.owner < 2 && this.players[e.owner].techs.has('town_watch')) l += 4; return l; }
   ungarrison(b) {
     for (const id of b.garrison) { const u = this.byId.get(id); if (!u || u.dead) continue; u.garrisoned = 0;
       const sp = this.spawnPoint(b, b.rally ? [b.rally.x, b.rally.y] : null); u.x = sp[0] + (this.rand() - 0.5) * 0.5; u.y = sp[1] + (this.rand() - 0.5) * 0.5;
@@ -753,13 +872,19 @@ class World {
         if (movers.length) this.groupMove(movers, c.x, c.y, c.shift, !!c.attack);
         break; }
       case 'move': this.groupMove(this.mine(p, c.ids).filter(u => u.kind === 'unit' && !u.garrisoned), c.x, c.y, c.shift, !!c.attack); break;
+      case 'patrol': this.groupMove(this.mine(p, c.ids).filter(u => u.kind === 'unit' && !u.garrisoned && u.type !== 'villager'), c.x, c.y, false, true, true); break;
+      case 'stance': if (DATA.STANCES.includes(c.stance)) for (const u of this.mine(p, c.ids)) if (u.kind === 'unit') { u.stance = c.stance; if (c.stance === 'passive' && u.order && u.order.type === 'attack' && u.order.auto) this.setOrder(u, null); } break;
+      case 'formation': if (DATA.FORMATIONS.includes(c.formation)) for (const u of this.mine(p, c.ids)) if (u.kind === 'unit') u.formation = c.formation; break;
+      case 'buy': case 'sell': { const why = this.trade(p, c.res, c.c === 'buy'); if (why) say(why); break; }
       case 'stop': for (const u of this.mine(p, c.ids)) if (u.kind === 'unit') { u.queue = []; this.setOrder(u, null); } break;
       case 'train': { let n = 0; for (const b of this.mine(p, c.ids)) if (b.built && (b.D.trains || []).includes(c.unit)) n += this.queueTrain(b, c.unit, c.n || 1);
         if (!n) say(this.players[p].pop >= this.players[p].popCap ? 'Need more housing.' : 'Not enough resources.'); break; }
-      case 'research': { const b = this.mine(p, [c.id])[0]; if (!b || !this.queueTech(b, c.tech)) say('Cannot research that now.'); break; }
+      case 'research': { const b = this.mine(p, [c.id])[0]; if (!b || !b.built || !(b.D.researches || []).includes(c.tech)) break;
+        if (!this.queueTech(b, c.tech)) say(this.techBlock(p, c.tech) || 'Not enough resources.'); break; }
       case 'cancel': { const b = this.mine(p, [c.id])[0]; if (b) this.cancel(b, c.i); break; }
       case 'place': {   // one building, or a line of palisade tiles; the named peasants go and build
         const D = DATA.BUILDINGS[c.type], builders = this.mine(p, c.ids).filter(u => u.type === 'villager'), placed = [];
+        if ((D.age || 1) > this.players[p].age) { say(`Needs the ${DATA.AGE_NAMES[D.age]}.`); break; }
         if (D.needs && !this.has(p, D.needs)) { say(`Needs a ${DATA.BUILDINGS[D.needs].name} first.`); break; }
         for (const [tx, ty] of c.tiles) { const b = this.place(c.type, p, tx, ty); if (b) placed.push(b); else if (!this.canAfford(p, D.cost)) break; }
         if (!placed.length) { say(this.canAfford(p, D.cost) ? 'Cannot build there.' : 'Not enough resources.'); break; }
@@ -769,8 +894,8 @@ class World {
       case 'bell': this.townBell(p); say('Town Bell rung!'); break;
       case 'allclear': this.allClear(p); break;
       case 'ungarrison': for (const b of this.mine(p, c.ids)) if (b.kind === 'building') this.ungarrison(b); break;
-      case 'garrison': for (const u of this.mine(p, c.ids)) { if (u.kind !== 'unit' || !(u.type === 'villager' || (u.D.cls && u.D.cls.includes('infantry')))) continue;
-        const th = this.nearest(u, b => b.kind === 'building' && b.owner === p && b.type === 'town_hall' && b.built); if (th) this.order(u, { type: 'garrison', id: th.id }); } break;
+      case 'garrison': for (const u of this.mine(p, c.ids)) { if (u.kind !== 'unit' || !(u.type === 'villager' || (u.D.cls && (u.D.cls.includes('infantry') || u.D.cls.includes('archer'))))) continue;
+        const th = this.nearest(u, b => b.kind === 'building' && b.owner === p && b.D.garrison && b.built && b.garrison.length < b.D.garrison); if (th) this.order(u, { type: 'garrison', id: th.id }); } break;
       case 'pickup': for (const u of this.mine(p, c.ids)) { if (!u.D.carries) continue;
         const a = this.nearest(u, a => a.kind === 'artifact' && !a.carrier && (p !== 0 || this.players[0].vis[Math.floor(a.y) * this.W + Math.floor(a.x)])); if (a) this.order(u, { type: 'pickup', id: a.id }); } break;
       case 'delete': for (const e of this.mine(p, c.ids)) { if (e.kind === 'building' && !e.built && e.progress === 0) this.pay(p, e.D.cost, -1); this.kill(e); } break;

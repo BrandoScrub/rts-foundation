@@ -1,7 +1,7 @@
 # RTS Foundation
 
 Age of Empires II's economy, unit counters and tech progression in a Warcraft III fantasy world with creep camps,
-and no heroes. This build is **tier 1** (AoE2's Dark Age) only.
+and no heroes. This build covers AoE2's **Dark Age and Feudal Age**.
 
 | Folder | What it is |
 |---|---|
@@ -9,8 +9,9 @@ and no heroes. This build is **tier 1** (AoE2's Dark Age) only.
 | `artkit/` | The art engine, a **pinned copy** of BrandoScrub/Game-Engine-System-Design (version in `artkit/VENDORED.json`). Never edited here. |
 | `styles/fantasy_realm/` | This game's art style pack (outside the engine): so far the ground recipes in `terrain.json`. |
 | `tools/` | `update_artkit.py <engine checkout>` brings in a new engine version; `check_artkit.py` catches edits to the pinned copy; `build_ground.py` renders the ground tiles through artkit into `game/art/`. |
-| `tests/` | `node tests/sim_check.js` (rules and economy) and `node tests/mechanics_check.js` (commands, determinism, replay, path budget, group paths, fog memory), both without a browser. |
+| `tests/` | `node tests/sim_check.js` (rules and economy) and `node tests/mechanics_check.js` (commands, determinism, replay, path budget, group paths, fog memory), and `node tests/feudal_check.js` (AoE2 damage, counters, ages, research, Market), all without a browser. |
 | `docs/design.md` | Every decision so far, how AoE2 was followed, and the open questions. |
+| `docs/aoe2-research.md` | How AoE2 works (damage, movement, map generation, art), with sources, and what is copied. |
 
 ## Play
 ```

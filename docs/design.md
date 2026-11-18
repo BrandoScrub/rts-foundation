@@ -1,4 +1,4 @@
-# RTS Foundation: design record (tier 1)
+# RTS Foundation: design record (Dark Age and Feudal Age)
 
 An Age of Empires II economy and tech game in a Warcraft III fantasy world, without heroes. When a rule is in
 doubt, we copy what AoE2 (Definitive Edition) does. Every number lives in `game/src/data.js`, with the AoE2 value it
@@ -22,6 +22,11 @@ comes from in a comment.
 | Fishing (Nov 17, built) | Shore fish only: schools along the river banks (AoE2 DE shore fish: 200 food, fisherman 0.43/s), gathered by peasants from the bank and dropped at a Mill or Town Hall. No Dock or boats. |
 | Art timing (Nov 17) | Not yet for buildings and units; the **ground is made through the art engine now** (user, Nov 17): style pack `styles/fantasy_realm/` (terrain.json recipes) -> `python3 tools/build_ground.py` -> `game/art/ground_realm_*.jpg`, blended on the height field in the game. |
 | Structure first (Nov 17) | Mechanics and structure before content. See Foundations below. |
+| As close to AoE2 as possible, through the Feudal Age (Nov 17) | Research in `docs/aoe2-research.md`. Ages 1 and 2 are built; the Castle Age shows locked. |
+| Ore generation (Nov 17) | Iron and crystal each generate exactly like AoE2 gold: a 7-tile and two 4-tile mines by every Town Hall, scattered 3-tile piles, 800 a tile, gold mining rate, 100 of each to start. |
+| Camp ore (Nov 17) | Kept as bonus veins on top of the AoE2 layout; camps still drop artifacts. |
+| Gold prices (Nov 17) | Units pay **iron** where AoE2 charges gold; technologies pay **crystal**. The Market trades in iron. |
+| Art (Nov 17) | Start artkit briefs and grey blockouts now, after the Feudal mechanics. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)
@@ -56,6 +61,24 @@ comes from in a comment.
 - **Picking.** In screen space against what is drawn: a unit's body, a building's silhouette, a tree's sprite; the
   front-most wins; a finger gets more slack. The canvas re-measures itself every frame, so taps and drawing agree.
 
+## Feudal Age and AoE2 systems (built Nov 17)
+- **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.
+- **Counters:** Dwarf Pikeman (Spearman, +15 vs cavalry), Elf Archer (Archer), Halfling Slinger (Skirmisher, +3 vs
+  archers, minimum range), Wolf Rider (Scout Cavalry, stronger in Feudal), Man-at-Arms (Militia upgrade). AoE2 stats.
+- **Arrows** fly at 7 tiles a second and can miss (Archer 80%, Slinger 90%).
+- **Stances:** Aggressive, Defensive, Stand Ground, No Attack. **Formations:** Line, Staggered, Box, Flank; a group
+  walks at its slowest member's speed. **Patrol.**
+- **Buildings:** Archery Range and Stable (need a Barracks), Blacksmith, Market (needs a Mill), Watch Tower, Stone
+  Wall, Stone Gate. Two build pages, economic and military, as in AoE2.
+- **Research:** Loom; Wheelbarrow, Town Watch; Horse Collar; Double-Bit Axe; Ore Mining (AoE2 Gold Mining, both
+  ores), Stone Mining; Man-at-Arms, Supplies; Bloodlines; Forging, Scale Mail, Scale Barding, Fletching, Padded
+  Archer Armour.
+- **Market:** buy or sell 100 food, wood or stone for iron; 30% fee; each trade moves the price by 3.
+- **Town Hall** shoots only when units are inside (one arrow each); a **Watch Tower** shoots one arrow, more with a
+  garrison.
+- Changed to match AoE2: Militia 50 food 20 iron; Palisade 3 wood, 150 HP; Palisade Gate 30 wood; Town Watch moved
+  to the Feudal Age; 6 berry bushes.
+
 ## Creep camps (Warcraft III style)
 Guards stand at home, attack anything that comes within 5 tiles, call the whole camp in when one is hit, chase up to
 11 tiles from home, then walk back healing. Per side: 2 Wolf Dens (crystal x4), 2 Goblin Outposts (iron x7, 1
@@ -63,7 +86,8 @@ artifact), 1 Ogre Lair (crystal x6, 1 artifact); in the middle one Ogre Strongho
 Each player's home also has free iron (7 + 4 + 4), stone (5 + 5), berries, 6 sheep, 2 boar, 4 deer and woodlines,
 like AoE2 Arabia.
 
-## Open questions (ask before building past tier 1)
-1. Who carries artifacts once tier 2 has a temple-like building (AoE2 Monastery), and where they are stored.
-2. Exact stats of the tier 2 roster (start from AoE2's Spearman, Archer, Skirmisher, Scout Cavalry, Man-at-Arms).
-3. When to start the art (briefs and grey blockouts).
+## Open questions
+1. Castle Age content (age 3): not started. Who carries artifacts once there is a temple (AoE2 Monastery and Monks)?
+2. Should crystal be buyable at the Market, or stay mine-only?
+3. An AI for the opponent (it is still idle).
+4. Art: approve or change the grey blockouts before any detail is added.

@@ -187,7 +187,7 @@ const Render = (() => {
   }
   function buildingSprite(b, team) {
     const s = b.size, t = b.type, stage = b.built ? 'done' : (b.progress < 0.5 ? 'f0' : 'f1');
-    const key = `b:${t}:${team}:${stage}:${t === 'farm' ? Math.ceil((b.food / DATA.FARM.food) * 4) : 0}`;
+    const key = `b:${t}:${team}:${stage}:${t === 'farm' ? Math.min(4, Math.ceil((b.food / DATA.FARM.food) * 4)) : 0}`;
     const w = s * TW + 20, h = s * TH + 150;
     return sprite(key, w, h, w / 2, h - s * TH / 2 - 6, g => {
       const hw = s * TW / 2, hh = s * TH / 2;
@@ -245,6 +245,33 @@ const Render = (() => {
           for (const [x0, x1] of [[-12, -7], [12, 7], [-4, -3], [4, 3]]) { g.beginPath(); g.moveTo(x0, 4); g.lineTo(x1, -46); g.stroke(); }
           g.translate(0, -46); block(g, 1, 8, '#8a6238', '#6b2a1f', 10, 0.0); g.translate(0, 46);
           g.fillStyle = C; g.fillRect(-1, -78, 8, 5); break; }
+        case 'blacksmith': {
+          block(g, 3, 20, '#7d7468', '#3d3a38', 16);
+          poly(g, [[-26, -44], [-16, -44], [-16, -66], [-26, -66]], '#5a5550'); ell(g, -21, -70, 6, 4, 'rgba(90,90,90,0.6)');
+          poly(g, [[14, -2], [30, -2], [27, -10], [17, -10]], '#3a3a3e'); ell(g, 22, -12, 5, 2.5, '#ff8a30');
+          g.fillStyle = C; g.fillRect(4, -58, 8, 6); break; }
+        case 'market': {
+          block(g, 4, 6, '#a08a66', '#8a7450', 0, 0.06);
+          for (const [x, y, c] of [[-34, -8, '#c94f3a'], [6, -26, '#d8b24a'], [34, -6, '#4f8ac9'], [0, 12, '#6fae5a']]) { g.save(); g.translate(x, y); block(g, 1.4, 12, '#b89868', c, 12, 0.05); g.restore(); }
+          g.fillStyle = C; g.fillRect(-2, -60, 10, 7); g.strokeStyle = '#2a1d10'; g.beginPath(); g.moveTo(-2, -40); g.lineTo(-2, -62); g.stroke(); break; }
+        case 'archery_range': {
+          block(g, 3, 16, '#9b8660', '#5d6b3a', 14);
+          ell(g, 26, -12, 8, 8, '#f2ead8', '#3a2a1a'); ell(g, 26, -12, 5, 5, '#c94f3a'); ell(g, 26, -12, 2, 2, '#f2ead8');
+          g.strokeStyle = '#5a3b1d'; g.lineWidth = 2; g.beginPath(); g.moveTo(26, -4); g.lineTo(22, 6); g.moveTo(26, -4); g.lineTo(30, 6); g.stroke();
+          g.fillStyle = C; g.fillRect(-4, -52, 9, 6); break; }
+        case 'stable': {
+          block(g, 3, 16, '#a07a50', '#7a5a34', 16);
+          g.fillStyle = '#2b2018'; g.fillRect(6, -18, 12, 16); g.fillRect(24, -12, 10, 12);
+          g.strokeStyle = '#6b4a28'; g.lineWidth = 2; g.beginPath(); g.moveTo(-44, 10); g.lineTo(-14, 26); g.moveTo(-44, 4); g.lineTo(-14, 20); g.stroke();
+          g.fillStyle = C; g.fillRect(-4, -54, 9, 6); break; }
+        case 'watch_tower': {
+          block(g, 1, 56, '#a9a498', '#8a857a', 0, 0.12);
+          g.translate(0, -56); block(g, 1, 8, '#b8b3a6', '#6a2a1f', 12, 0.0); g.translate(0, 56);
+          g.fillStyle = '#2b2018'; g.fillRect(3, -44, 3, 8); g.fillStyle = C; g.fillRect(-1, -92, 9, 6); break; }
+        case 'stone_wall': block(g, 1, 20, '#a9a498', '#bdb8aa', 0, 0.02); break;
+        case 'stone_gate': {
+          block(g, 1, 28, '#a9a498', '#bdb8aa', 0, 0.02);
+          poly(g, [[2, -2], [14, -8], [14, -22], [8, -27], [2, -22]], '#4a3320'); g.fillStyle = C; g.fillRect(-3, -40, 7, 5); break; }
       }
     });
   }
@@ -279,7 +306,7 @@ const Render = (() => {
     });
   }
   function unitSprite(u, team, frame) {
-    const t = u.type, carry = u.carry && u.carry.amt > 0 ? u.carry.res : '', key = `u:${t}:${team}:${frame}:${carry}:${u.carcass ? 1 : 0}:${u.artifact ? 1 : 0}`;
+    const t = u.type, carry = u.carry && u.carry.amt > 0 ? u.carry.res : '', maa = t === 'militia' && W.tech(u.owner, 'man_at_arms'), key = `u:${t}:${team}:${frame}:${carry}:${u.carcass ? 1 : 0}:${u.artifact ? 1 : 0}:${maa ? 1 : 0}`;
     return sprite(key, 60, 70, 30, 56, g => {
       const bob = frame === 1 ? -1.5 : 0, leg = frame === 1 ? 3 : frame === 2 ? -3 : 0;
       ell(g, 0, 0, t === 'ogre' ? 13 : t === 'scout' ? 12 : 7, t === 'ogre' ? 5 : 3.5, 'rgba(0,0,0,0.25)');
@@ -301,14 +328,28 @@ const Render = (() => {
           human(team);
           ell(g, 0, -25 + bob, 4, 2.8, '#9aa0a8', '#333');
           g.strokeStyle = '#d8dce0'; g.lineWidth = 1.8; g.beginPath(); g.moveTo(6, -12 + bob); g.lineTo(11, -26 + bob); g.stroke();
-          ell(g, -6, -14 + bob, 3.5, 5, '#7a5a34', '#2a1d10');
+          ell(g, -6, -14 + bob, maa ? 4.5 : 3.5, maa ? 6 : 5, maa ? '#9aa0a8' : '#7a5a34', '#2a1d10');
+          if (maa) poly(g, [[-4, -9 + bob], [4, -9 + bob], [4, -18 + bob], [-4, -18 + bob]], 'rgba(170,176,184,0.75)', '#2a1d10');
           if (u.artifact) { ell(g, 0, -34 + bob, 4, 4, '#ffd76a', '#8a6a10'); }
           break;
-        case 'scout':
-          ell(g, 0, -10 + bob, 12, 6, '#7a5232', '#2a1d10');
-          g.strokeStyle = '#3a2615'; g.lineWidth = 2.2; g.beginPath(); for (const x of [-8, -4, 5, 9]) { g.moveTo(x, -6); g.lineTo(x + (x % 2 ? leg : -leg) * 0.4, 0); } g.stroke();
-          ell(g, 12, -16 + bob, 4, 3.5, '#7a5232', '#2a1d10');
-          poly(g, [[-3, -14 + bob], [3, -14 + bob], [2, -24 + bob], [-2, -24 + bob]], team, '#2a1d10'); ell(g, 0, -27 + bob, 3, 3, '#e0b48a', '#2a1d10');
+        case 'scout':   // wolf rider
+          ell(g, 0, -10 + bob, 12, 5.5, '#6e7178', '#26282c');
+          g.strokeStyle = '#3a3c42'; g.lineWidth = 2.2; g.beginPath(); for (const x of [-8, -4, 5, 9]) { g.moveTo(x, -6); g.lineTo(x + (x % 2 ? leg : -leg) * 0.4, 0); } g.stroke();
+          ell(g, 12, -14 + bob, 4.5, 3.5, '#6e7178', '#26282c'); poly(g, [[11, -17 + bob], [12, -22 + bob], [14, -17 + bob]], '#55585e'); poly(g, [[-12, -11 + bob], [-18, -15 + bob], [-12, -8 + bob]], '#6e7178', '#26282c');
+          poly(g, [[-3, -14 + bob], [3, -14 + bob], [2, -24 + bob], [-2, -24 + bob]], team, '#2a1d10'); ell(g, 0, -27 + bob, 3, 3, '#7fae4a', '#2a1d10');
+          g.strokeStyle = '#8a6a3a'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(5, -12 + bob); g.lineTo(9, -32 + bob); g.stroke();
+          break;
+        case 'spearman':   // dwarf pikeman: short, broad, long pike
+          human(team, '#e0b48a', 0.82); ell(g, 0, -20 + bob, 3.6, 2.4, '#8a8f98', '#333'); poly(g, [[-3, -15 + bob], [3, -15 + bob], [0, -9 + bob]], '#b8703a', '#3a2010');
+          g.strokeStyle = '#6b4a28'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(5, 0); g.lineTo(9, -38 + bob); g.stroke(); poly(g, [[7.5, -38 + bob], [10.5, -38 + bob], [9.3, -45 + bob]], '#d8dce0', '#333');
+          break;
+        case 'archer':   // elf archer: slim, hooded, bow
+          human(team, '#ecd0b0', 1.02); poly(g, [[-4, -24 + bob], [4, -24 + bob], [0, -31 + bob]], '#2f5f3a', '#14301f');
+          g.strokeStyle = '#6b4a28'; g.lineWidth = 1.6; g.beginPath(); g.arc(7, -15 + bob, 9, -1.2, 1.2); g.stroke(); g.strokeStyle = '#ddd'; g.lineWidth = 0.7; g.beginPath(); g.moveTo(10.3, -23.4 + bob); g.lineTo(10.3, -6.6 + bob); g.stroke();
+          break;
+        case 'skirmisher':   // halfling slinger: small, sling and a wicker shield
+          human(team, '#e8c09a', 0.72); ell(g, -5, -10 + bob, 3.5, 4.5, '#b89858', '#3a2a1a');
+          g.strokeStyle = '#4a3320'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(4, -12 + bob); g.quadraticCurveTo(12, -24 + bob, 8, -28 + bob); g.stroke(); ell(g, 8, -28 + bob, 1.8, 1.8, '#888');
           break;
         case 'sheep': ell(g, 0, -7, 8, 5.5, '#efece2', '#7a776d'); ell(g, 8, -8, 3, 2.5, '#3a3530'); break;
         case 'deer':
@@ -410,7 +451,7 @@ const Render = (() => {
     for (const f of W.fx) {
       if (f.t < 0) continue;
       if (f.kind === 'arrow') {
-        const p = Math.min(1, f.t / 0.45), x = f.x0 + (f.x1 - f.x0) * p, y = f.y0 + (f.y1 - f.y0) * p, z = W.h(x, y) + f.z0 * (1 - p) + Math.sin(p * Math.PI) * 1.5;
+        const p = Math.min(1, f.t / f.life), x = f.x0 + (f.x1 - f.x0) * p, y = f.y0 + (f.y1 - f.y0) * p, z = W.h(x, y) + f.z0 * (1 - p) + Math.sin(p * Math.PI) * 1.5;
         const [sx, sy] = toScreen(x, y, z), [ex, ey] = toScreen(f.x1, f.y1, W.h(f.x1, f.y1));
         const a = Math.atan2(ey - sy, ex - sx); ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - Math.cos(a) * 7 * k, sy - Math.sin(a) * 7 * k); ctx.stroke();
