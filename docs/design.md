@@ -28,7 +28,8 @@ comes from in a comment.
 | Camp ore (Nov 17) | Kept as bonus veins on top of the AoE2 layout; camps still drop artifacts. |
 | Gold prices (Nov 17) | Units pay **iron** where AoE2 charges gold; technologies pay **crystal**. The Market trades in iron. |
 | Art (Nov 17) | Start artkit briefs and grey blockouts now, after the Feudal mechanics. Then "focus on art": all 16 buildings are designed as blockouts (brief and a reason per part), rendered through artkit in player colours and drawn in the game (`tools/build_buildings.py`). Units are still code-drawn. See `docs/art-briefs.md`. |
-| Castle Age (Nov 17) | "Begin work on mechanics up until castle age. Refer to Age of Empires 2, but continue to make it fantasy as we have been." Built as AoE2's Castle Age with fantasy names; see Castle Age below. Names and the open points there are Claude's proposals until the user confirms them. |
+| Castle Age (Nov 17) | "Begin work on mechanics up until castle age. Refer to Age of Empires 2, but continue to make it fantasy as we have been." Built as AoE2's Castle Age with fantasy names; see Castle Age below. |
+| Castle Age answers (Nov 18) | The names stand (Bear Knight, Centaur Archer, Mystic, Sanctum, Academy, Citadel, Dwarf Halberdier, Elf Longbow, Wolf Raider). No unique unit for the Citadel for now. Artifacts are **not** Mystic-and-Sanctum only: Militia carry them and Town Halls hold them too. Then: "Merge and fix any inconsistent changes". |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)
@@ -184,6 +185,10 @@ deterministic (to replay one: same seed, the opponent on, and the human's comman
 - **Attack waves:** the first leaves with 8 soldiers (about minute 18), each later one needs 4 more (to 28), at least
   two minutes apart. Waves cross the river by the two nearest fords in turn, never the centre one (the Ogre
   Stronghold), go for the Town Hall, then for whatever the enemy has left. A wave beaten down to a quarter goes home.
+- **Creeping (Nov 17, "continue"):** between waves the soldiers at home clear the camps on their own bank, nearest
+  first and only with the numbers for it (6 for a Wolf Den, 8 for a Goblin Outpost, 12 for an Ogre Lair), which
+  frees the ore each camp wards; a militia carries every artifact to the Town Hall. A party cut to half gives up and
+  leaves that camp alone for four minutes. The Ogre Stronghold is never attacked. No wave leaves while a party is out.
 - **Defence:** soldiers at home answer any attack on the base; when raiders by the Town Hall outnumber them it rings
   the Town Bell, and All Clear when they are gone.
 - **Castle Age (Nov 17):** once it has 30 peasants and its first wave has left (or 20 minutes have passed) it saves
@@ -192,9 +197,8 @@ deterministic (to replay one: same seed, the opponent on, and the human's comman
   the Castle Age research as it can pay, Bear Knights in the army (more against archers and siege) and a few Rams.
   Rams march as their own group behind the soldiers, since a group walks at its slowest member's speed.
 - **Not yet like a person (my choices, open to change):** it knows the whole map (no fog for it); it does not hunt
-  boar or deer, fish, wall, build towers, use the Market, clear camps on purpose or collect artifacts; it does not
-  use Mystics, Catapults, Bolt Throwers or Centaur Archers, and builds no second Town Hall; one
-  difficulty. It beats a player who does nothing in about half an hour.
+  boar or deer, fish, wall, build towers or use the Market; it does not use Mystics, Catapults, Bolt Throwers or
+  Centaur Archers, and builds no second Town Hall; one difficulty. It beats a player who does nothing in about half an hour.
 - **Fixed on the way:** a unit on a move or attack-move that got stuck used to drop the order (and jump to its next
   queued one); it now looks for a new way, up to six times.
 
@@ -206,13 +210,9 @@ Each player's home also has free iron (7 + 4 + 4), stone (5 + 5), berries, 6 she
 like AoE2 Arabia.
 
 ## Open questions
-1. Castle Age names: Bear Knight, Centaur Archer, Mystic, Sanctum, Academy, Citadel, Dwarf Halberdier, Elf Longbow,
-   Wolf Raider are proposals. Keep or change?
-2. The Citadel's unique unit and unique technology (AoE2 Castles train one per civilisation; there is one faction).
-3. Artifacts: AoE2 lets only Monks carry relics and only Monasteries hold them. Here Militia and Town Halls still
-   work too, so camps pay off before age 3. Keep both, or Mystics and Sanctums only?
-4. Should crystal be buyable at the Market, or stay mine-only?
-5. Opponent AI, next steps: should it play by the fog (scout first)? Should it clear camps and take artifacts? Hunt
+1. The Citadel's unique unit and unique technology: put off by the user (Nov 18).
+2. Should crystal be buyable at the Market, or stay mine-only?
+3. Opponent AI, next steps: should it play by the fog (scout first)? Should it use Mystics and Catapults? Hunt
    boar and deer, towers and walls, the Market? Difficulty levels (AoE2 has Easiest to Extreme)?
-6. Art: briefs and grey blockouts for the Castle Age buildings and units.
-7. Imperial Age (age 4): not started; ask first.
+4. Art: briefs and grey blockouts for the Castle Age buildings and units.
+5. Imperial Age (age 4): not started; ask first.

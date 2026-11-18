@@ -1072,9 +1072,10 @@ class World {
      still give the same game. The plan is the standard AoE2 opening: six on sheep, then wood, berries and farms,
      Loom and the Feudal Age at 21 peasants; then the three military buildings, the Blacksmith, research, an army
      picked to counter what the enemy fields, and attack waves that grow.
+     Between waves it creeps, as in Warcraft III: it clears the camps on its own bank and takes their artifacts home.
      In the Castle Age it adds a Siege Workshop, an Academy and a Citadel, upgrades its unit lines, and fields Bear
-     Knights and Rams. Not yet like a person: it knows the whole map (no fog for it), and it does not wall, tower,
-     trade, creep or use Mystics, Catapults and Bolt Throwers. */
+     Knights and Rams. Not yet like a person: it knows the whole map (no fog for it), and it does not hunt, wall,
+     tower, trade or use Mystics, Catapults and Bolt Throwers. */
   aiInit() {
     const p = 1, th = this.ents.find(e => e.owner === p && e.type === 'town_hall'), s0 = this.map.starts[0];
     const W = this.W, seen = new Uint8Array(W * this.H), fords = [];
@@ -1088,7 +1089,7 @@ class World {
       fords.push([mid % W + 0.5, ((mid / W) | 0) + 0.5]);
     }
     this.ai = { p, home: [th.x, th.y], foe: [s0[0], s0[1]], fords, wave: 0, nextWave: 0, squad: [], squadSize: 0, rallied: new Set(),
-      bell: false, calm: 0, shuffleT: 0, defendT: 0 };
+      bell: false, calm: 0, shuffleT: 0, defendT: 0, creep: null, shy: {} };
   }
   aiCampNear(x, y, r) { return this.camps.some(c => !c.cleared && Math.hypot(c.x - x, c.y - y) < r); }
   aiOpen(i) {   // can a peasant stand beside this resource tile?
@@ -1185,7 +1186,8 @@ class World {
       if (hostile && (Math.hypot(e.x - hx, e.y - hy) < 26 || blds.some(b => this.distTo(e, b) < 9))) threats.push(e);
     }
     const squad = A.squad = A.squad.filter(id => { const u = this.get(id); return u && u.owner === p; });
-    const inSquad = new Set(squad), guard = army.filter(u => !inSquad.has(u.id));
+    const errand = u => u.artifact || (u.order && (u.order.type === 'pickup' || u.order.type === 'deliver'));   // fetching an artifact: left alone
+    const inSquad = new Set(squad), guard = army.filter(u => !inSquad.has(u.id) && !errand(u));
     if (threats.length) {
       A.calm = this.time + 6;
       const t = threats[0];
@@ -1341,13 +1343,45 @@ class World {
       const slow = ids.filter(id => { const u = this.get(id); return u && (u.D.cls || []).includes('siege'); }), fast = ids.filter(id => !slow.includes(id));
       if (fast.length) march1(fast, from, x, y, attack, turn); if (slow.length) march1(slow, from, x, y, attack, turn);
     };
+    /* ---- creeping (Warcraft III): between waves the soldiers at home clear the camps on their own bank, nearest
+       first and only with the numbers for it, which frees the ore a camp wards; a militia then carries each artifact
+       to the Town Hall. The Ogre Stronghold on the centre ford is left alone. ---- */
+    const NEEDS = { wolf_den: 6, goblin_post: 8, ogre_lair: 12 };   // soldiers before it dares a camp
+    const fighters = guard.filter(u => !(u.D.cls || []).includes('siege'));
+    if (A.creep) {
+      const c = this.campById(A.creep.id), party = A.creep.ids.map(id => this.get(id)).filter(u => u && !inSquad.has(u.id) && !errand(u));
+      if (threats.length || !c || c.cleared || party.length < A.creep.n * 0.5 || this.time > A.creep.until) {
+        if (c && !c.cleared && !threats.length) A.shy[c.id] = this.time + 240;   // it went badly: leave that camp alone for a while
+        if (party.length && !threats.length) go({ c: 'move', ids: party.map(u => u.id), x: hx + ex * 8, y: hy + ey * 8 });
+        A.creep = null;
+      } else { const still = party.filter(u => !u.order); if (still.length) go({ c: 'move', ids: still.map(u => u.id), x: c.x, y: c.y, attack: true }); }
+    } else if (age >= 2 && !threats.length && fighters.length >= 6) {   // soldiers only: a Ram cannot strike creeps and would slow the party to its pace
+      const c = this.camps.filter(c => !c.cleared && NEEDS[c.type] <= fighters.length && far(c.x, c.y) === far(hx, hy) && !(A.shy[c.id] > this.time))
+        .sort((a, b) => Math.hypot(a.x - hx, a.y - hy) - Math.hypot(b.x - hx, b.y - hy))[0];
+      if (c) { const ids = fighters.map(u => u.id); A.creep = { id: c.id, ids, n: ids.length, until: this.time + 240 }; go({ c: 'move', ids, x: c.x, y: c.y, attack: true }); }
+    }
+    if (th && !threats.length) {
+      const free = guard.filter(u => u.D.carries);
+      for (const a of this.ents) {
+        if (!free.length) break;
+        if (a.dead || a.kind !== 'artifact' || a.carrier || far(a.x, a.y) !== far(hx, hy) || this.aiCampNear(a.x, a.y, 8)) continue;
+        if (army.some(u => u.order && u.order.type === 'pickup' && u.order.id === a.id)) continue;
+        free.sort((x, y) => Math.hypot(x.x - a.x, x.y - a.y) - Math.hypot(y.x - a.x, y.y - a.y));
+        const u = free.shift(); go({ c: 'order', ids: [u.id], target: a.id, x: a.x, y: a.y });
+      }
+      for (const u of army) if (u.artifact && !u.order) go({ c: 'order', ids: [u.id], target: th.id, x: th.x, y: th.y });   // interrupted on the way home
+    }
+
     const need = Math.min(8 + 4 * A.wave, 28);
-    if (age >= 2 && !threats.length && foes.length && guard.length >= need && this.time >= A.nextWave) {
+    if (age >= 2 && !A.creep && !threats.length && foes.length && guard.length >= need && this.time >= A.nextWave) {
       const t = foes.find(e => e.type === 'town_hall') || foes[0], ids = guard.map(u => u.id);
       march(ids, A.home, t.x, t.y, true, A.wave % 2);   // the two nearest fords in turn
       A.squad = squad.concat(ids); A.squadSize = A.squad.length; A.wave++; A.nextWave = this.time + 120;
     } else if (squad.length) {
       const us = squad.map(id => this.get(id));
+      // a soldier that lost its way to the ford (stuck too long, or its group split) would cut straight across the centre: set it right
+      const stray = us.filter(u => u.order && u.order.type === 'amove' && !u.queue.length && far(u.x, u.y) !== far(u.order.x, u.order.y) && !A.fords.some(f => Math.hypot(f[0] - u.x, f[1] - u.y) < 10));
+      if (stray.length) march(stray.map(u => u.id), [stray[0].x, stray[0].y], stray[0].order.x, stray[0].order.y, true);
       if (squad.length < Math.max(2, A.squadSize * 0.25) && guard.length >= 4) { march(squad, [us[0].x, us[0].y], hx + ex * 8, hy + ey * 8, false); A.squad = []; }   // a beaten wave comes home
       else { const lost = us.filter(u => !u.order && !u.queue.length);   // nothing left in sight: on to the nearest thing the enemy still has
         if (lost.length && foes.length) { const t = this.nearest(lost[0], e => e.owner === 0 && (e.kind === 'building' || (e.kind === 'unit' && !!DATA.UNITS[e.type])) && !e.garrisoned);
