@@ -60,6 +60,36 @@ armour classes) x elevation)`; the elevation factor is 1.25 from higher ground
 - Other numbers (Archer, Scout Cavalry, building HP and times, Market fee of 30% and price step of 3, Town Center
   firing only when garrisoned) are from memory of the game and were not re-checked against a source today.
 
+## Castle Age content (researched Nov 17 2026)
+- Castle: 650 stone, built in 3:20, 20 garrison, 11 pierce attack, range 8, minimum range 1, +20 population, cannot
+  be converted ([Liquipedia, Castle](https://liquipedia.net/ageofempires/Castle)); five arrows before any garrison
+  ([Fandom, Castle](https://ageofempires.fandom.com/wiki/File:Uniquetechnology1available.png)). **Here:** the Citadel.
+- Masonry: +10% HP, +1/+1 armour, +3 building armour; Murder Holes removes the minimum range; Ballistics makes
+  arrows hit moving targets; Treadmill Crane +20% construction speed (Liquipedia, Castle). **Here:** the same,
+  without the separate "building armour" class. Without Ballistics an arrow here misses a target that moved
+  0.45 tiles aside or further away from where it was aimed (our number; AoE2 tracks the projectile itself).
+- Monk: heals 150 HP a minute from 4 tiles; faith returns 62 s after a conversion
+  ([Fandom, Monk](https://ageofempires.fandom.com/wiki/Monk_(Age_of_Empires_II))). Conversion: a 27% chance on every
+  1.2 s "monk tick", with a minimum of 4 ticks and a maximum of 10
+  ([forum analysis](https://forums.ageofempires.com/t/less-rng-in-conversions/199773)). **Here:** the Mystic, same
+  numbers. Not copied: several monks pooling their ticks on one target, and conversion resistance.
+- Blacksmith: Iron Casting 220 food 120 gold; Chain Barding 250/150; Bodkin Arrow 200/100 (+1 attack and +1 range
+  for archers, towers and Castles, +1 attack for Town Centers), 35 s; Leather Archer Armor 150/150
+  ([aoe2insights](https://www.aoe2insights.com/civilization/wu/tech-tree/);
+  [Liquipedia, Bodkin Arrow](https://liquipedia.net/ageofempires/Bodkin_Arrow)).
+- Hand Cart: 300 food 200 wood, +10% speed and +50% carry ([Liquipedia](https://liquipedia.net/ageofempires/Hand_Cart)).
+  Town Patrol 300 food 100 gold ([HD changelog](https://www.forgottenempires.net/age-of-empires-2-hd/changelog)).
+- Siege Workshop: 200 wood, 1500 HP, armour 1/8, needs a Blacksmith; Battering Ram 160 wood 75 gold (aoe2insights).
+  Mangonel: 50 HP, 40 attack, range 7, 0/6 armour, speed 0.6, 160 wood 135 gold
+  ([ageofnotes](https://ageofnotes.com/units-counters/mangonel-counters-280)). Knight: 100 HP, 10 attack, 2 melee
+  armour ([ageofnotes](https://ageofnotes.com/units-counters/knight-counters-38)). University: 200 wood, 1:00
+  ([Liquipedia](https://liquipedia.net/ageofempires/University)).
+- From memory of the game, not re-checked against a source today: the advance's two-building rule and 160 s; the
+  line upgrades' numbers and prices (Long Swordsman, Pikeman, Crossbowman, Elite Skirmisher, Light Cavalry);
+  Cavalry Archer and Scorpion numbers; Ram HP, armour and bonuses; Mangonel blast radius, minimum range and friendly
+  fire; research times; Monastery and University research prices; Squires, Arson, Gambesons, Thumb Ring, Husbandry;
+  Monastery 175 wood; Fortified Wall and Guard Tower numbers; which units a Castle or tower can garrison.
+
 ## Art
 - All of AoE's 2D sprites began as 3D models, textured, animated and rendered out to sprite frames
   ([AoE postmortem](https://www.gamedeveloper.com/game-platforms/the-game-developer-archives-postmortem-ensemble-s-age-of-empires-)).
@@ -73,6 +103,8 @@ armour classes) x elevation)`; the elevation factor is 1.25 from higher ground
 
 ## Not copied (and why)
 - Docks, ships and fish traps: the user chose shore fish only.
+- Castle Age: the Castle's unique unit and technology, Petards, Camel Riders, Siege Towers, Coinage and Caravan,
+  Heated Shot, Faith, Devotion and Theocracy; a Scorpion bolt and a Mangonel rock do not hurt the owner's buildings.
 - Trade Carts and tribute: need a second active player.
 - Stone and palisade gates are one tile, not four.
 - A missed arrow does nothing; in AoE2 it can land on another unit.

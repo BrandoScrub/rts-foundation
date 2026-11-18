@@ -1,4 +1,4 @@
-# RTS Foundation: design record (Dark Age and Feudal Age)
+# RTS Foundation: design record (Dark Age to Castle Age)
 
 An Age of Empires II economy and tech game in a Warcraft III fantasy world, without heroes. When a rule is in
 doubt, we copy what AoE2 (Definitive Edition) does. Every number lives in `game/src/data.js`, with the AoE2 value it
@@ -28,6 +28,7 @@ comes from in a comment.
 | Camp ore (Nov 17) | Kept as bonus veins on top of the AoE2 layout; camps still drop artifacts. |
 | Gold prices (Nov 17) | Units pay **iron** where AoE2 charges gold; technologies pay **crystal**. The Market trades in iron. |
 | Art (Nov 17) | Start artkit briefs and grey blockouts now, after the Feudal mechanics. Then "focus on art": all 16 buildings are designed as blockouts (brief and a reason per part), rendered through artkit in player colours and drawn in the game (`tools/build_buildings.py`). Units are still code-drawn. See `docs/art-briefs.md`. |
+| Castle Age (Nov 17) | "Begin work on mechanics up until castle age. Refer to Age of Empires 2, but continue to make it fantasy as we have been." Built as AoE2's Castle Age with fantasy names; see Castle Age below. Names and the open points there are Claude's proposals until the user confirms them. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)
@@ -131,6 +132,42 @@ Laid out as AoE2 Definitive Edition's HUD (source: the official Learn to Play pa
 - Changed to match AoE2: Militia 50 food 20 iron; Palisade 3 wood, 150 HP; Palisade Gate 30 wood; Town Watch moved
   to the Feudal Age; 6 berry bushes.
 
+## Castle Age and AoE2 systems (built Nov 17, on the user's go-ahead: "mechanics up until castle age")
+Names are fantasy, rules and numbers are AoE2's (in `game/src/data.js`); gold is iron for units, crystal for research.
+- **Advance:** 800 food, 200 crystal, 160 s, any two of Archery Range, Stable, Blacksmith, Market (AoE2).
+- **Buildings:** more **Town Halls** (275 wood, 100 stone); **Sanctum** (Monastery); **Academy** (University);
+  **Siege Workshop** (needs a Blacksmith); **Citadel** (Castle: 650 stone, 4800 HP, five arrows of 11, range 8,
+  garrison 20 of anything but siege, +20 population).
+- **Unit lines upgrade in place** (data: a technology with `up`): Man-at-Arms -> **Long Swordsman**; Dwarf Pikeman ->
+  **Dwarf Halberdier** (AoE2 Pikeman, +22 vs mounted); Elf Archer -> **Elf Longbow** (Crossbowman); Halfling Slinger ->
+  **Elite Halfling Slinger**; Wolf Rider -> **Wolf Raider** (Light Cavalry, +10 vs Mystics).
+- **New units:** **Bear Knight** (Knight: a dwarf lancer on a war bear); **Centaur Archer** (Cavalry Archer; not
+  "cavalry" for pike bonuses, as in AoE2); **Mystic** (Monk); **Battering Ram**, **Catapult** (Mangonel), **Bolt
+  Thrower** (Scorpion).
+- **Mystics:** heal 2.5 HP a second from 4 tiles (idle ones heal on their own); convert from 9 tiles: from the 4th
+  1.2 s "monk second" each has a 27% chance and the 10th is certain; faith is spent and returns in 62 s. Siege and
+  buildings need Redemption, Mystics need Atonement; Town Halls, Sanctums, Citadels, walls, gates, farms and wild
+  creatures never convert. Heresy: your converted units die instead.
+- **Artifacts:** Mystics carry them (Militia still can, so camps pay before the Castle Age) to a Town Hall or a
+  **Sanctum**; 0.5 crystal a second each, as before.
+- **Siege:** a Ram strikes only buildings and siege (+125), armour -3/180; a Catapult's rock lands where it was
+  aimed and hits everything there, your own units included, minimum range 3; a Bolt Thrower's bolt runs through
+  every enemy in its line.
+- **Ballistics is now a real rule:** an arrow is aimed where its target stood; it misses a unit that stepped aside
+  or ran on while it flew (walking into the shot still gets hit). Researching Ballistics removes that. This also
+  changes Feudal fights slightly, as in AoE2.
+- **Research:** Hand Cart, Town Patrol; Heavy Plough; Bow Saw; Ore Shaft and Stone Shaft Mining; Iron Casting, Chain
+  Mail, Chain Barding, Bodkin Arrow, Leather Archer Armour; Squires, Arson, Gambesons; Thumb Ring; Husbandry;
+  Sanctity, Fervour, Redemption, Atonement, Herbal Medicine, Heresy; Masonry, Fortified Wall, Guard Tower, Murder
+  Holes, Treadmill Crane, Ballistics. A later step shows only once the step before it is researched (AoE2).
+- **Garrisons:** towers and Town Halls take those on foot; a Citadel also takes cavalry; nothing takes siege.
+- **Pictures are stand-ins.** The four buildings and three siege engines are drawn in code; Bear Knight, Centaur
+  Archer and Mystic borrow the Wolf Rider and Peasant figures with a coloured diamond over them; upgraded lines
+  keep their Feudal figure. Each needs a brief and a grey blockout through artkit (see `docs/art-briefs.md`).
+- **Left out of age 3, on purpose:** the Citadel's unique unit and unique technology (needs a decision), Petards,
+  Camel Riders, Coinage/Caravan and Trade Carts (no trade without an active second player), Heated Shot (no ships),
+  Faith/Devotion/Theocracy, Siege Towers.
+
 ## Opponent AI (begun Nov 17)
 Player 1 is a computer player (`new World(seed, { ai: true })`; the browser turns it on, `?ai=0` turns it off; tests
 and replays leave it off unless they ask). It lives in `game/src/world.js` (`aiInit`, `aiThink`), thinks once a second,
@@ -163,8 +200,13 @@ Each player's home also has free iron (7 + 4 + 4), stone (5 + 5), berries, 6 she
 like AoE2 Arabia.
 
 ## Open questions
-1. Castle Age content (age 3): not started. Who carries artifacts once there is a temple (AoE2 Monastery and Monks)?
-2. Should crystal be buyable at the Market, or stay mine-only?
-3. Opponent AI, next steps: should it play by the fog (scout first)? Should it clear camps and take artifacts? Hunt
+1. Castle Age names: Bear Knight, Centaur Archer, Mystic, Sanctum, Academy, Citadel, Dwarf Halberdier, Elf Longbow,
+   Wolf Raider are proposals. Keep or change?
+2. The Citadel's unique unit and unique technology (AoE2 Castles train one per civilisation; there is one faction).
+3. Artifacts: AoE2 lets only Monks carry relics and only Monasteries hold them. Here Militia and Town Halls still
+   work too, so camps pay off before age 3. Keep both, or Mystics and Sanctums only?
+4. Should crystal be buyable at the Market, or stay mine-only?
+5. Opponent AI, next steps: should it play by the fog (scout first)? Should it clear camps and take artifacts? Hunt
    boar and deer, towers and walls, the Market? Difficulty levels (AoE2 has Easiest to Extreme)?
-4. Art: approve or change the grey blockouts before any detail is added.
+6. Art: briefs and grey blockouts for the Castle Age buildings and units.
+7. Imperial Age (age 4): not started; ask first.

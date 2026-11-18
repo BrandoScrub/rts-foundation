@@ -119,3 +119,15 @@ User: "Building pass first, then immediately do smaller fixes above".
 Still off: a diagonal wall on a slope steps at each tile (each piece stands at its own tile's height); a wall
 running straight toward the camera shows mostly its top; windows and framing are only on the two seen faces (the
 camera never turns); no smoke from chimneys; Watchpost and walls got no extra pass this round.
+
+## Castle Age: stand-ins, no briefs yet (Nov 17)
+The Castle Age mechanics went in ahead of their art. Until each of these has a brief and a grey blockout approved by
+the user (artkit `DESIGN_METHOD.md`), the game shows stand-ins:
+- **Buildings drawn in code** (`buildingSprite` in `game/src/render.js`): Sanctum, Academy, Siege Workshop, Citadel.
+  They have no site, scaffold, cast shadow or rubble of their own yet.
+- **Siege engines drawn in code** (`unitSprite`): Battering Ram, Catapult, Bolt Thrower. No death clip.
+- **Borrowed figures** (`art` in `data.js`) with a coloured diamond overhead (`mark`): Bear Knight and Centaur
+  Archer use the Wolf Rider, the Mystic uses the Peasant.
+- **Upgraded lines** (Long Swordsman, Dwarf Halberdier, Elf Longbow, Elite Halfling Slinger, Wolf Raider) keep the
+  figure of the step before; AoE2 gives each step its own look.
+- A Catapult's rock and a Bolt Thrower's bolt are drawn in code, like arrows.

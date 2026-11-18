@@ -278,7 +278,10 @@ const Render = (() => {
   }
   const GRAZE = { sheep: 1, deer: 1 };
   function unitFrame(e) {   // which sheet and which cell: shared by the figure and its shadow
-    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type === 'villager' ? 'villager' + (TOOL[e.job] || '') : e.type, A = unitArt(key, e.owner) || unitArt(e.type, e.owner);
+    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type === 'villager' ? 'villager' + (TOOL[e.job] || '') : e.type;
+    let used = key, A = unitArt(key, e.owner);
+    if (!A) { used = e.type; A = unitArt(used, e.owner); }
+    if (!A && e.D.art) { used = e.D.art; A = unitArt(used, e.owner); }   // a Castle Age unit that has no figure of its own yet borrows one
     if (!A) return null;
     const M = uart.meta, [U, im] = A, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
     let col = 0;
@@ -288,7 +291,7 @@ const Render = (() => {
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
     else if (GRAZE[e.type] && (W.time * 0.13 + e.id * 0.37) % 1 < 0.62) col = C.attack[0] + 1 + Math.floor((W.time + e.id) * 2.5) % (C.attack[1] - 1);   // head down, cropping the grass
-    return { U, im, sh: U.shadow && uart.img[(uart.meta.units[key] === U ? key : e.type) + '_s'], col, row, k: cam.zoom * (U.draw || M.draw || 0.575) };
+    return { U, im, sh: U.shadow && uart.img[used + '_s'], col, row, k: cam.zoom * (U.draw || M.draw || 0.575) * (e.D.artScale || 1) };
   }
   const cell = (im, F, sx, sy) => { const [cw, ch] = F.U.cell; ctx.drawImage(im, F.col * cw, F.row * ch, cw, ch, sx - F.U.origin[0] * F.k, sy - F.U.origin[1] * F.k, cw * F.k, ch * F.k); };
   function unitShadow(e, sx, sy) { const F = unitFrame(e); if (F && F.sh) cell(F.sh, F, sx, sy); }
@@ -297,7 +300,18 @@ const Render = (() => {
     cell(F.im, F, sx, sy);
     if (e.carry && e.carry.amt >= 1) load(e.carry.res, sx - Math.sign(Math.cos(e.facing) - Math.sin(e.facing) || 1) * 8 * cam.zoom, sy - 27 * cam.zoom, cam.zoom);
     if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 48 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
+    standIn(e, sx, sy, F.U.origin[1] * F.k);
     return true;
+  }
+  /* stand-in marker: a small diamond in the unit's own colour over a borrowed figure, and the glow of a Mystic at work */
+  function standIn(e, sx, sy, tall) {
+    const k = cam.zoom;
+    if (e.D.mark && !e.carcass) { const y = sy - tall - 4 * k, r = 4 * k;
+      ctx.fillStyle = e.D.mark; ctx.strokeStyle = '#10161c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx, y - r); ctx.lineTo(sx + r * 0.75, y); ctx.lineTo(sx, y + r); ctx.lineTo(sx - r * 0.75, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    if (e.castT !== undefined && W.time - e.castT < 0.25) { const o = e.order, t = o && W.get(o.id), heal = o && o.type === 'heal';
+      ctx.fillStyle = heal ? 'rgba(140,255,170,0.28)' : 'rgba(98,224,255,0.28)'; ctx.beginPath(); ctx.arc(sx, sy - tall * 0.6, (9 + Math.sin(W.time * 9) * 2) * k, 0, 7); ctx.fill();
+      if (t && !t.garrisoned) { const [tx, ty] = toScreen(t.x, t.y, W.h(t.x, t.y)); ctx.strokeStyle = heal ? 'rgba(140,255,170,0.7)' : 'rgba(98,224,255,0.7)'; ctx.lineWidth = 1.5 * k;
+        ctx.beginPath(); ctx.ellipse(tx, ty, (10 + Math.sin(W.time * 7) * 3) * k, (5 + Math.sin(W.time * 7) * 1.5) * k, 0, 0, 7); ctx.stroke(); } }
   }
   function drawCorpse(f, sx, sy) {   // the death clip, then the last frame fading out
     const A = unitArt(f.maa ? 'militia_maa' : f.key, f.owner); if (!A) return;
@@ -391,6 +405,24 @@ const Render = (() => {
           g.translate(0, -56); block(g, 1, 8, '#b8b3a6', '#6a2a1f', 12, 0.0); g.translate(0, 56);
           g.fillStyle = '#2b2018'; g.fillRect(3, -44, 3, 8); g.fillStyle = C; g.fillRect(-1, -92, 9, 6); break; }
         case 'stone_wall': block(g, 1, 20, '#a9a498', '#bdb8aa', 0, 0.02); break;
+        /* Castle Age buildings: placeholders drawn in code until each gets an artkit brief and grey blockout */
+        case 'monastery': {
+          block(g, 3, 26, '#8f8a80', '#3d4a5a', 22, 0.1);
+          g.translate(-18, -30); block(g, 1, 44, '#9a958a', '#2f3b49', 26, 0.1); g.translate(18, 30);
+          ell(g, -18, -106, 4, 6, '#62e0ff', '#2a6a80'); g.fillStyle = C; g.fillRect(14, -44, 8, 6); g.fillStyle = '#2b2018'; g.fillRect(10, -16, 9, 13); break; }
+        case 'university': {
+          block(g, 4, 30, '#9a958a', '#4a4038', 0, 0.06);
+          g.translate(0, -30); block(g, 2.6, 20, '#a8a294', '#3d4a5a', 30, 0.08); g.translate(0, 30);
+          ell(g, 0, -92, 5, 5, '#62e0ff', '#2a6a80'); g.fillStyle = C; g.fillRect(24, -52, 9, 6); g.fillStyle = '#2b2018'; g.fillRect(12, -18, 10, 14); break; }
+        case 'siege_workshop': {
+          block(g, 4, 20, '#7a5c3a', '#4a3a2a', 16, 0.08);
+          g.strokeStyle = '#3a2a1a'; g.lineWidth = 3; g.beginPath(); g.moveTo(-30, 2); g.lineTo(-12, -34); g.moveTo(-30, 2); g.lineTo(-44, -8); g.stroke(); ell(g, -12, -36, 5, 4, '#9a968e', '#333');
+          g.fillStyle = '#2b2018'; g.fillRect(14, -14, 16, 14); g.fillStyle = C; g.fillRect(0, -50, 9, 6); break; }
+        case 'castle': {
+          block(g, 4, 46, '#8f8a80', '#77736a', 0, 0.04);
+          for (const [x, y] of [[-44, -2], [44, -2], [0, -24], [0, 20]]) { g.translate(x, y); block(g, 1, 64, '#9a958a', '#3d4a5a', 16, 0.04); g.translate(-x, -y); }
+          g.translate(0, -46); block(g, 2, 34, '#a39d90', '#2f3b49', 26, 0.06); g.translate(0, 46);
+          ell(g, 0, -116, 4, 6, '#62e0ff', '#2a6a80'); g.fillStyle = C; g.fillRect(-4, -134, 14, 9); g.fillStyle = '#2b2018'; poly(g, [[8, -4], [22, -11], [22, -28], [15, -34], [8, -28]], '#2b2018'); break; }
         case 'stone_gate': {
           block(g, 1, 28, '#a9a498', '#bdb8aa', 0, 0.02);
           poly(g, [[2, -2], [14, -8], [14, -22], [8, -27], [2, -22]], '#4a3320'); g.fillStyle = C; g.fillRect(-3, -40, 7, 5); break; }
@@ -481,6 +513,17 @@ const Render = (() => {
         case 'boar': ell(g, 0, -7 + bob, 11, 6, '#4a3426', '#1d130b'); ell(g, 10, -8 + bob, 4, 3.5, '#4a3426', '#1d130b'); g.fillStyle = '#eee'; g.fillRect(12, -7 + bob, 3, 1.2); break;
         case 'wolf': ell(g, 0, -8 + bob, 10, 4.5, '#6e7178', '#26282c'); ell(g, 10, -11 + bob, 4, 3, '#6e7178', '#26282c'); poly(g, [[9, -14 + bob], [10, -18 + bob], [12, -14 + bob]], '#55585e'); g.fillStyle = '#ff5030'; g.fillRect(12, -12 + bob, 1.5, 1.2); break;
         case 'goblin': human('#4e6b2a', '#7fae4a', 0.85); g.strokeStyle = '#8a6a3a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(6, -4 + bob); g.lineTo(9, -30 + bob); g.stroke(); poly(g, [[8, -30 + bob], [10, -30 + bob], [9, -35 + bob]], '#bbb'); break;
+        case 'ram':   // placeholders drawn in code until the siege engines get an artkit brief and blockout
+          poly(g, [[-15, -4], [0, -11], [15, -4], [0, 3]], '#6b4a28', '#2a1d10'); poly(g, [[-15, -4], [0, -24 + bob], [0, 3]], '#8a6238', '#2a1d10'); poly(g, [[0, -24 + bob], [15, -4], [0, 3]], '#5a3d20', '#2a1d10');
+          g.strokeStyle = '#3a2a1a'; g.lineWidth = 4; g.beginPath(); g.moveTo(4, -6); g.lineTo(20, 2); g.stroke(); ell(g, 20, 2, 3, 3, '#8b9bb4', '#222'); g.fillStyle = team; g.fillRect(-3, -30 + bob, 7, 5); break;
+        case 'mangonel':
+          poly(g, [[-13, -4], [0, -10], [13, -4], [0, 2]], '#7a5a34', '#2a1d10'); ell(g, -9, 0, 3.5, 3.5, '#4a3320', '#1a120a'); ell(g, 9, 0, 3.5, 3.5, '#4a3320', '#1a120a');
+          g.strokeStyle = '#5a3b1d'; g.lineWidth = 3; g.beginPath(); g.moveTo(-2, -6); g.lineTo(frame === 1 ? 10 : -10, -26 + bob); g.stroke(); ell(g, frame === 1 ? 10 : -10, -27 + bob, 4, 3.5, '#9a968e', '#333'); g.fillStyle = team; g.fillRect(-2, -16, 6, 4); break;
+        case 'scorpion':
+          poly(g, [[-11, -4], [0, -9], [11, -4], [0, 1]], '#7a5a34', '#2a1d10'); ell(g, -8, 0, 3, 3, '#4a3320', '#1a120a'); ell(g, 8, 0, 3, 3, '#4a3320', '#1a120a');
+          g.strokeStyle = '#5a3b1d'; g.lineWidth = 2; g.beginPath(); g.arc(4, -13 + bob, 10, 1.9, 4.4); g.stroke(); g.strokeStyle = '#c8f6ff'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-8, -13 + bob); g.lineTo(14, -13 + bob); g.stroke(); g.fillStyle = team; g.fillRect(-2, -22 + bob, 6, 4); break;
+        case 'knight': case 'cavarcher': ell(g, 0, -9 + bob, 12, 6, t === 'knight' ? '#5a4a3a' : '#8a6a48', '#1d130b'); human(team, '#e0b48a', 0.8); break;
+        case 'monk': human('#2a6a80', '#ecd0b0', 1); ell(g, 6, -26 + bob, 2.5, 2.5, '#62e0ff', '#2a6a80'); break;
         case 'ogre': human('#6b4a30', '#a9b07a', 1.7); g.strokeStyle = '#4a3018'; g.lineWidth = 4; g.beginPath(); g.moveTo(10, -18 + bob); g.lineTo(18, -40 + bob); g.stroke(); break;
       }
     });
@@ -580,12 +623,12 @@ const Render = (() => {
         if (!drawUnit(e, sx, sy)) {
           const frame = e.moving ? (Math.floor(e.walkT * 6) % 2) + 1 : (e.swingT && W.time - e.swingT < 0.3 ? 1 : 0);
           const flip = Math.cos(e.facing) - Math.sin(e.facing) < 0;   // screen-left headings mirror the sprite
-          blit(unitSprite(e, team, frame), sx, sy, flip);
+          blit(unitSprite(e, team, frame), sx, sy, flip); standIn(e, sx, sy, 34 * k);
         }
       }
       // health bar
       if (e.kind !== 'artifact' && !e.carcass && (selSet.has(e.id) || ui.hoverId === e.id || (e.hp < e.maxHp && e.kind === 'unit' && e.hitT && W.time - e.hitT < 4))) {
-        const top = e.kind === 'building' ? sy - (e.size * 16 + 40) * k : sy - ({ ogre: 62, scout: 58, spearman: 46 }[e.type] || (e.D.food ? 26 : 40)) * k, bw = (e.kind === 'building' ? 40 : 22) * k;
+        const top = e.kind === 'building' ? sy - (e.size * 16 + 40) * k : sy - ({ ogre: 62, scout: 58, spearman: 46, knight: 68, cavarcher: 60, ram: 42, mangonel: 42, scorpion: 36 }[e.type] || (e.D.food ? 26 : 40)) * k, bw = (e.kind === 'building' ? 40 : 22) * k;
         const hf = Math.max(0, e.hp / e.maxHp);   // AoE2: green hit points on red; here the frame also carries the owner's colour, so a bar is never read by hue alone
         ctx.fillStyle = e.owner === 0 ? '#0a1430' : e.owner === 1 ? '#300a06' : '#2a2206'; ctx.fillRect(sx - bw / 2 - 2, top - 2, bw + 4, 9);
         ctx.fillStyle = '#8a1a14'; ctx.fillRect(sx - bw / 2, top, bw, 5); ctx.fillStyle = hf > 0.5 ? '#5fe05f' : hf > 0.25 ? '#f0d040' : '#ff7a50'; ctx.fillRect(sx - bw / 2, top, bw * hf, 5);
@@ -599,8 +642,12 @@ const Render = (() => {
       if (f.kind === 'arrow') {
         const p = Math.min(1, f.t / f.life), x = f.x0 + (f.x1 - f.x0) * p, y = f.y0 + (f.y1 - f.y0) * p, z = W.h(x, y) + f.z0 * (1 - p) + Math.sin(p * Math.PI) * 1.5;
         const [sx, sy] = toScreen(x, y, z), [ex, ey] = toScreen(f.x1, f.y1, W.h(f.x1, f.y1));
-        const a = Math.atan2(ey - sy, ex - sx); ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - Math.cos(a) * 7 * k, sy - Math.sin(a) * 7 * k); ctx.stroke();
+        if (f.shot === 'rock') {   // a Catapult's rock: a high lob
+          const [rx, ry] = toScreen(x, y, W.h(x, y) + f.z0 * (1 - p) + Math.sin(p * Math.PI) * 4);
+          ctx.fillStyle = '#6e6a62'; ctx.strokeStyle = '#26221c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(rx, ry, 3.2 * k, 0, 7); ctx.fill(); ctx.stroke(); continue;
+        }
+        const a = Math.atan2(ey - sy, ex - sx), len = f.shot === 'bolt' ? 13 : 7; ctx.strokeStyle = f.shot === 'bolt' ? '#bfeefa' : '#2a1a0a'; ctx.lineWidth = f.shot === 'bolt' ? 2 : 1.2;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx - Math.cos(a) * len * k, sy - Math.sin(a) * len * k); ctx.stroke();
       } else if (f.kind === 'mark') {
         const [sx, sy] = toScreen(f.x, f.y, W.h(f.x, f.y)), r = (1 - f.t / f.life) * 12 * k;
         ctx.strokeStyle = f.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(sx, sy, r, r / 2, 0, 0, 7); ctx.stroke();

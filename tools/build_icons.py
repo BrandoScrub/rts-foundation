@@ -99,7 +99,37 @@ for n, num in ((1, 'I'), (2, 'II'), (3, 'III')):
 
 TECH = {'loom': ('u', 'villager'), 'feudal': 'age_2', 'castle': 'age_3', 'wheelbarrow': ('u', 'villager_hoe'), 'town_watch': ('b', 'watchpost'), 'horse_collar': ('b', 'farm'), 'double_bit_axe': ('p', 'tree_0'),
         'ore_mining': ('p', 'iron_0'), 'stone_mining': ('p', 'stone_0'), 'man_at_arms': ('u', 'militia_maa'), 'supplies': ('u', 'militia'), 'bloodlines': ('u', 'scout'), 'forging': ('g', 's_attack'),
-        'scale_mail': ('g', 's_armor'), 'scale_barding': ('u', 'scout'), 'fletching': ('g', 's_range'), 'padded_archer': ('u', 'archer')}
+        'scale_mail': ('g', 's_armor'), 'scale_barding': ('u', 'scout'), 'fletching': ('g', 's_range'), 'padded_archer': ('u', 'archer'),
+        # Castle Age: stand-ins from what exists until the Castle Age art is made
+        'hand_cart': ('u', 'villager_hoe'), 'town_patrol': ('b', 'watchpost'), 'heavy_plow': ('b', 'farm'), 'bow_saw': ('p', 'tree_0'), 'ore_shaft': ('p', 'iron_0'), 'stone_shaft': ('p', 'stone_0'),
+        'iron_casting': ('g', 's_attack'), 'chain_mail': ('g', 's_armor'), 'chain_barding': ('u', 'scout'), 'bodkin': ('g', 's_range'), 'leather_archer': ('u', 'archer'),
+        'long_swordsman': ('u', 'militia_maa'), 'pikeman': ('u', 'spearman'), 'squires': ('g', 's_speed'), 'arson': ('b', 'barracks'), 'gambesons': ('g', 's_pierce'),
+        'crossbow': ('u', 'archer'), 'elite_skirmisher': ('u', 'skirmisher'), 'thumb_ring': ('g', 's_range'), 'light_cavalry': ('u', 'scout'), 'husbandry': ('g', 's_speed'),
+        'sanctity': ('u', 'monk'), 'fervor': ('u', 'monk'), 'redemption': ('b', 'monastery'), 'atonement': ('u', 'monk'), 'herbal_medicine': ('g', 's_garrison'), 'heresy': ('g', 'c_delete'),
+        'masonry': ('b', 'town_hall'), 'fortified_wall': ('b', 'stone_wall'), 'ballistics': ('g', 's_range'), 'guard_tower': ('b', 'watch_tower'), 'murder_holes': ('b', 'watch_tower'), 'treadmill_crane': ('g', 'c_build_eco')}
+
+STONE, SLATE, WOODC, DARK = (150, 146, 136), (62, 76, 94), (132, 96, 58), (20, 14, 6)
+def diamond(col):
+    return lambda d, S: d.polygon(S(50, 4, 58, 13, 50, 22, 42, 13), fill=col, outline=DARK, width=2 * SS)
+def wheels(d, S, y=48): [d.ellipse(S(x - 7, y - 7, x + 7, y + 7), fill=(74, 51, 32), outline=DARK, width=2 * SS) for x in (18, 46)]
+# stand-in pictures for what has no art yet (the Castle Age): simple drawn signs, like the command glyphs
+G.update({
+    'b_castle': lambda d, S: (d.rectangle(S(12, 26, 52, 54), fill=STONE, outline=DARK, width=2 * SS), [d.rectangle(S(x, 14, x + 12, 54), fill=(168, 164, 154), outline=DARK, width=2 * SS) for x in (6, 46)],
+                              [d.polygon(S(x - 2, 14, x + 6, 4, x + 14, 14), fill=SLATE, outline=DARK, width=SS) for x in (6, 46)], d.rectangle(S(27, 38, 37, 54), fill=DARK), d.polygon(S(32, 8, 37, 16, 32, 24, 27, 16), fill=CYAN)),
+    'b_monastery': lambda d, S: (d.rectangle(S(10, 32, 54, 54), fill=STONE, outline=DARK, width=2 * SS), d.polygon(S(6, 32, 32, 16, 58, 32), fill=SLATE, outline=DARK, width=2 * SS), d.rectangle(S(26, 12, 38, 34), fill=(168, 164, 154), outline=DARK, width=SS),
+                                 d.polygon(S(32, 2, 37, 9, 32, 16, 27, 9), fill=CYAN), d.rectangle(S(28, 40, 36, 54), fill=DARK)),
+    'b_university': lambda d, S: (d.rectangle(S(8, 28, 56, 54), fill=STONE, outline=DARK, width=2 * SS), d.pieslice(S(18, 8, 46, 44), 180, 360, fill=SLATE, outline=DARK, width=2 * SS), [d.rectangle(S(x, 32, x + 5, 54), fill=(190, 186, 176)) for x in (13, 24, 35, 46)],
+                                  d.ellipse(S(28, 2, 36, 10), fill=CYAN)),
+    'b_siege_workshop': lambda d, S: (d.rectangle(S(8, 34, 56, 54), fill=WOODC, outline=DARK, width=2 * SS), d.polygon(S(4, 34, 32, 20, 60, 34), fill=(84, 62, 40), outline=DARK, width=2 * SS), d.line(S(22, 50, 44, 14), fill=DARK, width=6 * SS),
+                                      d.line(S(22, 50, 44, 14), fill=(170, 130, 84), width=3 * SS), d.ellipse(S(39, 7, 51, 19), fill=STONE, outline=DARK, width=SS)),
+    'u_ram': lambda d, S: (d.polygon(S(8, 42, 32, 14, 56, 42), fill=WOODC, outline=DARK, width=2 * SS), d.line(S(14, 38, 60, 38), fill=DARK, width=8 * SS), d.line(S(14, 38, 58, 38), fill=(96, 68, 40), width=5 * SS),
+                           d.ellipse(S(52, 32, 63, 44), fill=(140, 154, 178), outline=DARK, width=SS), wheels(d, S)),
+    'u_mangonel': lambda d, S: (d.rectangle(S(10, 38, 54, 46), fill=WOODC, outline=DARK, width=2 * SS), d.line(S(34, 40, 16, 12), fill=DARK, width=7 * SS), d.line(S(34, 40, 16, 12), fill=(170, 130, 84), width=4 * SS),
+                                d.ellipse(S(8, 4, 24, 20), fill=STONE, outline=DARK, width=2 * SS), wheels(d, S)),
+    'u_scorpion': lambda d, S: (d.rectangle(S(12, 38, 52, 46), fill=WOODC, outline=DARK, width=2 * SS), d.arc(S(24, 6, 64, 46), 110, 250, fill=(170, 130, 84), width=5 * SS), d.line(S(8, 26, 56, 26), fill=CYAN, width=4 * SS),
+                                d.polygon(S(56, 20, 63, 26, 56, 32), fill=CYAN), wheels(d, S)),
+})
+STAND = {'u_knight': ('u_scout', (216, 220, 228)), 'u_cavarcher': ('u_scout', (111, 208, 138)), 'u_monk': ('u_villager', (98, 224, 255))}   # borrowed figures, marked with the diamond the game draws over them
 
 
 def main():
@@ -110,7 +140,10 @@ def main():
     for k in B:
         if not any(k.endswith(s) for s in ('_x', '_y', '_d1', '_d2')) and not k.startswith(('site', 'rubble')): icons['b_' + k] = fit(Image.open(os.path.join(ART, f'b_{k}_0.png')).convert('RGBA'))
     for k in json.load(open(os.path.join(ART, 'props.json'))): icons['p_' + k] = fit(Image.open(os.path.join(ART, f'p_{k}.png')).convert('RGBA'))
-    for k, fn in G.items(): icons[k] = glyph(fn)
+    for k, fn in G.items():
+        if k not in icons: icons[k] = glyph(fn)   # real art, once it exists, wins over a drawn stand-in
+    for k, (src, col) in STAND.items():
+        if k not in icons: icons[k] = badge(icons[src], diamond(col))
     icons['c_build_eco'] = badge(icons['b_cottage'], hammer); icons['c_build_mil'] = badge(icons['b_barracks'], hammer); icons['c_pickup'] = icons['p_relic']
     icons['r_idle'] = icons['u_villager']
     for r in ('food', 'wood', 'stone'):

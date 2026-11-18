@@ -97,7 +97,6 @@ const flat = (w, x, y) => { for (let b = y - 3; b <= y + 4; b++) for (let a = x 
   ok(sc.maxHp === 65 && sc.hp === 65, 'Bloodlines: Wolf Rider 65 HP');
   ok(w.carryCap(0) === 12.5 && Math.abs(w.S(v).speed - 0.88) < 1e-9 && v.maxHp === 40, 'Wheelbarrow: carry 12.5, speed 0.88; Loom: 40 HP');
   ok(w.farmFood(0) === 250, 'Horse Collar: farms hold 250 food');
-  ok(w.techBlock(0, 'castle') !== '', 'the Castle Age stays locked');
   const before = P.res.iron; ok(w.trade(0, 'food', true) === '' && P.res.iron === before - 130 && w.market.food === 103, 'Market: buying 100 food costs 130 iron and lifts the price to 103');
   ok(w.trade(0, 'stone', false) === '' && w.market.stone === 127, 'selling 100 stone pays 91 iron and drops its price to 127');
   /* towers and town halls */
