@@ -27,9 +27,17 @@ const UI = (() => {
     mini.addEventListener('pointerup', miniUp); mini.addEventListener('pointercancel', miniUp);
     window.addEventListener('resize', Mobile.apply);
     $('btn-pause').onclick = togglePause; $('btn-speed').onclick = () => setSpeed(st.speed >= 2 ? 0.5 : st.speed + 0.5);
-    $('btn-idle').onclick = () => idleVillager(); $('btn-help').onclick = () => $('help').classList.toggle('show');
+    $('btn-help').onclick = () => $('help').classList.toggle('show');
     $('help').onclick = () => $('help').classList.remove('show');
+    $('btn-menu').onclick = () => openMenu(true); $('btn-tree').onclick = () => openTree(true); $('tree').onclick = () => openTree(false);
+    $('menu').onclick = e => { if (e.target.id === 'menu') openMenu(false); };
+    $('menu').querySelectorAll('[data-a]').forEach(b => b.onclick = () => { const a = b.dataset.a; openMenu(false);
+      if (a === 'tree') openTree(true); else if (a === 'help') $('help').classList.add('show'); else if (a === 'restart') location.reload();
+      else if (a === 'resign') { st.ended = true; $('end').style.display = 'flex'; $('end-text').textContent = 'Defeat'; } });
+    $('btn-mode').onclick = () => { st.miniMode = ((st.miniMode || 0) + 1) % 3; msg('Mini-map: ' + ['everything', 'economy', 'military'][st.miniMode] + '.'); R.drawMini(true); };
+    $('btn-idlemil').onclick = () => idleMilitary();
     buildTop(); Mobile.init();
+    fetch('art/icons.json').then(r => r.json()).then(j => { IC = j; st.ageShown = 0; buildTop(); refresh(); }).catch(() => { });
   }
 
   /* ---------------- picking ---------------- */
@@ -408,9 +416,11 @@ const UI = (() => {
     }
     if (k === 'F3' || k === 'p' && e.ctrlKey) { e.preventDefault(); return togglePause(); }
     if (k === 'F1' || k === '?') { e.preventDefault(); return $('help').classList.toggle('show'); }
+    if (k === 'F2') { e.preventDefault(); return openTree(!$('tree').classList.contains('show')); }
+    if (k === 'F10') { e.preventDefault(); return openMenu(!$('menu').classList.contains('show')); }
     if (k === '+' || k === '=') return setSpeed(Math.min(2, st.speed + 0.5));
     if (k === '-' || k === '_') return setSpeed(Math.max(0.5, st.speed - 0.5));
-    if (k === 'Escape') { if (st.placing || st.mode) return cancelModes(); if (st.menu) { st.menu = null; return refresh(); } sel.set.clear(); return refresh(); }
+    if (k === 'Escape') { if ($('menu').classList.contains('show') || $('tree').classList.contains('show')) { openMenu(false); return openTree(false); } if (st.placing || st.mode) return cancelModes(); if (st.menu) { st.menu = null; return refresh(); } sel.set.clear(); return refresh(); }
     if (k === '.') return idleVillager();
     if (k === ',') return idleMilitary();
     if (k === ' ' ) { e.preventDefault(); const a = W.alerts[W.alerts.length - 1] || W.messages.filter(m => m.x !== undefined).pop(); if (a) R.centerOn(a.x, a.y); return; }
@@ -434,8 +444,8 @@ const UI = (() => {
     if (!idle.length) return msg('No idle military.');
     const u = idle[st.milIdx++ % idle.length]; sel.set = new Set([u.id]); R.centerOn(u.x, u.y); st.menu = null; refresh();
   }
-  function togglePause() { st.paused = !st.paused; $('btn-pause').textContent = st.paused ? '▶' : '❚❚'; $('paused').style.display = st.paused ? 'flex' : 'none'; }
-  function setSpeed(s) { st.speed = s; $('btn-speed').textContent = s.toFixed(1) + 'x'; }
+  function togglePause() { st.paused = !st.paused; $('btn-pause').textContent = st.paused ? 'Resume' : 'Pause'; $('paused').style.display = st.paused ? 'flex' : 'none'; }
+  function setSpeed(s) { st.speed = s; $('btn-speed').textContent = 'Speed: ' + s.toFixed(1) + 'x'; $('speedtxt').textContent = ({ 0.5: 'Slow', 1: 'Normal', 1.5: 'Fast', 2: 'Very fast' }[s] || '') + (s !== 1 ? ` (${s.toFixed(1)}x)` : ''); }
 
   /* edge and arrow-key scrolling */
   function scroll(dt) {
@@ -449,127 +459,168 @@ const UI = (() => {
 
   /* ---------------- HUD ---------------- */
   function msg(text) { W.messages.push({ text, t: W.time }); }
-  function costHtml(c) { return Object.entries(c).map(([k, v]) => `<span class="cost"><i style="background:${DATA.RES_INFO[k].color}"></i>${v}</span>`).join(' '); }
+  /* ---- the HUD, laid out as AoE2's: pictures, not words. Icons come from one atlas cut from the game's own art
+     (tools/build_icons.py -> art/icons.png, icons.json). ---- */
+  let IC = null;
+  function ico(key, size = 50) {
+    const p = IC && IC.icons[key]; if (!p) return `<i class="ico" style="width:${size}px;height:${size}px;background:#241b12"></i>`;
+    return `<i class="ico" style="width:${size}px;height:${size}px;background-size:${IC.cols * size}px ${IC.rows * size}px;background-position:-${p[0] * size}px -${p[1] * size}px"></i>`;
+  }
+  function costHtml(c) { const P = W.players[0]; return Object.entries(c).map(([k, v]) => `<span class="cost${P.res[k] < v ? ' short' : ''}">${ico('r_' + k, 16)}${v}</span>`).join(''); }
+  const tipHtml = (name, cost, time, text, note) => `<b>${name}</b>${cost ? `<div class="costs">${costHtml(cost)}${time ? `<span class="cost dim">${time}s</span>` : ''}</div>` : '<br>'}${text || ''}${note ? `<br><em>${note}</em>` : ''}`;
+  const ORDER = ['wood', 'food', 'iron', 'stone', 'crystal'];   // AoE2: wood, food, gold, stone; iron stands where gold does
   function buildTop() {
-    $('res').innerHTML = DATA.RES.map(r => `<div class="r" title="${DATA.RES_INFO[r].name}${DATA.RES_INFO[r].basic ? '' : ' (premium)'}"><i style="background:${DATA.RES_INFO[r].color}"></i><b id="r-${r}">0</b><small id="v-${r}"></small></div>`).join('') +
-      `<div class="r" title="Population"><i class="pop"></i><b id="r-pop">0/0</b></div><div class="r" id="age" title="Your age"></div>`;
+    $('res').innerHTML = ORDER.map(r => `<div class="r" title="${DATA.RES_INFO[r].name}${DATA.RES_INFO[r].basic ? '' : ' (premium)'}: stockpile, and the peasants gathering it">${ico('r_' + r, 30)}<b id="r-${r}">0</b><small id="v-${r}"></small></div>`).join('') +
+      `<div class="r" title="Population / housing">${ico('r_pop', 30)}<b id="r-pop">0/0</b><small></small></div>` +
+      `<button class="r" id="btn-idle" title="Idle peasants: click to select the next one (.)" hidden>${ico('r_idle', 30)}<b id="r-idle">0</b><small>idle</small></button>`;
+    $('btn-idle').onclick = () => idleVillager();
+    $('btn-tree').innerHTML = ico('m_techtree', 28); $('btn-help').innerHTML = ico('m_settings', 28); $('btn-menu').innerHTML = ico('m_menu', 28);
+    $('btn-mode').innerHTML = ico('m_mode', 30); $('btn-idlemil').innerHTML = ico('c_stance_aggressive', 30);
   }
   function button(key, label, tip, onclick, opts = {}) {
-    const b = document.createElement('button'); b.dataset.key = key;
-    b.innerHTML = `<span class="lbl">${label}</span>${opts.cost ? `<span class="cst">${Object.entries(opts.cost).map(([k, v]) => `<i style="background:${DATA.RES_INFO[k].color}"></i>${v}`).join(' ')}</span>` : ''}<span class="hk">${key}</span>`;
+    const b = document.createElement('button'); b.dataset.key = key; b.setAttribute('aria-label', label);
+    b.innerHTML = `${ico(opts.icon, Mobile.on ? 48 : 52)}${opts.cost ? `<span class="cst">${Object.entries(opts.cost).map(([k, v]) => `${v}${k[0]}`).join(' ')}</span>` : ''}<span class="hk">${key}</span>`;
     b.disabled = !!opts.disabled; if (opts.cls) b.className = opts.cls;
+    b._cost = opts.cost; if (opts.cost && !opts.disabled && !W.canAfford(0, opts.cost)) b.classList.add('poor');
+    const full = tip ? tip.replace('</b>', `</b><span class="hkk">(${key})</span>`) : '';
     b.onclick = ev => { if (b._lp) { b._lp = false; return; } hideTip(); onclick(ev); };
-    b.onmouseenter = () => tip && !Mobile.on && showTip(b, tip); b.onmouseleave = () => { if (!b._lp) hideTip(); };
-    b.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || !tip) return; clearTimeout(b._t); b._t = setTimeout(() => { b._lp = true; showTip(b, tip); setTimeout(hideTip, 2500); }, 450); });
+    b.onmouseenter = () => tip && !Mobile.on && showTip(b, full); b.onmouseleave = () => { if (!b._lp) hideTip(); };
+    b.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' || !tip) return; clearTimeout(b._t); b._t = setTimeout(() => { b._lp = true; showTip(b, full); setTimeout(hideTip, 2500); }, 450); });
     for (const t of ['pointerup', 'pointercancel']) b.addEventListener(t, () => clearTimeout(b._t));
     b.addEventListener('contextmenu', e => e.preventDefault());
     return b;
   }
-  function showTip(b, html) { const t = $('tip'); t.innerHTML = html; t.style.display = 'block'; const r = b.getBoundingClientRect(); t.style.left = r.left + 'px'; t.style.bottom = (window.innerHeight - r.top + 6) + 'px'; }
+  /* AoE2 shows the extended tooltip in one fixed place, just above the command panel */
+  function showTip(b, html) { const t = $('tip'); t.innerHTML = html; t.style.display = 'block'; const c = $('cmds').getBoundingClientRect(), r = b.getBoundingClientRect();
+    if (Mobile.on) { t.style.left = Math.max(6, Math.min(window.innerWidth - 306, r.left)) + 'px'; t.style.bottom = (window.innerHeight - r.top + 6) + 'px'; }
+    else { t.style.left = (c.left + 8) + 'px'; t.style.bottom = (window.innerHeight - $('bottom').getBoundingClientRect().top + 8) + 'px'; } }
   function hideTip() { $('tip').style.display = 'none'; }
-  const GRID = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'Z', 'X', 'C', 'V', 'B', 'N', 'U'];
-
+  const GRID = ['Q', 'W', 'E', 'R', 'T', 'A', 'S', 'D', 'F', 'G', 'Z', 'X', 'C', 'V', 'B'];   // 5 x 3, as AoE2's command panel
+  function openMenu(on) { $('menu').classList.toggle('show', on); if (on !== st.paused && (on || st.menuPaused)) { st.menuPaused = on; togglePause(); } }
+  /* The Technology Tree (AoE2: F2): one column per building, one row per age; what it trains and researches. */
+  function openTree(on) {
+    const el = $('tree'); el.classList.toggle('show', on); if (!on) return;
+    const P = W.players[0], B = DATA.BUILDINGS, cols = Object.keys(B).filter(k => !['palisade', 'gate', 'stone_wall', 'stone_gate', 'farm', 'cottage'].includes(k)).concat(['palisade', 'stone_wall']);
+    const cell = (cls, key, title) => `<span class="tk ${cls}" title="${title}">${ico(key, 38)}</span>`;
+    let h = '<div></div>' + cols.map(k => `<div class="thead">${B[k].name}</div>`).join('');
+    for (let age = 1; age <= 3; age++) {
+      h += `<div class="tage">${DATA.AGE_NAMES[age]}</div>`;
+      for (const k of cols) { const D = B[k]; let c = '';
+        const sibs = k === 'palisade' ? ['palisade', 'gate'] : k === 'stone_wall' ? ['stone_wall', 'stone_gate'] : k === 'town_hall' ? ['town_hall', 'cottage'] : k === 'mill' ? ['mill', 'farm'] : [k];
+        for (const b of sibs) if ((B[b].age || 1) === age) c += cell(W.has(0, b) ? 'have' : (B[b].age || 1) <= P.age && (!B[b].needs || W.has(0, B[b].needs)) ? 'can' : 'no', 'b_' + b, B[b].name);
+        for (const u of D.trains || []) if ((DATA.UNITS[u].age || 1) === age) c += cell(!W.has(0, k) || (DATA.UNITS[u].age || 1) > P.age ? 'no' : 'can', 'u_' + u, DATA.UNITS[u].name);
+        for (const t of D.researches || []) { const T = DATA.TECHS[t], ta = T.isAge ? T.isAge - 1 : (T.age || 1); if (ta === age) c += cell(P.techs.has(t) || (T.isAge && P.age >= T.isAge) ? 'have' : W.has(0, k) && !W.techBlock(0, t) ? 'can' : 'no', 't_' + t, T.name); }
+        h += `<div class="tcol">${c}</div>`; }
+    }
+    const body = $('tree-body'); body.style.gridTemplateColumns = `26px repeat(${cols.length}, 92px)`; body.innerHTML = h;
+  }
   const inMenu = () => st.menu === 'eco' || st.menu === 'mil';
   function refresh() {
     const cmds = $('cmds'); cmds.innerHTML = ''; hideTip();
     const list = sel.list(), mine = list.filter(own), units = mine.filter(e => e.kind === 'unit'), blds = mine.filter(e => e.kind === 'building');
-    const add = b => cmds.appendChild(b), P = W.players[0];
+    const P = W.players[0], slot = {}, add = b => { slot[b.dataset.key] = b; };
     if (units.length) {
       const vils = units.filter(u => u.type === 'villager'), army = units.filter(u => u.type !== 'villager' && u.type !== 'sheep');
       if (vils.length && inMenu()) {   // AoE2's two build pages: economic and military
         DATA.BUILD_MENU[st.menu].forEach((t, i) => { const D = DATA.BUILDINGS[t], young = (D.age || 1) > P.age, need = D.needs && !W.has(0, D.needs);
-          add(button(GRID[i], D.name, `<b>${D.name}</b> ${costHtml(D.cost)}<br>${D.tip}${young ? `<br><em>Needs the ${DATA.AGE_NAMES[D.age]}.</em>` : need ? `<br><em>Needs a ${DATA.BUILDINGS[D.needs].name}.</em>` : ''}`,
-            () => startPlacing(t), { disabled: young || need, cls: st.placing === t ? 'on' : young ? 'locked' : '', cost: D.cost })); });
-        add(button('Z', st.menu === 'eco' ? 'Military ▸' : 'Economy ▸', 'The other build page', () => { st.menu = st.menu === 'eco' ? 'mil' : 'eco'; cancelModes(); }));
-        add(button('X', '◀ Back', 'Back (Esc)', () => { st.menu = null; cancelModes(); }));
+          add(button(GRID[i], D.name, tipHtml('Build ' + D.name, D.cost, 0, D.tip, young ? `Needs the ${DATA.AGE_NAMES[D.age]}.` : need ? `Needs a ${DATA.BUILDINGS[D.needs].name}.` : ''),
+            () => startPlacing(t), { icon: 'b_' + t, disabled: young || need, cls: st.placing === t ? 'on' : '', cost: D.cost })); });
+        add(button('V', st.menu === 'eco' ? 'Military buildings' : 'Economic buildings', tipHtml(st.menu === 'eco' ? 'Military buildings' : 'Economic buildings', null, 0, 'The other build page.'), () => { st.menu = st.menu === 'eco' ? 'mil' : 'eco'; cancelModes(); }, { icon: st.menu === 'eco' ? 'c_build_mil' : 'c_build_eco' }));
+        add(button('B', 'Back', tipHtml('Back', null, 0, 'Return to the unit\'s commands (Esc).'), () => { st.menu = null; cancelModes(); }, { icon: 'c_back' }));
       } else {
-        if (vils.length) {
-          add(button('Q', 'Build economy', '<b>Economic buildings</b><br>Cottage, Mill, camps, Farm, Blacksmith, Market', () => { st.menu = 'eco'; refresh(); }));
-          add(button('W', 'Build military', '<b>Military buildings</b><br>Barracks, Archery Range, Stable, walls, gates, towers', () => { st.menu = 'mil'; refresh(); }));
+        if (army.length) {   // AoE2 military panel: stances along the top, orders in the middle, formations along the bottom
+          const stn = army[0].stance, fm = army[0].formation, ids = army.map(u => u.id);
+          const ST = { aggressive: 'Chase whatever comes into sight.', defensive: 'Chase a short way, then return.', ground: 'Fight only what is in reach.', passive: 'Never fight.' };
+          DATA.STANCES.forEach((v, i) => add(button(GRID[i], DATA.STANCE_NAMES[v], tipHtml(DATA.STANCE_NAMES[v] + ' stance', null, 0, ST[v] || ''), () => cmd({ c: 'stance', ids, stance: v }), { icon: 'c_stance_' + v, cls: stn === v ? 'on' : '' })));
+          add(button('A', 'Attack-move', tipHtml('Attack-move', null, 0, 'Click a destination; units fight anything on the way.'), () => { st.mode = 'amove'; msg('Attack-move: click a destination.'); }, { icon: 'c_amove' }));
+          add(button('F', 'Patrol', tipHtml('Patrol', null, 0, 'Click a point: units walk back and forth between here and there, attacking what they meet.'), () => { st.mode = 'patrol'; msg('Patrol: click the far end.'); }, { icon: 'c_patrol' }));
+          const FM = { line: 'Wide ranks, melee in front, ranged behind.', staggered: 'Spread out against area damage.', box: 'A square, the weak inside.', flank: 'Two wings.' };
+          DATA.FORMATIONS.forEach((v, i) => add(button(GRID[10 + i], DATA.FORMATION_NAMES[v], tipHtml(DATA.FORMATION_NAMES[v] + ' formation', null, 0, FM[v] || ''), () => cmd({ c: 'formation', ids, formation: v }), { icon: 'c_formation_' + v, cls: fm === v ? 'on' : '' })));
+        } else if (vils.length) {
+          add(button('Q', 'Build', tipHtml('Economic buildings', null, 0, 'Cottage, Mill, camps, Farm, Blacksmith, Market.'), () => { st.menu = 'eco'; refresh(); }, { icon: 'c_build_eco' }));
+          add(button('W', 'Build military', tipHtml('Military buildings', null, 0, 'Barracks, Archery Range, Stable, walls, gates, towers.'), () => { st.menu = 'mil'; refresh(); }, { icon: 'c_build_mil' }));
         }
-        if (army.length) {
-          add(button('A', 'Attack-move', '<b>Attack-move</b><br>Click a destination; units fight anything on the way.', () => { st.mode = 'amove'; msg('Attack-move: click a destination.'); }));
-          add(button('F', 'Patrol', '<b>Patrol</b><br>Click a point: units walk back and forth between here and there, attacking what they meet. (AoE2 Patrol)', () => { st.mode = 'patrol'; msg('Patrol: click the far end.'); }));
-          const stn = army[0].stance, fm = army[0].formation;
-          add(button('Z', DATA.STANCE_NAMES[stn], '<b>Stance</b> (press to change)<br><b>Aggressive</b>: chase what comes into sight. <b>Defensive</b>: chase a short way, then return. <b>Stand Ground</b>: fight only what is in reach. <b>No Attack</b>: never fight. (AoE2 stances)',
-            () => cmd({ c: 'stance', ids: army.map(u => u.id), stance: DATA.STANCES[(DATA.STANCES.indexOf(stn) + 1) % 4] })));
-          add(button('X', DATA.FORMATION_NAMES[fm], '<b>Formation</b> (press to change)<br><b>Line</b>: wide ranks, melee in front, ranged behind. <b>Staggered</b>: spread out against area damage. <b>Box</b>: a square. <b>Flank</b>: two wings. (AoE2 formations)',
-            () => cmd({ c: 'formation', ids: army.map(u => u.id), formation: DATA.FORMATIONS[(DATA.FORMATIONS.indexOf(fm) + 1) % 4] })));
-        }
-        add(button('S', 'Stop', '<b>Stop</b>', () => cmd({ c: 'stop', ids: ownIds() })));
+        add(button('S', 'Stop', tipHtml('Stop', null, 0, 'Drop the current order.'), () => cmd({ c: 'stop', ids: ownIds() }), { icon: 'c_stop' }));
         if (units.some(u => u.D.carries) && W.ents.some(a => !a.dead && a.kind === 'artifact' && !a.carrier && W.players[0].vis[Math.floor(a.y) * W.W + Math.floor(a.x)]))
-          add(button('D', 'Get artifact', '<b>Pick up the nearest visible artifact</b>', () => cmd({ c: 'pickup', ids: ownIds() })));
-        add(button('G', 'Garrison', '<b>Garrison</b> in the nearest Town Hall or Watch Tower with room', () => cmd({ c: 'garrison', ids: ownIds() })));
-        add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { cmd({ c: 'delete', ids: ownIds() }); sel.set.clear(); refresh(); }));
+          add(button('D', 'Get artifact', tipHtml('Fetch the artifact', null, 0, 'Pick up the nearest visible artifact and carry it home.'), () => cmd({ c: 'pickup', ids: ownIds() }), { icon: 'c_pickup' }));
+        add(button('G', 'Garrison', tipHtml('Garrison', null, 0, 'Take cover in the nearest Town Hall or Watch Tower with room.'), () => cmd({ c: 'garrison', ids: ownIds() }), { icon: 'c_garrison' }));
+        add(button('B', 'Delete', tipHtml('Delete', null, 0, 'Remove the selected units (Del).'), () => { cmd({ c: 'delete', ids: ownIds() }); sel.set.clear(); refresh(); }, { icon: 'c_delete' }));
       }
     } else if (blds.length === 1 || (blds.length && blds.every(b => b.type === blds[0].type))) {
       const b = blds[0], D = b.D;
       if (b.built) {
-        (D.trains || []).forEach((t, i) => { const U = DATA.UNITS[t], young = (U.age || 1) > P.age, cost = W.unitCost(0, t), name = t === 'militia' && W.tech(0, 'man_at_arms') ? 'Man-at-Arms' : U.name;
-          add(button(GRID[i], `Train ${name}`, `<b>${name}</b> ${costHtml(cost)} · ${U.time}s<br>${U.tip}${young ? `<br><em>Needs the ${DATA.AGE_NAMES[U.age]}.</em>` : '<br><em>Shift-click: 5</em>'}`,
-            ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { cost, disabled: young, cls: young ? 'locked' : '' })); });
+        (D.trains || []).forEach((t, i) => { const U = DATA.UNITS[t], young = (U.age || 1) > P.age, cost = W.unitCost(0, t), maa = t === 'militia' && W.tech(0, 'man_at_arms'), name = maa ? 'Man-at-Arms' : U.name;
+          add(button(GRID[i], `Create ${name}`, tipHtml('Create ' + name, cost, U.time, U.tip, young ? `Needs the ${DATA.AGE_NAMES[U.age]}.` : 'Shift-click: 5'),
+            ev => { cmd({ c: 'train', ids: blds.map(x => x.id), unit: t, n: ev.shiftKey ? 5 : 1 }); }, { icon: 'u_' + (maa ? 'militia_maa' : t), cost, disabled: young })); });
         (D.researches || []).filter(t => !P.techs.has(t) && !(DATA.TECHS[t].isAge && P.age >= DATA.TECHS[t].isAge)).forEach((t, i) => { const T = DATA.TECHS[t], why = W.techBlock(0, t);
-          add(button(GRID[5 + i], T.name, `<b>${T.name}</b> ${costHtml(T.cost)} · ${T.time}s<br>${T.tip}${why ? `<br><em>${why}</em>` : ''}`, () => cmd({ c: 'research', id: b.id, tech: t }), { disabled: !!why, cls: why && !/being/.test(why) ? 'locked' : '', cost: T.cost })); });
+          add(button(GRID[5 + i], T.name, tipHtml((T.isAge ? '' : 'Research ') + T.name, T.cost, T.time, T.tip, why || ''), () => cmd({ c: 'research', id: b.id, tech: t }), { icon: 't_' + t, disabled: !!why, cost: T.cost })); });
         if (D.market) ['food', 'wood', 'stone'].forEach((r, i) => { const pr = W.market[r], M = DATA.MARKET, buy = Math.round(pr * (1 + M.fee)), sellv = Math.round(pr * (1 - M.fee));
-          add(button(GRID[i], `Buy ${r}`, `<b>Buy 100 ${r}</b> for ${buy} iron<br>The price rises with each purchase. (AoE2 Market: price + 30% fee)`, () => cmd({ c: 'buy', res: r }), { cost: { iron: buy } }));
-          add(button(GRID[5 + i], `Sell ${r}`, `<b>Sell 100 ${r}</b> for ${sellv} iron<br>The price falls with each sale. (AoE2 Market: price - 30% fee)`, () => cmd({ c: 'sell', res: r }), { cost: { [r]: 100 } })); });
+          add(button(GRID[i], `Buy ${r}`, tipHtml(`Buy 100 ${r}`, { iron: buy }, 0, 'The price rises with each purchase.'), () => cmd({ c: 'buy', res: r }), { icon: 'c_buy_' + r, cost: { iron: buy } }));
+          add(button(GRID[5 + i], `Sell ${r}`, tipHtml(`Sell 100 ${r} for ${sellv} iron`, { [r]: 100 }, 0, 'The price falls with each sale.'), () => cmd({ c: 'sell', res: r }), { icon: 'c_sell_' + r, cost: { [r]: 100 } })); });
         if (b.type === 'town_hall') {
-          add(button('B', 'Town Bell', '<b>Ring the Town Bell</b><br>Every peasant runs to a Town Hall and hides inside; a Town Hall shoots one arrow for each. (AoE2 Town Bell)', () => cmd({ c: 'bell' })));
-          add(button('N', 'All Clear', '<b>All Clear</b><br>Everyone back to work.', () => cmd({ c: 'allclear' })));
+          add(button('Z', 'Town Bell', tipHtml('Ring the Town Bell', null, 0, 'Every peasant runs to a Town Hall and hides inside; a Town Hall shoots one arrow for each.'), () => cmd({ c: 'bell' }), { icon: 'c_bell' }));
+          add(button('X', 'All Clear', tipHtml('All Clear', null, 0, 'Everyone back to work.'), () => cmd({ c: 'allclear' }), { icon: 'c_allclear' }));
         }
-        if (b.garrison.length) add(button('U', 'Ungarrison', '<b>Ungarrison</b> all', () => cmd({ c: 'ungarrison', ids: [b.id] })));
+        if (b.garrison.length) add(button('C', 'Ungarrison', tipHtml('Ungarrison', null, 0, 'Everyone out.'), () => cmd({ c: 'ungarrison', ids: [b.id] }), { icon: 'c_ungarrison' }));
       }
-      add(button('V', 'Delete', '<b>Delete</b> (Del)', () => { cmd({ c: 'delete', ids: blds.map(x => x.id) }); sel.set.clear(); refresh(); }));
+      add(button('B', 'Delete', tipHtml('Delete', null, 0, 'Demolish the building (Del).'), () => { cmd({ c: 'delete', ids: blds.map(x => x.id) }); sel.set.clear(); refresh(); }, { icon: 'c_delete' }));
     }
-    // order buttons in grid order
-    const bs = [...cmds.children].sort((a, b) => GRID.indexOf(a.dataset.key) - GRID.indexOf(b.dataset.key));
-    cmds.innerHTML = ''; for (const b of bs) cmds.appendChild(b);
+    // always fifteen slots, in grid order: an empty slot is an empty frame, as in AoE2
+    for (const k of GRID) { if (slot[k]) cmds.appendChild(slot[k]); else { const d = document.createElement('div'); d.className = 'slot'; cmds.appendChild(d); } }
     document.body.classList.toggle('m-empty', !sel.set.size && !inMenu() && !st.placing && !(st.nodeSel >= 0));
     Mobile.rail(); Mobile.groups();
     info();
   }
   let infoKey = '';
+  const WHO = ['You', 'Enemy', 'Wild'];
+  const artKey = e => e.kind === 'artifact' ? 'p_relic' : e.kind === 'building' ? 'b_' + e.type : 'u_' + (e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type);
+  const stat = (icon, v, title) => `<span title="${title}">${ico(icon, 18)}${v}</span>`;
   function info() {
-    const list = sel.list(), el = $('info');
+    const list = sel.list(), el = $('info'); let h;
     if (!list.length) {
       if (st.nodeSel >= 0 && W.map.node[st.nodeSel]) {
-        const k = MapGen.NODE_KEY[W.map.node[st.nodeSel]], c = W.wardedBy(st.nodeSel);
-        el.innerHTML = `<h3>${DATA.NODES[k].name}</h3><p>${Math.ceil(W.map.amt[st.nodeSel])} ${k === 'tree' ? 'wood' : DATA.NODES[k].res} left</p>${c ? `<p class="warn">Warded by the ${DATA.CAMPS[c.type].name}. Clear it to mine here.</p>` : ''}`;
-      } else el.innerHTML = '<p class="dim">Select something. <b>F1</b> lists the hotkeys.</p>';
+        const n = W.map.node[st.nodeSel], k = MapGen.NODE_KEY[n], c = W.wardedBy(st.nodeSel), pk = { 1: 'p_tree_0', 2: 'p_berry_0', 3: 'p_stone_0', 4: 'p_iron_0', 5: 'p_crystal_0' }[n] || 'r_food';
+        h = `<div class="selp"><div class="port">${ico(pk, 84)}</div><div class="selb"><h3>${DATA.NODES[k].name}</h3><div class="own">Resource</div><p class="stats">${stat('r_' + (k === 'tree' ? 'wood' : DATA.NODES[k].res), Math.ceil(W.map.amt[st.nodeSel]), 'Left')}</p>${c ? `<p class="warn">Warded by the ${DATA.CAMPS[c.type].name}. Clear it to mine here.</p>` : ''}</div></div>`;
+      } else h = '';
+      if (h !== infoKey) { el.innerHTML = h; infoKey = h; } return;
+    }
+    if (list.length > 1) {   // AoE2: a grid of the selected units' pictures, each with its hit points
+      h = '<div class="multi">' + list.map(e => `<span class="ic" data-id="${e.id}" title="${e.kind === 'unit' ? W.unitName(e) : e.D.name}" style="--c:${W.players[e.owner].color}">${ico(artKey(e), 34)}<u><s style="width:${Math.round(20 * e.hp / e.maxHp) * 5}%"></s></u></span>`).join('') + '</div>';
+      if (h !== infoKey) { el.innerHTML = h; infoKey = h;
+        el.querySelectorAll('.ic').forEach(s => s.onclick = ev => { if (ev.shiftKey) sel.set.delete(+s.dataset.id); else sel.set = new Set([+s.dataset.id]); refresh(); }); }
       return;
     }
-    if (list.length > 1) {
-      el.innerHTML = `<h3>${list.length} selected</h3><div class="multi">` + list.map(e => `<span class="ic" data-id="${e.id}" title="${e.D.name}" style="--c:${W.players[e.owner].color}">${(e.kind === 'unit' ? W.unitName(e) : e.D.name).slice(0, 2)}<i style="width:${100 * e.hp / e.maxHp}%"></i></span>`).join('') + '</div>';
-      el.querySelectorAll('.ic').forEach(s => s.onclick = ev => { if (ev.shiftKey) sel.set.delete(+s.dataset.id); else sel.set = new Set([+s.dataset.id]); refresh(); });
-      return;
-    }
-    const e = list[0], D = e.D, P = W.players[e.owner];
-    let h = `<h3>${e.kind === 'unit' ? W.unitName(e) : D.name}${e.owner === 1 ? ' <small>(enemy)</small>' : e.owner === 2 && D.creep ? ' <small>(creep)</small>' : ''}</h3>`;
-    if (e.kind !== 'artifact') h += `<div class="hp"><i style="width:${100 * e.hp / e.maxHp}%"></i><span>${Math.ceil(e.hp)} / ${e.maxHp}</span></div>`;
+    const e = list[0], D = e.D;
+    h = `<div class="selp"><div class="port">${ico(artKey(e), 84)}${e.kind !== 'artifact' ? `<div class="hp"><i style="width:${100 * e.hp / e.maxHp}%"></i><span>${Math.ceil(e.hp)}/${e.maxHp}</span></div>` : ''}</div><div class="selb">`;
+    h += `<h3>${e.kind === 'unit' ? W.unitName(e) : D.name}</h3><div class="own">${e.kind === 'artifact' ? 'Relic' : e.owner === 2 && D.creep ? 'Creep' : WHO[e.owner]}${e.kind === 'unit' && e.owner === 0 && e.type !== 'villager' && e.type !== 'sheep' ? ` · ${DATA.STANCE_NAMES[e.stance]} · ${DATA.FORMATION_NAMES[e.formation]}` : ''}</div>`;
     if (e.kind === 'unit') {
-      if (e.carcass) h += `<p>${Math.ceil(e.food)} food left</p>`;
+      if (e.carcass) h += `<p class="stats">${stat('r_food', Math.ceil(e.food), 'Food left')}</p>`;
       else {
         const S = W.S(e), bon = Object.entries(S.bonus).map(([k, v]) => `+${v} vs ${k}`).join(', ');
-        h += `<p class="stats">⚔ ${S.melee || S.pierce}${S.range ? ` · range ${S.range}` : ''} &nbsp; 🛡 ${S.armor[0]}/${S.armor[1]} &nbsp; 👁 ${S.los} &nbsp; ➜ ${+S.speed.toFixed(2)}</p>`;
+        h += `<p class="stats">${stat('s_attack', S.melee || S.pierce, 'Attack')}${stat('s_armor', S.armor[0], 'Melee armour')}${stat('s_pierce', S.armor[1], 'Pierce armour')}${S.range ? stat('s_range', S.range, 'Range') : ''}${stat('s_los', S.los, 'Line of sight')}${stat('s_speed', +S.speed.toFixed(2), 'Speed')}</p>`;
         if (bon) h += `<p class="dim">${bon}</p>`;
-        if (e.owner === 0 && e.type !== 'villager' && e.type !== 'sheep') h += `<p class="dim">${DATA.STANCE_NAMES[e.stance]} · ${DATA.FORMATION_NAMES[e.formation]} formation</p>`;
-        if (e.type === 'villager') h += `<p>${e.carry.amt >= 0.5 ? `Carrying ${Math.floor(e.carry.amt)} ${e.carry.res}` : ''} ${e.order ? '· ' + taskName(e) : '· idle'}</p>`;
+        if (e.type === 'villager') h += `<p class="stats">${e.carry.amt >= 0.5 ? stat('r_' + e.carry.res, Math.floor(e.carry.amt), 'Carrying') : ''}<span>${e.order ? taskName(e) : 'idle'}</span></p>`;
         if (e.artifact) h += '<p>Carrying an artifact: bring it to a Town Hall.</p>';
-        if (D.food && !e.carcass) h += `<p>${D.food} food</p>`;
+        if (D.food && !e.carcass) h += `<p class="stats">${stat('r_food', D.food, 'Food')}</p>`;
         if (e.camp !== undefined) { const c = W.campById(e.camp); h += `<p class="dim">Guards the ${DATA.CAMPS[c.type].name}.</p>`; }
       }
     } else if (e.kind === 'building') {
+      let st2 = '';
+      if (D.arrows) st2 += stat('s_attack', D.arrows.atk, 'Attack') + stat('s_range', D.arrows.range, 'Range');
+      if (D.armor) st2 += stat('s_armor', D.armor[0], 'Melee armour') + stat('s_pierce', D.armor[1], 'Pierce armour');
+      if (D.garrison) st2 += stat('s_garrison', `${e.garrison.length}/${D.garrison}`, 'Garrison');
+      if (e.type === 'farm') st2 += stat('r_food', Math.ceil(e.food), 'Food left');
+      if (e.artifacts) st2 += stat('p_relic', `${e.artifacts} (+${(e.artifacts * DATA.ARTIFACT_RATE).toFixed(1)}/s)`, 'Artifacts');
+      if (st2) h += `<p class="stats">${st2}</p>`;
       if (!e.built) h += `<p>Under construction: ${Math.floor(e.progress * 100)}%</p>`;
-      if (D.armor) h += `<p class="stats">🛡 ${D.armor[0]}/${D.armor[1]}${D.arrows ? ` &nbsp; ⚔ ${D.arrows.atk} · range ${D.arrows.range}` : ''}</p>`;
-      if (e.type === 'farm') h += `<p>${Math.ceil(e.food)} food left</p>`;
-      if (D.garrison) h += `<p>Garrison ${e.garrison.length}/${D.garrison}${e.artifacts ? ` · Artifacts ${e.artifacts} (+${(e.artifacts * DATA.ARTIFACT_RATE).toFixed(1)} crystal/s)` : ''}</p>`;
-      if (D.drop) h += `<p class="dim">Drop-off: ${D.drop.join(', ')}</p>`;
-      if (e.queue.length) {
-        h += '<div class="queue">' + e.queue.map((q, i) => `<span class="q" data-i="${i}" title="Click to cancel">${(q.kind === 'tech' ? DATA.TECHS : DATA.UNITS)[q.what].name.slice(0, 3)}${i === 0 ? `<i style="width:${100 * q.t / q.time}%"></i>` : ''}</span>`).join('') + '</div>';
+      if (e.queue.length) {   // AoE2: the production queue as pictures, the first one with its progress
+        const q0 = e.queue[0]; h += `<p class="dim">${q0.kind === 'tech' ? 'Researching' : 'Creating'} ${(q0.kind === 'tech' ? DATA.TECHS : DATA.UNITS)[q0.what].name} · ${Math.floor(100 * q0.t / q0.time)}%</p>`;
+        h += '<div class="queue">' + e.queue.map((q, i) => `<span class="q" data-i="${i}" title="${(q.kind === 'tech' ? DATA.TECHS : DATA.UNITS)[q.what].name}: click to cancel">${ico((q.kind === 'tech' ? 't_' : 'u_') + q.what, i ? 36 : 42)}${i === 0 ? `<u><s style="width:${Math.round(100 * q.t / q.time)}%"></s></u>` : ''}</span>`).join('') + '</div>';
         if (e.queue[0].housed) h += '<p class="warn">Need more housing (build a Cottage).</p>';
-      }
-    } else h += '<p>An artifact. Militia can carry it to your Town Hall for +0.5 crystal/s.</p>';
-    const key = h; if (key !== infoKey) { el.innerHTML = h; infoKey = key;
+      } else if (D.drop && e.owner === 0) h += `<p class="dim">Drop-off: ${D.drop.join(', ')}</p>`;
+    } else h += '<p>Militia can carry it to your Town Hall for +0.5 crystal a second.</p>';
+    h += '</div></div>';
+    if (h !== infoKey) { el.innerHTML = h; infoKey = h;
       el.querySelectorAll('.q').forEach(s => s.onclick = () => cmd({ c: 'cancel', id: e.id, i: +s.dataset.i })); }
   }
   function taskName(u) {
@@ -589,14 +640,15 @@ const UI = (() => {
     const on = { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 }; let idle = 0;
     for (const u of W.ents) if (!u.dead && u.owner === 0 && u.type === 'villager') { if (!u.order && !u.garrisoned) idle++; else if (u.order && (u.order.type === 'gather' || u.order.type === 'dropoff') && u.lastGather) on[u.lastGather.res]++; }
     for (const r of DATA.RES) $('v-' + r).textContent = on[r] ? on[r] : '';
-    $('age').textContent = DATA.AGE_NAMES[P.age];
+    if (st.ageShown !== P.age) { st.ageShown = P.age; $('age').textContent = DATA.AGE_NAMES[P.age]; $('age-ico').outerHTML = ico('age_' + P.age, 30).replace('<i ', '<i id="age-ico" '); }
     const pe = $('r-pop'); pe.textContent = `${P.pop}/${P.popCap}`; pe.className = P.pop >= P.popCap ? 'capped' : '';
-    $('btn-idle').textContent = `Idle ${idle}`; $('btn-idle').className = idle ? 'hot' : '';
+    $('btn-idle').hidden = !idle; $('r-idle').textContent = idle;   // AoE2: the idle-villager button appears only when there are some
     const t = Math.floor(W.time); $('clock').textContent = `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
     // messages and alerts
     const m = $('msgs'), recent = [...W.messages.filter(x => W.time - x.t < 7), ...W.alerts.filter(a => W.time - a.t < 5).map(a => ({ text: a.text, t: a.t, alert: true }))].sort((a, b) => a.t - b.t).slice(-5);
     m.innerHTML = recent.map(x => `<div class="${x.alert ? 'alert' : ''}">${x.text}</div>`).join('');
-    if (sel.set.size) info(); else if (st.nodeSel >= 0) info();
+    info();
+    if (st.poorT !== Math.floor(W.time * 2)) { st.poorT = Math.floor(W.time * 2); for (const b of document.querySelectorAll('#cmds button')) if (b._cost) b.classList.toggle('poor', !b.disabled && !W.canAfford(0, b._cost)); }
     if (Mobile.on) { Mobile.rail(); Mobile.groups(); }
     if (W.state !== 'playing' && !st.ended) { st.ended = true; $('end').style.display = 'flex'; $('end-text').textContent = W.state === 'victory' ? 'Victory' : 'Defeat'; }
   }

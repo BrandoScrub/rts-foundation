@@ -12,7 +12,7 @@ from artkit.assembly import Assembly
 class Block(Assembly):
     """An Assembly whose every part must say why it exists."""
     def __init__(s, brief):
-        super().__init__(); s.brief = brief; s.why = {}
+        super().__init__(); s.brief = brief; s.why = {}; s.smoke = []      # smoke: tops of chimneys (x, y, z); the game draws smoke there
 
     def part(s, name, why, geom, tag='body', grounded=False):
         s.why[name] = why; return s.add(name, geom, grounded=grounded, tag=tag)
@@ -141,6 +141,7 @@ def town_hall():
     b.finial('keep_finial', 140, 140, 566 - 6)
     b.part('lantern0', 'a crystal lantern by the door: the hall is lit at night, and it marks the entrance', sh.cyl((526, 300, 96), (526, 300, 116), 7, 'glow', 2, seg=5), 'accent', True)
     b.part('lantern1', 'its pair on the other side of the door', sh.cyl((526, 420, 96), (526, 420, 116), 7, 'glow', 2, seg=5), 'accent', True)
+    b.smoke.append((472, 242, 400))
     return b, (640, 640)
 
 
@@ -184,6 +185,7 @@ def barracks():
     for i, y in enumerate((80, 200)): b.part(f'shield{i}', 'a shield hung on the gable wall in the owner\'s colour: soldiers live here', sh.cyl((444, y, 70), (449, y, 70), 17, 'team', seg=10), 'accent', True)
     b.part('ridge', 'a ridge beam capping the roof', sh.block(28, 452, 135, 145, 200, 209, 'beam'), 'detail', True)
     b.part('spears', 'spears stood in the rack: an armoury at a glance', sh.block(100, 160, 254, 258, 12, 110, 'beam'), 'detail', True)
+    b.smoke.append((78, 74, 196))
     return b, (480, 480)
 
 
@@ -245,6 +247,7 @@ def cottage():
     b.part('pot', 'a chimney pot', sh.block(76, 94, 106, 124, 216, 230, 'quarry'), 'detail', True)
     b.part('woodpile', 'split logs stacked by the door for the hearth', sh.block(196, 250, 244, 262, 8, 34, 'timber'), 'detail', True)
     b.part('lantern', 'a crystal lantern by the door', sh.cyl((128, 248, 60), (128, 248, 76), 5, 'glow', 1.5, seg=5), 'accent', True)
+    b.smoke.append((85, 115, 230))
     return b, (320, 320)
 
 
@@ -345,6 +348,7 @@ def blacksmith():
     b.part('horn', 'the anvil\'s horn', sh.block(376, 394, 186, 198, 38, 48, 'dark'), 'detail', True)
     b.part('water', 'water in the quenching trough', sh.block(306, 414, 284, 306, 28, 30, 'glow'), 'detail', True)
     b.part('ingots', 'a stack of iron bars waiting for the hammer', sh.block(396, 424, 200, 240, 6, 26, 'iron'), 'detail', True)
+    b.smoke.append((88, 88, 318))
     return b, (480, 480)
 
 
@@ -460,6 +464,7 @@ def palisade(along='c'):
     for z in (30, 62):
         if along in 'xc': b.part(f'railx{z}', 'a split rail lashed across the logs: ties the run together so one cut log does not open it', sh.block(0, 160, 92, 99, z, z + 7, 'timber'), 'detail', True)
         if along in 'yc': b.part(f'raily{z}', 'the same rail on a run the other way', sh.block(92, 99, 0, 160, z, z + 7, 'timber'), 'detail', True)
+    if along == 'c': b.part('rag', 'a rag in the owner\'s colour tied to the king post: whose stockade this is', sh.block(96, 100, 74, 86, 88, 112, 'team'), 'accent', True)
     if along == 'c': b.part('band', 'an iron band round the king post: it carries both runs', sh.lathe([(23, 70), (23, 82)], 'iron', 8).move(80, 80, 0), 'detail', True)
     if along == 'c': b.part('post', 'a taller, thicker corner post: where two runs meet the wall needs a king post, and it marks the turn', sh.lathe([(21, 0), (21, 96), (0, 126)], 'timber', 8).move(80, 80, 0), 'signature', True)
     return b, (160, 160)
@@ -500,6 +505,14 @@ def watchpost():
     b.post('ladder', 'the ladder up: the scale cue', (80, 150, 0), (80, 122, 200), 8)
     b.post('pole', 'signal flag pole', (44, 44, 206), (44, 44, 300), 5, free=True, tag='accent')
     b.part('flag', 'the player colour; a watchpost signals', sh.block(46, 86, 42, 46, 268, 298, 'team'), 'accent', True)
+    b.part('canopy', 'a thatch canopy over the platform: the watcher stands out in all weather, and a roof makes the post read as manned', sh.pyramid(110, 110, 46, 'thatch').move(25, 25, 262), 'roof', True)
+    for i, (x, y) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))): b.post(f'canopy_post{i}', 'holds the canopy', (80 + x * 38, 80 + y * 38, 250), (80 + x * 38, 80 + y * 38, 264), 5, free=True)
+    b.part('rail_x', 'a rail round the platform on the seen sides', sh.block(116, 121, 42, 118, 236, 242, 'timber'), 'detail', True)
+    b.part('rail_y', 'the rail on the other seen side', sh.block(42, 118, 116, 121, 236, 242, 'timber'), 'detail', True)
+    for i in range(6): b.part(f'rung{i}', 'a ladder rung', sh.block(70, 90, 146 - i * 4.4, 149 - i * 4.4, 26 + i * 31, 30 + i * 31, 'beam'), 'detail', True)
+    b.part('lantern', 'a crystal lantern hung under the canopy: the post is a light in the dark', sh.cyl((104, 104, 240), (104, 104, 258), 6, 'glow', 2, seg=5), 'accent', True)
+    b.part('horn', 'the warning horn on its peg', sh.cyl((58, 118, 214), (74, 122, 228), 7, 'bone', 2, seg=6), 'detail', True)
+    b.part('shield', 'a shield in the owner\'s colour on the rail', sh.cyl((121, 80, 222), (125, 80, 222), 14, 'team', seg=10), 'accent', True)
     return b, (160, 160)
 
 
@@ -538,6 +551,9 @@ def stone_wall(along='c'):
     b.part('buttress', 'a buttress in the middle of the bay: props the curtain and gives the long face a rhythm', R(66, 94, 116, 130, 0, 70, 'stone'), 'detail', True)
     b.part('loop', 'an arrow loop either side of the buttress', R(30, 38, 116, 118, 40, 72, 'dark'), 'opening', True)
     b.part('loop2', 'the second loop', R(122, 130, 116, 118, 40, 72, 'dark'), 'opening', True)
+    b.part('sconce', 'an iron torch basket on the buttress: the wall is lit and watched', R(72, 88, 118, 132, 70, 80, 'iron'), 'detail', True)
+    b.part('torch', 'the torch flame', R(75, 85, 120, 130, 80, 96, 'ember'), 'accent', True)
+    b.part('moss', 'moss at the foot where the wall stays damp: an old wall, not a new one', R(8, 150, 124, 127, 0, 12, 'leaf_dark'), 'detail', True)
     for i, a in enumerate((26, 80, 134)):
         b.part(f'merlon{i}', 'a merlon: cover on the wall-walk, and the teeth that say "fortification"', R(a - 17, a + 17, 96, 116, 104, 128, 'stone'), 'signature')
     return b, (160, 160)

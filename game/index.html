@@ -8,44 +8,65 @@
   :root { --panel: #2a2118; --edge: #6b5233; --text: #f0e6d2; --dim: #b5a68c; --gold: #e6c56a; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #000; color: var(--text); font: 13px/1.35 Georgia, 'Times New Roman', serif; overflow: hidden; user-select: none; }
-  #app { position: fixed; inset: 0; display: grid; grid-template-rows: 34px minmax(0, 1fr) 176px; }
-  #top { display: flex; align-items: center; gap: 14px; padding: 0 10px; background: linear-gradient(#3a2e20, #241b12); border-bottom: 2px solid var(--edge); }
-  #res { display: flex; gap: 14px; }
-  .r { display: flex; align-items: center; gap: 5px; min-width: 70px; }
-  .r i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid #000; display: inline-block; }
-  .r i.pop { background: linear-gradient(#ddd, #888); border-radius: 50%; }
-  .r b { font-weight: normal; min-width: 30px; } .r small { color: var(--dim); font-size: 11px; }
-  .r small:not(:empty)::before { content: '('; } .r small:not(:empty)::after { content: ')'; }
+  #app { position: fixed; inset: 0; display: grid; grid-template-rows: 44px minmax(0, 1fr) 190px; }
+  #top { position: relative; display: flex; align-items: center; gap: 10px; padding: 0 8px; background: linear-gradient(#3a2e20, #1c150d); border-bottom: 1px solid #000; box-shadow: inset 0 -2px 0 #8a6a3a, inset 0 -3px 0 #000, inset 0 1px 0 #5a4630; }
+  #res { display: flex; gap: 4px; align-items: stretch; }
+  .r { display: grid; grid-template-columns: 30px auto; grid-template-rows: 20px 13px; align-items: center; column-gap: 4px; min-width: 78px; padding: 2px 6px 2px 3px; background: #0005; border: 1px solid #000; box-shadow: inset 0 0 0 1px #6b523355; font: inherit; color: inherit; text-align: left; }
+  .r .ico { grid-row: 1 / 3; border: 1px solid #000; } .r b { font-size: 14px; } .r small { grid-column: 2; color: var(--dim); font-size: 10.5px; line-height: 12px; min-height: 12px; }
+  button.r { cursor: pointer; } #btn-idle { min-width: 58px; border-color: #c9a040; } #btn-idle b { color: #ffd76a; } #btn-idle[hidden] { display: none; }
+  .ico { display: inline-block; background-image: url(art/icons.png); background-repeat: no-repeat; flex: none; }
+  #agebox { position: absolute; left: 50%; top: 0; height: 100%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; padding: 0 22px; font-size: 17px; color: var(--gold); letter-spacing: .5px;
+            background: linear-gradient(#4a3a26, #2a2015); border: 1px solid #000; border-top: 0; box-shadow: inset 0 0 0 1px #8a6a3a; pointer-events: none; }
+  #menubar { display: flex; gap: 4px; } .ib { width: 34px; height: 34px; padding: 0 !important; display: flex; align-items: center; justify-content: center; }
+  #clockbox { position: fixed; left: 10px; top: 50px; color: var(--gold); font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000, 0 0 4px #000; pointer-events: none; z-index: 2; } #speedtxt { color: var(--dim); }
+  .r b { font-weight: normal; min-width: 30px; }
   #r-pop.capped { color: #ff6a50; }
   #top .sp { flex: 1; }
   #top button, #cmds button { font: inherit; color: var(--text); background: linear-gradient(#5a4630, #3a2c1c); border: 1px solid var(--edge); border-radius: 3px; cursor: pointer; }
-  #top button { padding: 3px 9px; } #top button.hot { color: #ffd76a; border-color: #c9a040; }
+  #top button.ib:hover, #mini-btns .ib:hover { border-color: var(--gold); }
   #clock { font-variant-numeric: tabular-nums; color: var(--gold); min-width: 46px; }
   #viewwrap { position: relative; min-height: 0; } #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; }
-  #bottom { display: grid; grid-template-columns: 330px 1fr 340px; background: linear-gradient(#33281b, #1f170f); border-top: 2px solid var(--edge); }
-  #cmds { display: grid; grid-template-columns: repeat(5, 60px); grid-auto-rows: 50px; gap: 4px; padding: 8px; align-content: start; }
-  #cmds button { position: relative; padding: 2px; font-size: 11px; line-height: 1.1; }
-  #cmds button .hk { position: absolute; right: 3px; bottom: 1px; font-size: 10px; color: var(--gold); }
-  #cmds button:hover:not(:disabled) { border-color: var(--gold); } #cmds button.on { border-color: #7f7; }
-  #cmds button:disabled { opacity: 0.4; cursor: default; } #cmds button.locked { opacity: 0.35; }
-  #info { padding: 8px 14px; border-left: 1px solid #0006; border-right: 1px solid #0006; overflow: hidden; }
+  #bottom { display: grid; grid-template-columns: 318px 1fr 388px; background: linear-gradient(#33281b, #17110a); border-top: 1px solid #000; box-shadow: inset 0 2px 0 #8a6a3a, inset 0 3px 0 #000, inset 0 4px 0 #5a4630; }
+  #cmds { display: grid; grid-template-columns: repeat(5, 56px); grid-auto-rows: 56px; gap: 4px; padding: 11px 9px 6px; align-content: start; }
+  #cmds .slot { background: #0004; border: 1px solid #000; box-shadow: inset 0 0 0 1px #6b523330; }
+  #cmds button { position: relative; padding: 0; font-size: 11px; line-height: 1.1; border-radius: 0; border-color: #000; box-shadow: inset 0 0 0 1px #8a6a3a; overflow: hidden; background: #241b12; }
+  #cmds button .ico { display: block; margin: 1px auto 0; }
+  #cmds button .hk { position: absolute; left: 3px; top: 1px; font-size: 10px; color: var(--gold); text-shadow: 0 0 2px #000, 0 0 2px #000; }
+  #cmds button:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--gold); } #cmds button.on { box-shadow: inset 0 0 0 2px #ffe08a, 0 0 6px #ffd76a; }
+  #cmds button:disabled { cursor: default; } #cmds button:disabled .ico { filter: grayscale(1) brightness(.55); } #cmds button.poor .ico { filter: sepia(1) saturate(4) hue-rotate(-40deg) brightness(.75); }
+  #info { margin: 11px 4px 6px; padding: 8px 12px; background: #0004; border: 1px solid #000; box-shadow: inset 0 0 0 1px #6b523355; overflow: hidden; }
+  .selp { display: flex; gap: 12px; } .port { flex: none; width: 86px; } .port .ico { border: 1px solid #000; box-shadow: 0 0 0 1px #8a6a3a; margin: 1px; } .port .hp { width: 86px; margin-top: 5px; }
+  .selb { min-width: 0; flex: 1; } .own { color: var(--dim); font-size: 12px; margin: -2px 0 4px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 3px 14px; margin: 4px 0 !important; } .stats span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   #info h3 { margin: 0 0 4px; font-size: 16px; color: var(--gold); font-weight: normal; } #info h3 small { color: var(--dim); font-size: 12px; }
   #info p { margin: 3px 0; } .dim { color: var(--dim); } .warn { color: #ff9a70; }
-  .hp { position: relative; width: 220px; height: 14px; background: #300; border: 1px solid #000; }
+  .hp { position: relative; width: 220px; height: 13px; background: #5a1410; border: 1px solid #000; }
   .hp i { position: absolute; inset: 0 auto 0 0; background: #4caf50; } .hp span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 13px; }
   .multi { display: flex; flex-wrap: wrap; gap: 3px; max-height: 120px; overflow: hidden; }
-  .ic { position: relative; width: 34px; height: 30px; background: #3a2c1c; border: 1px solid var(--c); font-size: 11px; text-align: center; line-height: 26px; cursor: pointer; }
-  .ic i { position: absolute; left: 0; bottom: 0; height: 3px; background: #4caf50; }
-  .queue { display: flex; gap: 3px; margin-top: 4px; } .q { position: relative; width: 36px; height: 30px; background: #3a2c1c; border: 1px solid var(--edge); font-size: 11px; text-align: center; line-height: 28px; cursor: pointer; }
-  .q i { position: absolute; left: 0; bottom: 0; height: 3px; background: #6fb0ff; }
-  #mini-wrap { display: flex; align-items: center; justify-content: center; }
+  .ic { position: relative; width: 38px; height: 42px; background: #241b12; border: 1px solid #000; box-shadow: inset 0 0 0 1px var(--c); cursor: pointer; overflow: hidden; } .ic .ico { display: block; margin: 1px; }
+  .ic > u { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 4px; background: #5a1410; } .ic > u > s { display: block; height: 100%; background: #4caf50; }
+  .queue { display: flex; gap: 3px; margin-top: 4px; } .q { position: relative; width: 40px; height: 40px; background: #241b12; border: 1px solid #000; box-shadow: inset 0 0 0 1px #8a6a3a; cursor: pointer; overflow: hidden; } .q .ico { display: block; margin: 1px; } .q:first-child { width: 46px; height: 46px; }
+  .q > u { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 5px; background: #0009; } .q > u > s { display: block; height: 100%; background: #6fb0ff; } .queue { align-items: flex-end; }
+  #mini-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: 6px; }
+  #mini-btns { display: flex; flex-direction: column; gap: 5px; } #mini-btns .ib { font: inherit; color: var(--text); background: linear-gradient(#5a4630, #3a2c1c); border: 1px solid var(--edge); border-radius: 50%; cursor: pointer; overflow: hidden; }
   #mini { width: 320px; height: 160px; cursor: pointer; }
-  #msgs { position: fixed; left: 12px; top: 44px; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 4px #000; max-width: 60%; }
+  #msgs { position: fixed; left: 12px; top: 72px; pointer-events: none; text-shadow: 0 1px 2px #000, 0 0 4px #000; max-width: 60%; }
   #msgs div { margin-bottom: 3px; } #msgs .alert { color: #ff6a50; font-weight: bold; }
-  #tip { position: fixed; display: none; max-width: 300px; padding: 6px 9px; background: #1a130cf0; border: 1px solid var(--edge); border-radius: 3px; z-index: 5; pointer-events: none; }
-  .cost { white-space: nowrap; margin-right: 4px; } .cost i { display: inline-block; width: 10px; height: 10px; border: 1px solid #000; margin-right: 2px; vertical-align: -1px; }
-  #help, #paused, #end { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #000a; z-index: 10; }
-  #help.show { display: flex; } #paused { pointer-events: none; font-size: 32px; color: var(--gold); background: #0004; }
+  #tip { position: fixed; display: none; width: 300px; max-width: 80vw; padding: 8px 11px; background: #17110af2; border: 1px solid #000; box-shadow: inset 0 0 0 1px #8a6a3a; z-index: 5; pointer-events: none; }
+  #tip b:first-child { color: var(--gold); font-size: 15px; font-weight: normal; } #tip .hkk { float: right; color: var(--dim); } #tip .costs { margin: 3px 0; }
+  .cost { white-space: nowrap; margin-right: 8px; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; } .cost.short { color: #ff8a70; }
+  #help, #paused, #end, .ov { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: #000a; z-index: 10; }
+  #help.show, .ov.show { display: flex; }
+  .card.menu { background: var(--panel); border: 1px solid #000; box-shadow: inset 0 0 0 2px #8a6a3a, 0 10px 40px #000; padding: 18px 26px 22px; display: flex; flex-direction: column; gap: 8px; min-width: 260px; }
+  .card.menu h2, .card.tree h2 { margin: 0 0 6px; text-align: center; color: var(--gold); font-weight: normal; } .card.tree h2 small { color: var(--dim); font-size: 12px; }
+  .card.menu button { font: inherit; font-size: 15px; color: var(--text); padding: 9px 12px; background: linear-gradient(#5a4630, #3a2c1c); border: 1px solid #000; box-shadow: inset 0 0 0 1px #8a6a3a; cursor: pointer; }
+  .card.menu button:hover { box-shadow: inset 0 0 0 2px var(--gold); }
+  .card.tree { background: var(--panel); border: 1px solid #000; box-shadow: inset 0 0 0 2px #8a6a3a, 0 10px 40px #000; padding: 14px 18px; max-width: 96vw; max-height: 92vh; overflow: auto; }
+  #tree-body { display: grid; gap: 4px 6px; align-items: start; } .tage { color: var(--gold); writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; padding: 4px 2px; background: #0004; border: 1px solid #000; align-self: stretch; }
+  .tcol { display: flex; flex-wrap: wrap; gap: 3px; width: 92px; min-height: 46px; padding: 3px; background: #0003; border: 1px solid #0008; align-self: stretch; align-content: flex-start; } .thead { font-size: 11px; color: var(--dim); text-align: center; width: 92px; }
+  .tk { display: inline-block; position: relative; width: 42px; height: 42px; border: 1px solid #000; background: #241b12; vertical-align: middle; } .tk .ico { display: block; margin: 1px; }
+  .tk.have { box-shadow: inset 0 0 0 2px #6fbf5f; } .tk.can { box-shadow: inset 0 0 0 2px #c9a040; } .tk.no { box-shadow: inset 0 0 0 2px #5a1410; } .tk.no .ico { filter: grayscale(1) brightness(.5); }
+  p .tk { width: 14px; height: 14px; } #paused { pointer-events: none; font-size: 32px; color: var(--gold); background: #0004; }
   #help .card, #end .card { background: var(--panel); border: 2px solid var(--edge); padding: 16px 22px; max-width: 760px; columns: 2; column-gap: 28px; }
   #help h2 { column-span: all; margin: 0 0 8px; color: var(--gold); font-weight: normal; }
   #help p { margin: 2px 0; break-inside: avoid; } kbd { color: var(--gold); font-family: inherit; }
@@ -72,9 +93,11 @@
   body.mui:not(.m-empty) #mrail { max-height: calc(100% - 128px - env(safe-area-inset-bottom, 0px)); }
   body.mui.m-empty #msgs { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
   body.mui #top { flex-wrap: wrap; gap: 4px 8px; min-height: 40px; padding: calc(env(safe-area-inset-top, 0px) + 3px) max(6px, env(safe-area-inset-right, 0px)) 3px max(6px, env(safe-area-inset-left, 0px)); }
-  body.mui #res { gap: 7px; flex-wrap: wrap; } body.mui .r { min-width: 0; gap: 3px; font-size: 12.5px; } body.mui .r small { display: none; } body.mui .r b { min-width: 0; }
-  body.mui #top .sp { display: none; } body.mui #clock { margin-left: auto; }
-  body.mui #top button { min-height: 32px; min-width: 36px; padding: 2px 7px; }
+  body.mui #res { gap: 3px; flex-wrap: wrap; } body.mui .r { min-width: 0; grid-template-columns: 20px auto; grid-template-rows: 20px; padding: 1px 4px 1px 2px; font-size: 12.5px; } body.mui .r small { display: none; } body.mui .r b { min-width: 0; font-size: 12.5px; }
+  body.mui #agebox { position: static; transform: none; padding: 0 8px; font-size: 13px; height: 24px; pointer-events: none; } body.mui #clockbox { top: auto; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); left: auto; right: 190px; display: none; } body.mui #cmds .slot { display: none; } body.mui #mini-btns { display: none; }
+  body.mui .r .ico { transform: scale(.66); transform-origin: left center; margin: -5px -10px -5px 0; } body.mui .port .ico { transform: scale(.66); transform-origin: left top; margin-bottom: -28px; }
+  body.mui #top .sp { display: none; } body.mui #menubar { margin-left: auto; }
+  body.mui #top button.ib { min-height: 32px; min-width: 36px; }
   body.mui #mgroups { display: flex; gap: 3px; }
   .mg { font: inherit; width: 36px; height: 34px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-size: 10.5px;
         background: rgba(30,22,14,.85); color: var(--dim); border: 1px dashed var(--edge); border-radius: 3px; }
@@ -86,19 +109,19 @@
   .rb.on { background: linear-gradient(#f0d07a, #b8902e); color: #1a1408; border-color: #f3d899; }
   .rb.go2 { background: linear-gradient(#6e8a54, #3f5430); border-color: #93c476; color: #f2f6e8; } .rb.off { opacity: .42; }
   body.mui #bottom { display: flex; align-items: stretch; gap: 0; padding: 0 max(4px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(4px, env(safe-area-inset-left, 0px)); max-height: 46vh; }
-  body.mui #cmds { grid-template-columns: repeat(5, 54px); grid-auto-rows: 50px; gap: 3px; padding: 5px; overflow-y: auto; max-height: 112px; flex: 0 0 auto; }
+  body.mui #cmds { grid-template-columns: repeat(5, 54px); grid-auto-rows: 54px; gap: 3px; padding: 5px; overflow-y: auto; max-height: 120px; flex: 0 0 auto; }
   body.mui #cmds button { font-size: 10px; } body.mui #cmds .hk { display: none; }
-  body.mui #cmds .cst { display: block; font-size: 9px; color: var(--dim); margin-top: 2px; white-space: nowrap; overflow: hidden; }
+  body.mui #cmds .cst { display: block; position: absolute; left: 0; right: 0; bottom: 0; font-size: 9px; color: var(--text); background: #000a; white-space: nowrap; overflow: hidden; }
   body.mui #cmds .cst i { display: inline-block; width: 6px; height: 6px; margin: 0 1px 0 2px; }
-  body.mui #info { flex: 1 1 auto; min-width: 0; padding: 5px 8px; font-size: 11.5px; max-height: 112px; }
-  body.mui #info h3 { font-size: 14px; } body.mui .hp { width: 140px; } body.mui .multi { max-height: 70px; } body.mui .ic { width: 30px; height: 26px; line-height: 22px; }
+  body.mui #info { flex: 1 1 auto; min-width: 0; margin: 4px 2px; padding: 4px 6px; font-size: 11.5px; max-height: 118px; } body.mui .port { width: 58px; } body.mui .port .hp { width: 58px; } body.mui .selp { gap: 7px; }
+  body.mui #info h3 { font-size: 14px; } body.mui .hp { width: 140px; } body.mui .multi { max-height: 70px; } body.mui .ic { width: 32px; height: 36px; }
   body.mui #mini-wrap { flex: 0 0 auto; padding: 3px; } body.mui #mini { width: 160px; height: 80px; }
   body.mui.m-mapoff #mini-wrap { display: none; }
   body.mui #msgs { top: auto; bottom: calc(126px + env(safe-area-inset-bottom, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); font-size: 12px; max-width: calc(100% - 80px); }
   body.mui #help .card { columns: 1; max-height: 86vh; overflow: auto; font-size: 12.5px; margin: 0 10px; }
   @media (orientation: portrait) {
     body.mui #bottom { flex-wrap: wrap; max-height: 55vh; }
-    body.mui #cmds { order: 3; flex: 1 1 100%; grid-template-columns: repeat(auto-fill, 54px); max-height: 108px; }
+    body.mui #cmds { order: 3; flex: 1 1 100%; grid-template-columns: repeat(auto-fill, 54px); max-height: 116px; }
     body.mui #info { flex: 1 1 0; } body.mui #mini { width: 140px; height: 70px; }
     body.mui #msgs { bottom: calc(220px + env(safe-area-inset-bottom, 0px)); }
   }
@@ -108,25 +131,39 @@
 <div id="app">
   <div id="top">
     <div id="res"></div>
-    <button id="btn-idle" title="Select an idle peasant (.)">Idle 0</button>
     <div id="mgroups"></div>
+    <div id="agebox" title="Your age"><i id="age-ico"></i><span id="age"></span></div>
     <div class="sp"></div>
-    <span id="clock">00:00</span>
-    <button id="btn-speed" title="Game speed (+ / -)">1.0x</button>
-    <button id="btn-pause" title="Pause (F3)">❚❚</button>
-    <button id="btn-help" title="Hotkeys (F1)">?</button>
+    <div id="menubar">
+      <button id="btn-tree" class="ib" title="Technology Tree (F2)"></button>
+      <button id="btn-help" class="ib" title="Controls and settings (F1)"></button>
+      <button id="btn-menu" class="ib" title="Menu (F10)"></button>
+    </div>
   </div>
   <div id="viewwrap"><canvas id="view"></canvas><div id="mrail"></div></div>
   <div id="bottom">
     <div id="cmds"></div>
     <div id="info"></div>
-    <div id="mini-wrap"><canvas id="mini" width="640" height="320"></canvas></div>
+    <div id="mini-wrap"><div id="mini-btns"><button id="btn-mode" class="ib" title="Mini-map mode: all, economy, military"></button><button id="btn-idlemil" class="ib" title="Idle military (,)"></button></div><canvas id="mini" width="640" height="320"></canvas></div>
   </div>
 </div>
+<div id="clockbox"><span id="clock">00:00</span> <span id="speedtxt">Normal</span></div>
 <div id="msgs"></div>
 <div id="tip"></div>
 <div id="paused">Paused</div>
 <div id="end"><div class="card"><h1 id="end-text"></h1><p>Refresh to play again.</p></div></div>
+<div id="menu" class="ov"><div class="card menu">
+  <h2>Menu</h2>
+  <button data-a="resume">Return to Game</button>
+  <button id="btn-pause" title="Pause (F3)">Pause</button>
+  <button id="btn-speed" title="Game speed (+ / -)">Speed: 1.0x</button>
+  <button data-a="tree">Technology Tree</button>
+  <button data-a="help">Controls and Options</button>
+  <button data-a="restart">Restart</button>
+  <button data-a="resign">Resign</button>
+</div></div>
+<div id="tree" class="ov"><div class="card tree"><h2>Technology Tree <small>(tap anywhere to close)</small></h2><div id="tree-body"></div>
+  <p class="dim"><span class="tk have"></span> built or researched &nbsp; <span class="tk can"></span> available &nbsp; <span class="tk no"></span> not yet available</p></div></div>
 <div id="help"><div class="card">
   <h2>Controls (tap anywhere to close)</h2>
   <div class="layout-row">Interface: <span class="seg" id="layout"><button data-v="auto">Auto</button><button data-v="mobile">Mobile</button><button data-v="desktop">Desktop</button></span></div>
@@ -156,11 +193,11 @@
   <p><kbd>Space</kbd> jump to the last alert · <kbd>Del</kbd> delete</p>
   <p><kbd>Q W E R T / A S D F G / Z X C V B</kbd> the command grid</p>
   <p>Peasant: <kbd>Q</kbd> economic buildings, <kbd>W</kbd> military buildings, then the building's key; <kbd>Shift</kbd> keeps placing; drag for palisades</p>
-  <p>Town Hall: <kbd>Q</kbd> Peasant (Shift = 5) · <kbd>B</kbd> Town Bell · <kbd>N</kbd> All Clear</p>
-  <p>Military: <kbd>A</kbd> attack-move · <kbd>F</kbd> patrol · <kbd>Z</kbd> stance · <kbd>X</kbd> formation · <kbd>S</kbd> stop · <kbd>D</kbd> fetch artifact</p>
+  <p>Town Hall: <kbd>Q</kbd> Peasant (Shift = 5) · <kbd>Z</kbd> Town Bell · <kbd>X</kbd> All Clear · <kbd>C</kbd> ungarrison</p>
+  <p>Military: <kbd>Q W E R</kbd> stances · <kbd>A</kbd> attack-move · <kbd>S</kbd> stop · <kbd>D</kbd> fetch artifact · <kbd>F</kbd> patrol · <kbd>G</kbd> garrison · <kbd>Z X C V</kbd> formations · <kbd>B</kbd> delete</p>
   <p><kbd>Arrows</kbd>, screen edge or <kbd>middle-drag</kbd> scroll · <kbd>wheel</kbd> zoom</p>
   <p>Minimap: click to look · right-click to send units</p>
-  <p><kbd>F3</kbd> pause · <kbd>+ / -</kbd> speed · <kbd>Esc</kbd> cancel</p>
+  <p><kbd>F3</kbd> pause · <kbd>+ / -</kbd> speed · <kbd>F2</kbd> technology tree · <kbd>F10</kbd> menu · <kbd>Esc</kbd> cancel</p>
   </div>
   <p>Higher ground: +25% damage; lower: -25% (as in AoE2).</p>
   <p>Creep camps ward the crystal and iron beside them. Clear the camp to mine it and claim its artifacts.</p>

@@ -109,6 +109,13 @@ User: "Building pass first, then immediately do smaller fixes above".
   and a spoil heap; sheep and deer lower their heads to graze; camp landmarks are 1.5x so a tent is bigger than
   its goblin (checked in the game).
 
+## Seventh pass (Nov 17): smoke, Watchpost, walls, HUD icons
+- Chimney smoke on the Town Hall, Barracks, Cottage and Blacksmith (positions come from the model: `b.smoke`).
+- Watchpost: thatch canopy, platform rails, ladder rungs, crystal lantern, warning horn, shield in the owner's colour.
+- Stone curtain: a lit torch basket on each buttress, moss at the foot. Palisade corner: a rag in the owner's colour.
+- `tools/build_icons.py`: 124 HUD icons in one atlas, cut from the unit sheets, building and prop pictures;
+  technologies are the thing they improve with a gold chevron; commands and resources are drawn signs.
+
 Still off: a diagonal wall on a slope steps at each tile (each piece stands at its own tile's height); a wall
 running straight toward the camera shows mostly its top; windows and framing are only on the two seen faces (the
 camera never turns); no smoke from chimneys; Watchpost and walls got no extra pass this round.
