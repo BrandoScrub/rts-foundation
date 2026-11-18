@@ -186,8 +186,14 @@ deterministic (to replay one: same seed, the opponent on, and the human's comman
   Stronghold), go for the Town Hall, then for whatever the enemy has left. A wave beaten down to a quarter goes home.
 - **Defence:** soldiers at home answer any attack on the base; when raiders by the Town Hall outnumber them it rings
   the Town Bell, and All Clear when they are gone.
+- **Castle Age (Nov 17):** once it has 30 peasants and its first wave has left (or 20 minutes have passed) it saves
+  800 food and 200 crystal ahead of soldiers and research and goes up (about minute 25). Then: peasants to 60, a
+  Siege Workshop and an Academy, stone miners until a Citadel stands in front of its base, the unit-line upgrades and
+  the Castle Age research as it can pay, Bear Knights in the army (more against archers and siege) and a few Rams.
+  Rams march as their own group behind the soldiers, since a group walks at its slowest member's speed.
 - **Not yet like a person (my choices, open to change):** it knows the whole map (no fog for it); it does not hunt
-  boar or deer, fish, wall, build towers, use the Market, clear camps on purpose or collect artifacts; one
+  boar or deer, fish, wall, build towers, use the Market, clear camps on purpose or collect artifacts; it does not
+  use Mystics, Catapults, Bolt Throwers or Centaur Archers, and builds no second Town Hall; one
   difficulty. It beats a player who does nothing in about half an hour.
 - **Fixed on the way:** a unit on a move or attack-move that got stuck used to drop the order (and jump to its next
   queued one); it now looks for a new way, up to six times.

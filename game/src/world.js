@@ -1072,7 +1072,9 @@ class World {
      still give the same game. The plan is the standard AoE2 opening: six on sheep, then wood, berries and farms,
      Loom and the Feudal Age at 21 peasants; then the three military buildings, the Blacksmith, research, an army
      picked to counter what the enemy fields, and attack waves that grow.
-     Not yet like a person: it knows the whole map (no fog for it), and it does not wall, tower, trade or creep. */
+     In the Castle Age it adds a Siege Workshop, an Academy and a Citadel, upgrades its unit lines, and fields Bear
+     Knights and Rams. Not yet like a person: it knows the whole map (no fog for it), and it does not wall, tower,
+     trade, creep or use Mystics, Catapults and Bolt Throwers. */
   aiInit() {
     const p = 1, th = this.ents.find(e => e.owner === p && e.type === 'town_hall'), s0 = this.map.starts[0];
     const W = this.W, seen = new Uint8Array(W * this.H), fords = [];
@@ -1197,8 +1199,12 @@ class World {
     const room = P.popCap - P.pop - queued;
     if (room <= (age < 2 ? 2 : 5) && pending('cottage') < (age < 2 ? 1 : 2) && P.popCap + 5 * pending('cottage') < DATA.POP_MAX)
       raise('cottage', hx - ex * 9, hy - ey * 9, 16);
-    const vilCap = age < 2 ? 21 : 45, thFree = th && !th.queue.length;   // AoE2: up at 21 peasants and the scout, population 22
-    if (thFree && n < vilCap && buy(DATA.UNITS.villager.cost)) go({ c: 'train', ids: [th.id], unit: 'villager' });
+    const vilCap = age < 2 ? 21 : age < 3 ? 45 : 60, thFree = th && !th.queue.length;   // AoE2: up at 21 peasants and the scout, population 22
+    /* the Castle Age: once the Feudal economy stands (30 peasants) and the first wave has gone (or 20 minutes have), it
+       saves 800 food and 200 crystal ahead of soldiers and research, and goes up as soon as it has them */
+    const upCost = DATA.TECHS.castle.cost, saving = age === 2 && n >= 30 && (A.wave >= 1 || this.time > 1200) && !threats.length && !this.techBlock(p, 'castle');
+    if (thFree && saving && can(upCost)) { spend(upCost); go({ c: 'research', id: th.id, tech: 'castle' }); }
+    else if (thFree && n < vilCap && buy(DATA.UNITS.villager.cost)) go({ c: 'train', ids: [th.id], unit: 'villager' });
     else if (thFree && age < 2 && n >= vilCap) {
       if (!P.techs.has('loom') && !this.techBlock(p, 'loom') && buy(DATA.TECHS.loom.cost)) go({ c: 'research', id: th.id, tech: 'loom' });
       else if (!this.techBlock(p, 'feudal') && buy(DATA.TECHS.feudal.cost)) go({ c: 'research', id: th.id, tech: 'feudal' });
@@ -1214,6 +1220,7 @@ class World {
     if (n >= 11 && !count('mill')) { if (berry >= 0) camp('mill', 'food', berry); else raise('mill', hx + ey * 7, hy - ex * 7, 10); }
     if (jobs.iron) camp('mining_camp', 'iron', site.iron);
     if (jobs.crystal) camp('mining_camp', 'crystal', site.crystal);
+    if (jobs.stone) camp('mining_camp', 'stone', site.stone);
 
     /* ---- military buildings and the Blacksmith ---- */
     const mx = hx + ex * 11, my = hy + ey * 11;
@@ -1222,15 +1229,23 @@ class World {
       for (const t of ['archery_range', 'stable', 'blacksmith']) if (!count(t)) raise(t, mx, my, 15);
       if (res.wood > 500 && n >= 30) for (const t of ['barracks', 'archery_range', 'stable']) if (count(t) < 2 && !pending(t)) { raise(t, mx, my, 18); break; }
     }
+    if (age >= 3 && have('blacksmith')) {   // Castle Age: siege, the Academy, and a Citadel in front of the base when the stone is in
+      for (const t of ['siege_workshop', 'university']) if (!count(t)) raise(t, mx, my, 20);
+      if (!count('castle') && res.stone >= B.castle.cost.stone) raise('castle', mx + ex * 5, my + ey * 5, 16);
+    }
     for (const b of built) if (b.D.trains && b.type !== 'town_hall' && !A.rallied.has(b.id)) { A.rallied.add(b.id); go({ c: 'rally', ids: [b.id], x: hx + ex * 8, y: hy + ey * 8 }); }
 
     /* ---- research: one thing per building, when it can be paid for ---- */
     if (age >= 2) {
       const at = { double_bit_axe: 'lumber_camp', horse_collar: 'mill', man_at_arms: 'barracks', ore_mining: 'mining_camp', fletching: 'blacksmith', scale_mail: 'blacksmith',
-        forging: 'blacksmith', wheelbarrow: 'town_hall', padded_archer: 'blacksmith', scale_barding: 'blacksmith', bloodlines: 'stable', supplies: 'barracks' }, busy = new Set();
+        forging: 'blacksmith', wheelbarrow: 'town_hall', padded_archer: 'blacksmith', scale_barding: 'blacksmith', bloodlines: 'stable', supplies: 'barracks',
+        // Castle Age: the unit lines first, then the economy, the Blacksmith and the Academy
+        long_swordsman: 'barracks', pikeman: 'barracks', crossbow: 'archery_range', elite_skirmisher: 'archery_range', light_cavalry: 'stable', bow_saw: 'lumber_camp', heavy_plow: 'mill',
+        iron_casting: 'blacksmith', bodkin: 'blacksmith', chain_mail: 'blacksmith', hand_cart: 'town_hall', ore_shaft: 'mining_camp', chain_barding: 'blacksmith', leather_archer: 'blacksmith',
+        ballistics: 'university', husbandry: 'stable', squires: 'barracks', masonry: 'university', stone_mining: 'mining_camp' }, busy = new Set();
       for (const t in at) {
-        if (this.techBlock(p, t) || (t === 'wheelbarrow' && n < 28)) continue;
-        const b = built.find(b => b.type === at[t] && !b.queue.length && !busy.has(b.id)); if (!b || !can(DATA.TECHS[t].cost)) continue;
+        if (this.techBlock(p, t) || (t === 'wheelbarrow' && n < 28) || (t === 'hand_cart' && th && th.queue.length)) continue;
+        const b = built.find(b => b.type === at[t] && !b.queue.length && !busy.has(b.id)); if (!b || !can(DATA.TECHS[t].cost, saving ? upCost : null)) continue;
         spend(DATA.TECHS[t].cost); busy.add(b.id); go({ c: 'research', id: b.id, tech: t });
       }
     }
@@ -1238,12 +1253,13 @@ class World {
     /* ---- the army: train what counters the enemy's army (AoE2: pikes against riders, slingers against archers,
        archers against infantry), keeping a little back for buildings and research ---- */
     if (age >= 2 || threats.length) {
-      const share = { militia: 2, spearman: 1, archer: 2, skirmisher: 1, scout: 1 }, now = { militia: 0, spearman: 0, archer: 0, skirmisher: 0, scout: 0 };
+      // Castle Age: Bear Knights join (AoE2 Knights: the answer to archers and slingers), and a few Rams for the enemy's buildings
+      const k3 = age >= 3 ? 1 : 0, share = { militia: 2, spearman: 1, archer: 2, skirmisher: 1, scout: 1, knight: 2 * k3, ram: 0.5 * k3 }, now = { militia: 0, spearman: 0, archer: 0, skirmisher: 0, scout: 0, knight: 0, ram: 0 };
       for (const e of foes) { if (e.kind !== 'unit' || e.type === 'villager') continue; const c = e.D.cls || [];
-        if (c.includes('cavalry')) share.spearman += 1.5; else if (c.includes('archer')) { share.skirmisher += 1.5; share.scout += 0.5; } else { share.archer += 1; share.militia += 0.5; } }
-      for (const u of army) now[u.type]++;
+        if (c.includes('cavalry')) share.spearman += 1.5; else if (c.includes('archer')) { share.skirmisher += 1.5; share.scout += 0.5; share.knight += 0.7 * k3; } else if (!c.includes('siege')) { share.archer += 1; share.militia += 0.5; } else share.knight += 0.5 * k3; }
+      for (const u of army) if (now[u.type] !== undefined) now[u.type]++;
       for (const b of built) for (const q of b.queue) if (q.kind === 'unit' && now[q.what] !== undefined) now[q.what]++;
-      const tot = Object.values(share).reduce((a, b) => a + b, 0), keep = age >= 2 ? { food: 60, wood: 60 } : null;
+      const tot = Object.values(share).reduce((a, b) => a + b, 0), keep = saving ? { food: 60 + upCost.food, wood: 60 } : age >= 2 ? { food: 60, wood: 60 } : null;
       let all = Object.values(now).reduce((a, b) => a + b, 0);
       for (const b of built) {
         if (b.type === 'town_hall' || !b.D.trains || b.queue.length || all >= 60) continue;
@@ -1293,8 +1309,9 @@ class World {
     const want = { food: 0, wood: 0, stone: 0, iron: 0, crystal: 0 };
     if (age < 2) { want.food = Math.min(n, 6) + Math.round(Math.max(0, n - 6) * 0.5); want.wood = n - want.food; }   // AoE2: the first six on sheep
     else { want.iron = Math.round(n * 0.14); want.crystal = Math.max(1, Math.round(n * 0.07)); want.wood = Math.round(n * (['archery_range', 'stable', 'blacksmith'].every(have) ? 0.34 : 0.4));   // the Feudal buildings are all wood
+      if (age >= 3 && site.stone >= 0 && !count('castle')) want.stone = Math.round(n * 0.1);   // stone for the Citadel (650)
       for (const r of ['iron', 'crystal', 'wood']) if (P.res[r] > 600) want[r] = Math.ceil(want[r] / 2);   // enough in store: back to the fields
-      want.food = n - want.iron - want.crystal - want.wood; }
+      want.food = n - want.iron - want.crystal - want.wood - want.stone; }
     const short = () => { let k = null, d = 0; for (const r in want) { const x = want[r] - jobs[r]; if (x > d) { d = x; k = r; } } return k; };
     if (!A.bell) {
       for (const u of idle) if (!taken.has(u.id)) toWork(u, short() || 'wood');
@@ -1310,7 +1327,7 @@ class World {
     /* ---- attack waves: when enough soldiers stand at home they march, by a side ford (the centre one is the
        Ogre Stronghold's), on the enemy's Town Hall and then on whatever is left; each wave is larger ---- */
     const far = (x, y) => x + y > this.W - 1;   // which bank of the river (it runs along x + y = W - 1)
-    const march = (ids, from, x, y, attack, turn = 0) => {   // order a march; across the river it goes by a ford no camp holds
+    const march1 = (ids, from, x, y, attack, turn = 0) => {   // order a march; across the river it goes by a ford no camp holds
       let shift = false;
       if (far(from[0], from[1]) !== far(x, y)) {
         const len = f => Math.hypot(f[0] - from[0], f[1] - from[1]) + Math.hypot(f[0] - x, f[1] - y);
@@ -1319,6 +1336,10 @@ class World {
         if (f) { go({ c: 'move', ids, x: f[0], y: f[1], attack }); shift = true; }
       }
       go({ c: 'move', ids, x, y, attack, shift });
+    };
+    const march = (ids, from, x, y, attack, turn = 0) => {   // a group walks at its slowest member's speed (AoE2), so the siege train marches on its own behind the soldiers
+      const slow = ids.filter(id => { const u = this.get(id); return u && (u.D.cls || []).includes('siege'); }), fast = ids.filter(id => !slow.includes(id));
+      if (fast.length) march1(fast, from, x, y, attack, turn); if (slow.length) march1(slow, from, x, y, attack, turn);
     };
     const need = Math.min(8 + 4 * A.wave, 28);
     if (age >= 2 && !threats.length && foes.length && guard.length >= need && this.time >= A.nextWave) {

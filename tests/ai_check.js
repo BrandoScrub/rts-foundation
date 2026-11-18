@@ -1,5 +1,5 @@
 /* node tests/ai_check.js : the computer opponent (player 1), played without a browser. Its opening, the Feudal
-   Age, counters, defence, attack waves, and that a game with it is still deterministic. Prints PASS/FAIL lines. */
+   Age, the Castle Age, counters, defence, attack waves, and that a game with it is still deterministic. Prints PASS/FAIL lines. */
 const World = require('../game/src/world.js');
 let fail = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fail++; };
 const run = (w, s) => { for (let i = 0; i < 30 * s && w.state === 'playing'; i++) w.step(1 / 30); };
@@ -27,7 +27,11 @@ const of = (w, f) => w.ents.filter(e => !e.dead && e.owner === 1 && f(e)), min =
   ok(['barracks', 'archery_range', 'stable'].every(t => of(w, e => e.type === t).length), 'Barracks, Archery Range and Stable stand');
   let near = 1e9; while (w.state === 'playing' && w.time < 2400) { run(w, 5); for (const id of w.ai.squad) { const u = w.get(id); if (u) near = Math.min(near, Math.hypot(u.x - 150, u.y - 150)); } }
   ok(near > 30, `the waves go round the Ogre Stronghold by a side ford (never within ${near | 0} tiles of it)`);
-  ok(w.state === 'defeat', `a player who does nothing is destroyed (${min(w)} minutes)`); }
+  ok(w.state === 'defeat', `a player who does nothing is destroyed (${min(w)} minutes)`);
+  const c = {}; for (const e of of(w, e => true)) c[e.type] = (c[e.type] || 0) + 1;
+  ok(P.age === 3 && c.siege_workshop && c.university, 'by then it has reached the Castle Age and built a Siege Workshop and an Academy');
+  ok(c.knight >= 3 && c.ram >= 1, `it fields Bear Knights and Rams (${c.knight || 0} and ${c.ram || 0})`);
+  ok(['crossbow', 'elite_skirmisher'].some(t => P.techs.has(t)) && v.length < of(w, e => e.type === 'villager').length, 'it upgrades its unit lines and keeps growing its economy'); }
 
 /* 3. counters: against an enemy of riders it trains pikemen above all */
 { const w = new World(7, { ai: true });
