@@ -286,21 +286,32 @@ def _logs(b, pts, h=92):
         b.part(f'log{i}', 'a sharpened log set in the ground; side by side they make the wall, and the points stop climbers', sh.lathe([(15, 0), (15, h - 22), (0, h)], 'timber', 7).move(x, y, 0), 'body', True)
 
 
-def palisade():
+def _run(along, n=(-3, -2, -1, 1, 2, 3), step=26):
+    """Where a wall piece stands in its tile: 'x' or 'y' = a straight run to its neighbours on that axis, 'c' = a
+    corner, a crossing or a piece on its own (arms both ways)."""
+    return [(80, 80)] + ([(80 + d * step, 80) for d in n] if along in 'xc' else []) + ([(80, 80 + d * step) for d in n] if along in 'yc' else [])
+
+
+def palisade(along='c'):
     b = Block({'is': 'Palisade: a wall of sharpened logs', 'does': 'blocks movement; cheap, weak', 'gameplay': '1x1 tile, laid in lines in any direction: the tile must join its neighbours on all four sides and on diagonals',
                'built': 'logs set upright in a trench, lashed', 'made_of': 'timber', 'faction': 'the realm', 'references': ['AoE2 Palisade Wall', 'motte-and-bailey stockades'],
                'read_at_play_size': 'a clump of pointed stakes that runs into the next tile'})
-    _logs(b, [(80, 80)] + [(80 + d * 26, 80) for d in (-3, -2, -1, 1, 2, 3)] + [(80, 80 + d * 26) for d in (-3, -2, -1, 1, 2, 3)])
+    _logs(b, _run(along))
+    if along == 'c': b.part('post', 'a taller, thicker corner post: where two runs meet the wall needs a king post, and it marks the turn', sh.lathe([(21, 0), (21, 96), (0, 126)], 'timber', 8).move(80, 80, 0), 'signature', True)
     return b, (160, 160)
 
 
-def gate():
+def gate(along='c'):
     b = Block({'is': 'Palisade Gate', 'does': 'lets the owner\'s units through a palisade', 'gameplay': '1x1 tile; must read as an opening, not a wall',
                'built': 'two heavy posts, a lintel, plank doors', 'moves': 'the doors swing on the posts', 'made_of': 'timber', 'faction': 'the realm',
                'references': ['AoE2 Palisade Gate', 'stockade gates with a lintel beam'], 'read_at_play_size': 'two tall posts with a beam across and a dark gap between'})
-    _logs(b, [(18, 80), (142, 80), (80, 18), (80, 142)], 120)
-    b.part('lintel_x', 'beam tying the gateposts together across the gap', sh.block(8, 152, 70, 90, 120, 138, 'timber'), 'signature', True)
-    b.part('lintel_y', 'the same beam for a wall running the other way', sh.block(70, 90, 8, 152, 120, 138, 'timber'), 'signature', True)
+    _logs(b, ([(18, 80), (142, 80)] if along in 'xc' else []) + ([(80, 18), (80, 142)] if along in 'yc' else []), 120)
+    if along in 'xc': b.part('lintel_x', 'beam tying the gateposts together across the gap', sh.block(8, 152, 70, 90, 120, 138, 'timber'), 'signature', True)
+    if along in 'yc': b.part('lintel_y', 'the same beam for a wall running the other way', sh.block(70, 90, 8, 152, 120, 138, 'timber'), 'signature', True)
+    if along == 'x':
+        for i in range(2): b.part(f'leaf{i}', 'a plank door leaf, swung open inward so the way reads as open', sh.block(26 if not i else 126, 34 if not i else 134, 84, 132, 4, 112, 'timber'), 'detail', True)
+    if along == 'y':
+        for i in range(2): b.part(f'leaf{i}', 'a plank door leaf, swung open inward so the way reads as open', sh.block(84, 132, 26 if not i else 126, 34 if not i else 134, 4, 112, 'timber'), 'detail', True)
     b.part('way', 'the trodden way through: darker ground says "you can pass here"', sh.block(34, 126, 34, 126, 0, 3, 'dark'), 'opening', True)
     b.part('badge', 'the owner\'s colour on the lintel: only their units pass', sh.block(64, 96, 64, 96, 138, 160, 'team'), 'accent', True)
     return b, (160, 160)
@@ -321,30 +332,97 @@ def watchpost():
     return b, (160, 160)
 
 
-def stone_wall():
+def stone_wall(along='c'):
     b = Block({'is': 'Stone Wall', 'does': 'blocks movement; strong', 'gameplay': '1x1 tile, laid in lines: fills its tile so neighbours join without gaps',
                'built': 'coursed stone with a wall-walk and merlons', 'made_of': 'stone', 'faction': 'the realm', 'references': ['AoE2 Stone Wall', 'curtain walls with crenellations'],
                'read_at_play_size': 'a pale solid block with a toothed top'})
-    b.part('wall', 'the wall itself: as wide as the tile so there is no gap to the next piece', sh.block(4, 156, 4, 156, 0, 96, 'stone'), 'body', True)
-    for i, (x, y) in enumerate(((26, 26), (134, 26), (134, 134), (26, 134), (80, 80))):
-        b.part(f'merlon{i}', 'a merlon: cover on the wall-walk, and the teeth that say "fortification"', sh.block(x - 20, x + 20, y - 20, y + 20, 96, 126, 'stone'), 'signature')
+    if along == 'c':                                   # a corner, a crossing or a lone piece: a squat turret the runs butt against
+        b.part('wall', 'a square turret a little taller than the curtain: wall runs from either side end against it', sh.block(22, 138, 22, 138, 0, 112, 'stone'), 'body', True)
+        b.part('skirt', 'a battered foot: thicker at the ground so it cannot be undermined', sh.block(12, 148, 12, 148, 0, 22, 'stone'), 'base', True)
+        for i, (x, y) in enumerate(((40, 40), (120, 40), (120, 120), (40, 120))):
+            b.part(f'merlon{i}', 'a merlon: cover on the wall-walk, and the teeth that say "fortification"', sh.block(x - 18, x + 18, y - 18, y + 18, 112, 140, 'stone'), 'signature')
+        return b, (160, 160)
+    R = (lambda a0, a1, b0, b1, z0, z1, m: sh.block(a0, a1, b0, b1, z0, z1, m)) if along == 'x' else (lambda a0, a1, b0, b1, z0, z1, m: sh.block(b0, b1, a0, a1, z0, z1, m))
+    b.part('wall', 'the curtain: a thick slab from edge to edge of the tile along its run, so pieces join without a gap', R(0, 160, 44, 116, 0, 92, 'stone'), 'body', True)
+    b.part('skirt', 'a battered foot: thicker at the ground so it cannot be undermined', R(0, 160, 36, 124, 0, 18, 'stone'), 'base', True)
+    b.part('parapet', 'a low parapet on the outer edge of the wall-walk', R(0, 160, 96, 116, 92, 104, 'stone'), 'detail')
+    for i, a in enumerate((26, 80, 134)):
+        b.part(f'merlon{i}', 'a merlon: cover on the wall-walk, and the teeth that say "fortification"', R(a - 17, a + 17, 96, 116, 104, 128, 'stone'), 'signature')
     return b, (160, 160)
 
 
-def stone_gate():
+def stone_gate(along='c'):
     b = Block({'is': 'Stone Gate', 'does': 'lets the owner\'s units through a stone wall', 'gameplay': '1x1 tile; an arch with a dark way through, taller than the wall',
                'built': 'two stone piers, an arch, a gallery over it', 'moves': 'a portcullis drops in the arch', 'made_of': 'stone, timber', 'faction': 'the realm',
                'references': ['AoE2 Gate', 'castle gatehouses: passage between two piers with a room over'], 'read_at_play_size': 'a block taller than the wall with a dark doorway and a coloured cap'})
-    for i, (x0, x1, y0, y1) in enumerate(((4, 46, 4, 46), (114, 156, 4, 46), (114, 156, 114, 156), (4, 46, 114, 156))):
-        b.part(f'pier{i}', 'a stone pier carrying the gallery', sh.block(x0, x1, y0, y1, 0, 110, 'stone'), 'body', True)
-    b.part('gallery', 'the room over the gate where the portcullis is worked: makes the gate taller than the wall', sh.block(4, 156, 4, 156, 110, 150, 'stone'), 'signature')
-    b.part('cap', 'low roof in the owner\'s colour: only their units pass', sh.pyramid(164, 164, 90, 'roof').move(-2, -2, 150), 'roof')
-    b.part('way', 'the way through, dark under the arch', sh.block(46, 114, 46, 114, 0, 3, 'dark'), 'opening', True)
-    b.part('shadow_x', 'darkness inside the passage seen from the right', sh.block(150, 154, 48, 112, 0, 104, 'dark'), 'opening', True)
-    b.part('shadow_y', 'darkness inside the passage seen from the front', sh.block(48, 112, 150, 154, 0, 104, 'dark'), 'opening', True)
+    if along == 'c':
+        for i, (x0, x1, y0, y1) in enumerate(((4, 46, 4, 46), (114, 156, 4, 46), (114, 156, 114, 156), (4, 46, 114, 156))):
+            b.part(f'pier{i}', 'a stone pier carrying the gallery', sh.block(x0, x1, y0, y1, 0, 110, 'stone'), 'body', True)
+        b.part('gallery', 'the room over the gate where the portcullis is worked: makes the gate taller than the wall', sh.block(4, 156, 4, 156, 110, 150, 'stone'), 'signature')
+        b.part('cap', 'low roof in the owner\'s colour: only their units pass', sh.pyramid(164, 164, 90, 'roof').move(-2, -2, 150), 'roof')
+        b.part('way', 'the way through, dark under the arch', sh.block(46, 114, 46, 114, 0, 3, 'dark'), 'opening', True)
+        b.part('shadow_x', 'darkness inside the passage seen from the right', sh.block(150, 154, 48, 112, 0, 104, 'dark'), 'opening', True)
+        b.part('shadow_y', 'darkness inside the passage seen from the front', sh.block(48, 112, 150, 154, 0, 104, 'dark'), 'opening', True)
+        return b, (160, 160)
+    R = (lambda a0, a1, b0, b1, z0, z1, m: sh.block(a0, a1, b0, b1, z0, z1, m)) if along == 'x' else (lambda a0, a1, b0, b1, z0, z1, m: sh.block(b0, b1, a0, a1, z0, z1, m))
+    for i, (a0, a1) in enumerate(((0, 42), (118, 160))):
+        b.part(f'pier{i}', 'a stone pier at each end of the gate, as deep as the wall is thick and a little more: the wall runs into it', R(a0, a1, 30, 130, 0, 116, 'stone'), 'body', True)
+    b.part('gallery', 'the room over the passage where the portcullis is worked: makes the gate taller than the wall', R(0, 160, 30, 130, 116, 152, 'stone'), 'signature')
+    b.part('way', 'the way through, dark under the arch', R(42, 118, 30, 130, 0, 3, 'dark'), 'opening', True)
+    b.part('shadow', 'darkness inside the passage on the face the camera sees', R(44, 116, 124, 128, 0, 112, 'dark'), 'opening', True)
+    b.part('portcullis', 'the iron grille, drawn half up: says "gate" and "this opens"', R(44, 116, 128, 132, 70, 114, 'iron'), 'detail', True)
+    cap = sh.pyramid(168, 108, 70, 'roof').move(-4, 26, 152) if along == 'x' else sh.pyramid(108, 168, 70, 'roof').move(26, -4, 152)
+    b.part('cap', 'low roof in the owner\'s colour: only their units pass', cap, 'roof')
     return b, (160, 160)
+
+
+def site(n=2):
+    """The building site every foundation starts as (AoE2 uses one construction picture per footprint size)."""
+    S = 160 * n
+    b = Block({'is': f'Building site, {n}x{n} tiles', 'does': 'shows where a building is going up and how big it will be', 'gameplay': 'must not be mistaken for a finished building: low, open, earth-coloured',
+               'built': 'turf cut away, corner stakes, scaffold poles, materials piled ready', 'made_of': 'earth, timber, stone', 'faction': 'the realm',
+               'references': ['AoE2 construction sites: a rectangle of bare ground with stakes and a frame', 'medieval building sites: putlog scaffolds of lashed poles'],
+               'read_at_play_size': 'a square of bare earth with poles at the corners'})
+    m = 14
+    b.part('ground', 'turf stripped to bare earth: the exact footprint the building will take', sh.block(m, S - m, m, S - m, 0, 4, 'earth'), 'base', True)
+    H = 60 if n == 1 else 150
+    for i, (x, y) in enumerate(((m + 8, m + 8), (S - m - 8, m + 8), (S - m - 8, S - m - 8), (m + 8, S - m - 8))):
+        b.post(f'pole{i}', 'a scaffold pole at each corner: the frame the walls rise inside', (x, y, 0), (x, y, H), 7, free=True)
+    if n > 1:
+        c = ((m + 8, m + 8), (S - m - 8, m + 8), (S - m - 8, S - m - 8), (m + 8, S - m - 8))
+        for i in range(4):
+            (x0, y0), (x1, y1) = c[i], c[(i + 1) % 4]
+            b.post(f'ledger{i}', 'a ledger lashed between the poles: ties the scaffold and carries the working planks', (x0, y0, H - 46), (x1, y1, H - 46), 5)
+        b.part('timber', 'a stack of beams waiting to be raised', sh.block(S * .5 - 50, S * .5 + 50, S - m - 46, S - m - 20, 4, 22, 'timber'), 'detail', True)
+        b.part('stone', 'a heap of cut stone waiting for the masons', sh.rock(26, 'stone', seed=n).move(S - m - 50, S * .5, 4), 'detail', True)
+    return b, (S, S)
+
+
+def rubble(n=2):
+    """What a destroyed building leaves (AoE2 leaves a rubble picture per footprint size that fades away)."""
+    import random
+    S = 160 * n; rnd = random.Random(40 + n)
+    b = Block({'is': f'Rubble, {n}x{n} tiles', 'does': 'marks where a building stood', 'gameplay': 'flat and dark: units walk over it, so it must not read as an obstacle',
+               'built': 'fallen, burnt', 'made_of': 'scorched earth, broken stone, charred beams', 'faction': 'none',
+               'references': ['AoE2 rubble'], 'read_at_play_size': 'a dark patch with a few stones and sticks'})
+    b.part('scorch', 'burnt ground the size of the footprint: the building\'s ghost', sh.block(26, S - 26, 26, S - 26, 0, 3, 'earth'), 'base', True)
+    b.part('ash', 'a darker heart of ash where the fire was hottest', sh.block(S * .3, S * .7, S * .3, S * .7, 3, 4, 'dark'), 'base', True)
+    for i in range(3 + 4 * n):
+        r = rnd.uniform(10, 16 + 5 * n)
+        b.part(f'stone{i}', 'a block from the fallen wall', sh.rock(r, 'stone', seed=i * 7 + n).move(rnd.uniform(34, S - 34), rnd.uniform(34, S - 34), 2), 'detail', True)
+    for i in range(1 + 2 * n):
+        x, y = rnd.uniform(40, S - 40), rnd.uniform(40, S - 40); a = rnd.uniform(0, 6.28); L = rnd.uniform(40, 40 + 22 * n)
+        import math
+        b.post(f'beam{i}', 'a charred beam lying where the roof came down', (x, y, 5), (min(S - 20, max(20, x + math.cos(a) * L)), min(S - 20, max(20, y + math.sin(a) * L)), rnd.uniform(5, 14 + 10 * n)), 8, 'dark', free=True)
+    return b, (S, S)
 
 
 CATALOG = {'town_hall': town_hall, 'cottage': cottage, 'mill': mill, 'lumber_camp': lumber_camp, 'mining_camp': mining_camp, 'blacksmith': blacksmith, 'market': market,
            'barracks': barracks, 'archery_range': archery_range, 'stable': stable, 'palisade': palisade, 'gate': gate, 'watchpost': watchpost, 'watch_tower': watch_tower,
            'stone_wall': stone_wall, 'stone_gate': stone_gate}
+# wall pieces that run straight to their neighbours ('_x', '_y'; the plain key is the corner, crossing or lone piece),
+# and the pictures every building shares: its site while it goes up and its rubble after it falls, per footprint size
+for _k, _f in (('palisade', palisade), ('gate', gate), ('stone_wall', stone_wall), ('stone_gate', stone_gate)):
+    for _a in 'xy': CATALOG[f'{_k}_{_a}'] = (lambda f=_f, a=_a: f(a))
+for _n in (1, 2, 3, 4):
+    CATALOG[f'site_{_n}'] = (lambda n=_n: site(n)); CATALOG[f'rubble_{_n}'] = (lambda n=_n: rubble(n))

@@ -28,8 +28,11 @@ def materials(st, team_rgb):
 
 
 def main():
-    st = Style.load('fantasy_realm'); os.makedirs(OUT, exist_ok=True); meta = {}; bad = 0
+    st = Style.load('fantasy_realm'); os.makedirs(OUT, exist_ok=True); bad = 0
+    only = sys.argv[sys.argv.index('--only') + 1].split(',') if '--only' in sys.argv else None      # --only key,key or a prefix: palisade
+    mf = os.path.join(OUT, 'buildings.json'); meta = json.load(open(mf))['buildings'] if only and os.path.exists(mf) else {}
     for key, fn in CATALOG.items():
+        if only and not any(key == o or key.startswith(o + '_') for o in only): continue
         b, fp = fn(); f = b.findings()
         if f: print(key, 'FINDINGS', f); bad += 1; continue
         g = b.geometry()

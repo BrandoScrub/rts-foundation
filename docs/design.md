@@ -74,6 +74,9 @@ comes from in a comment.
   and death; in both player colours: Peasant, Militia, Man-at-Arms, Dwarf Pikeman, Elf Archer, Halfling Slinger,
   Wolf Rider; neutral: Goblin Raider, Ogre Brute, Dire Wolf, Boar, Deer, Sheep. The fallen lie 14 s and fade
   (AoE2 leaves decaying bodies); hunted animals stay as the carcass. Soft shadows under units and buildings.
+- **Weak spots, then building detail** (user, fourth note): Wolf Rider couches a lance; peasants hold the tool of
+  their job and carry visible loads; walls and gates join their neighbours in straight runs and corners; buildings
+  rise from a site, burn when damaged and leave rubble (all as AoE2). Details in `docs/art-briefs.md`.
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.

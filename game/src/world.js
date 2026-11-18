@@ -556,6 +556,7 @@ class World {
       t.carcass = true; t.dieT = this.time; t.food = t.D.food; t.order = null; t.path = null; t.owner = 2; t.hp = 1; return;
     }
     if (t.kind === 'unit' && !t.carcass && !t.garrisoned) this.fx.push({ kind: 'corpse', key: t.type, maa: t.type === 'militia' && this.tech(t.owner, 'man_at_arms'), owner: t.owner, x: t.x, y: t.y, facing: t.facing, t: 0, life: 14 });   // a picture only: the fallen lie a while, then fade
+    if (t.kind === 'building' && t.type !== 'farm' && (t.built || t.progress > 0.3)) this.fx.push({ kind: 'rubble', size: t.size, x: t.x, y: t.y, t: 0, life: 40 });   // AoE2: rubble that fades
     this.remove(t);
     if (t.kind === 'unit' && t.owner < 2) this.recount(t.owner);
   }
@@ -637,6 +638,7 @@ class World {
     const there = isFarm ? this.approach(u, src, 0.01, dt) : node >= 0 ? this.approach(u, node, 0.75, dt) : this.approach(u, src, u.r + 0.25, dt);
     if (!there) return;
     u.atWork = true; u.workAt = node >= 0 ? { tile: node, reach: 0.75 } : { ent: src, reach: isFarm ? 0.01 : u.r + 0.25 };
+    u.job = isFarm ? 'farm' : res;   // for the picture only: which tool is in the hand
     if (isFarm) src.farmer = u.id;
     const tgt = node >= 0 ? [node % this.W + 0.5, ((node / this.W) | 0) + 0.5] : [src.x, src.y];
     if (!isFarm) u.facing = Math.atan2(tgt[1] - u.y, tgt[0] - u.x);
@@ -691,7 +693,7 @@ class World {
     const b = this.get(o.id);
     if (!b || b.built) return this.afterBuild(u, b);
     if (!this.approach(u, b, 0.8, dt)) return;
-    u.atWork = true; u.workAt = { ent: b, reach: 0.8 }; u.facing = Math.atan2(b.y - u.y, b.x - u.x);
+    u.atWork = true; u.job = 'build'; u.workAt = { ent: b, reach: 0.8 }; u.facing = Math.atan2(b.y - u.y, b.x - u.x);
     b.builders++;
     const n = Math.max(1, b.lastBuilders || 1), rate = (n + 2) / (3 * b.D.time) / n;   // AoE2: n builders take 3T/(n+2)
     b.progress = Math.min(1, b.progress + rate * dt); b.hp = Math.min(b.maxHp, b.hp + b.maxHp * rate * dt);
@@ -715,7 +717,7 @@ class World {
     if (!b || b.hp >= b.maxHp) return this.nextOrder(u);
     if (!b.built) return this.setOrder(u, { type: 'build', id: b.id });
     if (!this.approach(u, b, 0.8, dt)) return;
-    u.atWork = true; u.workAt = { ent: b, reach: 0.8 };
+    u.atWork = true; u.job = 'build'; u.workAt = { ent: b, reach: 0.8 };
     // AoE2: 750 HP a minute, costs half the building's price spread over its HP
     const hp = Math.min(b.maxHp - b.hp, 12.5 * dt), cost = {};
     for (const k in b.D.cost) cost[k] = b.D.cost[k] * 0.5 * hp / b.maxHp;

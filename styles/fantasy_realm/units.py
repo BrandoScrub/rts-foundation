@@ -154,7 +154,8 @@ def bow(at=(13, 9), half=46):
         p = lambda a: (x - 9 * a * a + 2.5 * a ** 4, y, 16 + half * a)
         seg = cyl(p(a0), p(a1), 1.25 if 1 < i < 6 else .9, 'fr_wood', seg=5); m = seg if m is None else m + seg
     m += sphere(2.0, 'fr_glow', 6, 4).move(x - 6.5, y, 16 + half) + sphere(2.0, 'fr_glow', 6, 4).move(x - 6.5, y, 16 - half)
-    return m + cyl((x - 6.5, y, 16 - half), (x - 6.5, y, 16 + half), .45, 'fr_glow', seg=3)             # a string of light: the bow reads from every side
+    m += cyl((x - 6.5, y, 16 - half), (x - 6.5, y, 16 + half), .45, 'fr_glow', seg=3)             # a string of light: the bow reads from every side
+    return m + cyl((x - 7, y, 16), (x + 15, y, 16), .7, 'fr_glow', seg=4) + cyl((x + 15, y, 16), (x + 22, y, 16), 2.0, 'fr_glow', r1=.2, seg=4)   # an arrow of light on the string
 
 def quiver():
     return cyl((-9.5, -5, 2), (-11, 3, 27), 3.0, 'fr_leather', seg=6) + cyl((-11, 3, 27), (-11.6, 4.4, 33), 2.4, 'fr_bone', r1=1.2, seg=5)
@@ -187,10 +188,21 @@ def person(name, tunic, sleeve, forearm, headgear, dims=None, skin='fr_skin', ha
     return u
 
 
-def peasant():
+def pick():
+    return cyl((-2, 0, -2), (30, 0, 9), 1.3, 'fr_wood', seg=6) + cyl((27, 0, -5), (30, 0, 9), 1.9, 'fr_iron', r1=.4, seg=4).move(0, 0, 0) + cyl((30, 0, 9), (27, 0, 23), 1.9, 'fr_iron', r1=.4, seg=4)
+
+def hammer():
+    return cyl((-2, 0, -2), (24, 0, 7), 1.3, 'fr_wood', seg=6) + box(20, 30, -3.4, 3.4, 1, 13, 'fr_iron')
+
+def hoe():
+    return cyl((-12, 0, -5), (36, 0, 11), 1.1, 'fr_wood', seg=6) + box(34, 37, -4.5, 4.5, -2, 11, 'fr_iron')
+
+TOOLS = dict(axe=axe, pick=pick, hammer=hammer, hoe=hoe)
+
+def peasant(tool='axe'):
     u = person('peasant', 'fr_team', 'fr_team', 'fr_skin', [(bent_hat(), 'tall bent pointed hat with a wide brim: a storybook worker, the widest and tallest shape on the figure')])
     u.attach('chest', box(-9.6, -6.5, -6, 6, 6, 20, 'fr_leather'), 'a small pack: someone who carries things')
-    u.attach('hand_R', axe(), 'the tool: what a peasant does is shown by what is in the hand')
+    u.attach('hand_R', TOOLS[tool](), 'the tool: what a peasant does is shown by what is in the hand (axe for wood and meat, pick for ore and stone, hammer to build, hoe for farms and berries)')
     return u
 
 def militia():
@@ -305,7 +317,9 @@ def quad_clips(r, bite=True):
     """idle, walk (8), attack (5: rear the head, lunge, snap), die (8: stagger, fall on the side)."""
     L, H, W = r.dims['L'], r.dims['H'], r.dims['W']
     walk = r.walk(stride=L * .62, frames=8, duty=.6, lift=H * .16, bob=1.6).poses()
+    if hasattr(r, 'walk_extra'): walk = [dict(p, **r.walk_extra(i)) for i, p in enumerate(walk)]
     atk = [r.pose(root=(dx, 0, dz, 0, p, 0), neck=(0, n, 0)) for dx, dz, p, n in ((0, 0, 0, 0), (-L * .08, 1, -6, -22), (L * .16, -2, 8, 26), (L * .10, -1, 4, 10), (0, 0, 0, 0))] if bite else [r.pose()] * 5
+    if hasattr(r, 'atk'): atk = [r.pose(**c) for c in r.atk]
     die = []
     for i in range(8):
         u = i / 7; e = u * u * (3 - 2 * u)
@@ -349,10 +363,17 @@ def wolf_rider():
     h = halfling_slinger_body(); cl, base = clips(h, 'strike')
     base = dict(base); base['hand_R'] = (10, -14, 10); base['hand_L'] = (12, 8, 6)
     g, _ = h.build(base, 0.0, layer='U')
-    rider = g.scaled(.86).move(-2, 0, 15 * 1.1 - 51 * .86 + 2)                                # waist on the saddle (hips are 51 up on a standing figure)
-    rider += cyl((4, -13, 14), (4, -13, 92), 1.2, 'fr_wood', seg=5) + cyl((4, -13, 92), (4.4, -13, 110), 2.8, 'fr_glow', r1=.3, seg=4) + box(4.5, 24, -13.6, -12.4, 74, 90, 'fr_team')   # lance and pennon
-    for sg in (1, -1): rider += cyl((0, sg * 9, 22), (8, sg * 17, 4), 3.4, 'fr_hose', r1=2.6, seg=6) + ellipsoid(5, 3, 2.6, 'fr_skin', (10, sg * 17.5, 2))   # legs astride, bare feet
-    r.attach('body', rider, 'rider')
+    rider = g.scaled(.86).move(0, 0, -51 * .86 + 2)                                            # waist at the joint (hips are 51 up on a standing figure)
+    for sg in (1, -1): rider += cyl((2, sg * 9, 6), (10, sg * 17, -12), 3.4, 'fr_hose', r1=2.6, seg=6) + ellipsoid(5, 3, 2.6, 'fr_skin', (12, sg * 17.5, -14))   # legs astride, bare feet
+    r.joint('rider', 'body', (-2, 0, 15 * 1.1)); r.attach('rider', rider, 'the rider: a small upright shape over the wolf, leaning into the charge')
+    r.joint('lance', 'rider', (6, -13, 12))
+    r.attach('lance', cyl((0, 0, -22), (0, 0, 78), 1.3, 'fr_wood', seg=5) + cyl((0, 0, 78), (0, 0, 100), 3.2, 'fr_glow', r1=.3, seg=4) + box(.5, 22, -.6, .6, 56, 74, 'fr_team'),
+             'crystal lance with a pennon: upright at rest so the outline is tall, couched level to strike')
+    L = r.dims['L']                                                                             # lower the lance, lunge, hold, recover
+    r.atk = [dict(), dict(root=(-L * .06, 0, 1, 0, 0, 0), rider=(0, -8, 0), lance=(0, 50, 0)), dict(root=(L * .22, 0, -2, 0, 0, 0), rider=(0, 18, 0), lance=(0, 76, 0), neck=(0, 14, 0)),
+             dict(root=(L * .14, 0, -1, 0, 0, 0), rider=(0, 12, 0), lance=(0, 70, 0)), dict(lance=(0, 20, 0))]
+    walk_extra = lambda i: dict(rider=(0, 5 + 3 * math.sin(i * math.pi / 2), 0), lance=(0, 8, 0))
+    r.walk_extra = walk_extra
     return r
 
 def halfling_slinger_body():
@@ -392,9 +413,10 @@ def sheep():
 # neutral one, cell box in units (half-width, up, down: wide enough for the figure lying dead), px per unit)
 BOX = (88, 138, 30)
 CATALOG = {
-    'villager': (peasant, 'strike', 1.0, 'both', BOX, .6), 'militia': (militia, 'strike', 1.0, 'both', BOX, .6), 'militia_maa': (man_at_arms, 'strike', 1.04, 'both', (94, 150, 30), .6),
+    'villager': (peasant, 'strike', 1.0, 'both', BOX, .6), 'villager_pick': (lambda: peasant('pick'), 'strike', 1.0, 'both', BOX, .6),
+    'villager_hammer': (lambda: peasant('hammer'), 'strike', 1.0, 'both', BOX, .6), 'villager_hoe': (lambda: peasant('hoe'), 'strike', 1.0, 'both', BOX, .6), 'militia': (militia, 'strike', 1.0, 'both', BOX, .6), 'militia_maa': (man_at_arms, 'strike', 1.04, 'both', (94, 150, 30), .6),
     'spearman': (dwarf_pikeman, 'thrust', 1.0, 'both', (100, 178, 30), .6), 'archer': (elf_archer, 'shoot', 1.0, 'both', (96, 144, 30), .6), 'skirmisher': (halfling_slinger, 'sling', .8, 'both', (72, 116, 26), .6),
-    'scout': (wolf_rider, 'quad', 1.0, 'both', (118, 178, 62), .6),
+    'scout': (wolf_rider, 'quad', 1.0, 'both', (134, 192, 62), .6),
     'goblin': (goblin, 'strike', .86, 'neutral', (80, 120, 28), .6), 'ogre': (ogre, 'strike', 1.65, 'neutral', (176, 226, 52), .4),
     'wolf': (dire_wolf, 'quad', .92, 'neutral', (108, 100, 58), .6), 'boar': (boar, 'quad', 1.0, 'neutral', (84, 72, 46), .6),
     'deer': (deer, 'graze', 1.0, 'neutral', (96, 108, 52), .6), 'sheep': (sheep, 'graze', 1.0, 'neutral', (60, 58, 36), .6),

@@ -50,4 +50,21 @@ tail joint, a trot, a bite and a fall onto the side. Deaths: a killed unit leave
 that plays the death frames, lies 14 s and fades; hunted animals play theirs and stay as the carcass. Shadows are
 soft ellipses drawn by the game, down and right of the figure or building (artkit bakes none).
 
-Not made yet: walls that join their neighbours, tool per job, carried loads, building damage and rubble.
+## Fourth pass (Nov 17): weak spots, then building detail
+User: "Weak spots first. Then building details".
+- **Wolf Rider:** rider and lance are their own joints; he leans into the trot and couches the lance to strike.
+- **Elf Archer:** an arrow of light on the string. **Peasant:** four sheets, one per tool (axe: wood and meat; pick:
+  ore and stone; hammer: building and repair; hoe: farms), chosen by the job (`u.job`); the carried load is drawn on
+  the back (logs, sack, stone, ore, shard). **Shadows** are stronger.
+- Unit sheets are saved with 255 colours (a fifth of the size, no visible change).
+- **Walls join:** Palisade, Stone Wall and both gates have three pictures: a straight run along x (`_x`), along y
+  (`_y`), and the corner piece (plain key: corner, crossing or alone; a king post or a turret). The game picks by
+  the neighbours on the four sides (`wallKey` in render.js); any building counts as a neighbour. Gates turn with
+  the wall. Not done: diagonal runs (AoE2 has them), wall ends.
+- **Construction:** one site picture per footprint size (`site_1..4`: stripped earth, corner poles, ledgers, piled
+  timber and stone), then the building rises inside it from 15% (the finished picture revealed from the ground up).
+- **Damage:** flames and smoke below 75%, 50% and 25% hit points (AoE2), drawn by the game. **Rubble:** `rubble_1..4`,
+  left for 40 s, fading (AoE2).
+
+Not made yet: diagonal walls, doors that open on gates, roof and wall detail on the 16 buildings (still blockouts),
+a head-down idle for grazing animals.

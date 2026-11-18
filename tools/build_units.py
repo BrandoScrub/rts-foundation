@@ -42,7 +42,8 @@ def main():
                     im, (ox, oy) = frame(g, st, box, scale=scale, camera=CAM)
                     cells.append(im)
                 rows.append(np.concatenate(cells, axis=1))
-            Image.fromarray(np.concatenate(rows, axis=0), 'RGBA').save(os.path.join(OUT, f'u_{key}_{p}.png'))
+            # 255 colours and alpha: a fifth of the file, no visible change on flat-shaded figures
+            Image.fromarray(np.concatenate(rows, axis=0), 'RGBA').quantize(255, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(os.path.join(OUT, f'u_{key}_{p}.png'), optimize=True)
         ch, cw = cells[0].shape[:2]
         meta[key] = {'parts': len(u.parts), 'players': players, 'cell': [cw, ch], 'origin': [ox, oy], 'draw': round(0.575 * 0.6 / scale, 4)}
         print(key, players, [cw * len(P), ch * 8], flush=True)

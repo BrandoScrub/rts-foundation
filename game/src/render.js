@@ -192,11 +192,40 @@ const Render = (() => {
     fetch('art/buildings.json').then(r => r.json()).then(j => { bart.meta = j.buildings;
       for (const k in j.buildings) for (const p of j.players) { const im = new Image(); im.onload = () => { bart.img[k + '_' + p] = im; }; im.src = `art/b_${k}_${p}.png`; } }).catch(() => { });
   }
+  const WALLS = { palisade: 1, gate: 1, stone_wall: 1, stone_gate: 1 };
+  /* Wall pieces pick their picture from their neighbours: a straight run along x or y, else the corner piece.
+     Any building beside a wall counts, so a wall runs into a tower or a house without a gap. */
+  function wallKey(b) {
+    if (!WALLS[b.type] || b.tx === undefined) return b.type;
+    const o = (dx, dy) => { const x = b.tx + dx, y = b.ty + dy; if (x < 0 || y < 0 || x >= W.W || y >= W.H) return false; const id = W.occ[y * W.W + x]; return id && id !== b.id; };
+    const hx = o(-1, 0) || o(1, 0), hy = o(0, -1) || o(0, 1);
+    return hx && !hy ? b.type + '_x' : hy && !hx ? b.type + '_y' : b.type;
+  }
+  function bimg(key, owner, sx, sy, alpha = 1, rise = 1) {   // rise < 1: only the lower part, a building going up
+    const im = bart.meta && bart.meta[key] && bart.img[key + '_' + (owner > 1 ? 0 : owner)]; if (!im) return false;
+    const m = bart.meta[key], k = cam.zoom * 0.5, cut = Math.round(m.h * (1 - rise)); ctx.globalAlpha = alpha;   // pictures are made at twice the game's tile size, so zooming in stays sharp
+    ctx.drawImage(im, 0, cut, m.w, m.h - cut, sx - m.cx * k, sy - (m.cy - cut) * k, m.w * k, (m.h - cut) * k); ctx.globalAlpha = 1; return true;
+  }
+  function flames(b, sx, sy) {   // AoE2: a damaged building burns, harder the lower its hit points
+    const f = b.hp / b.maxHp; if (f >= 0.75 || !b.built) return;
+    const n = (f < 0.25 ? 3 : f < 0.5 ? 2 : 1) * Math.max(1, b.size - 1), k = cam.zoom, t = performance.now() / 1000;
+    for (let i = 0; i < n; i++) {
+      const h = Math.sin(b.id * 12.9898 + i * 78.233) * 43758.5453, r = h - Math.floor(h), r2 = (r * 7.31) % 1;
+      const x = sx + (r - 0.5) * b.size * TW * 0.5 * k, y = sy - (10 + r2 * b.size * 22) * k, fl = 0.8 + 0.2 * Math.sin(t * 11 + i * 2.1), s = (5 + b.size * 1.5) * k * fl;
+      for (let j = 0; j < 3; j++) { const a = ((t * 0.55 + j / 3 + r) % 1); ctx.fillStyle = `rgba(40,36,34,${0.32 * (1 - a)})`; ctx.beginPath(); ctx.arc(x + Math.sin(a * 5 + i) * 4 * k + a * 8 * k, y - s - a * 34 * k, (3 + a * 7) * k, 0, 7); ctx.fill(); }
+      ctx.fillStyle = 'rgba(255,120,30,0.9)'; ctx.beginPath(); ctx.moveTo(x - s * 0.6, y); ctx.quadraticCurveTo(x - s * 0.7, y - s * 0.9, x + Math.sin(t * 9 + i) * s * 0.25, y - s * 2); ctx.quadraticCurveTo(x + s * 0.7, y - s * 0.9, x + s * 0.6, y); ctx.fill();
+      ctx.fillStyle = 'rgba(255,225,120,0.95)'; ctx.beginPath(); ctx.moveTo(x - s * 0.3, y); ctx.quadraticCurveTo(x - s * 0.3, y - s * 0.5, x, y - s * 1.1); ctx.quadraticCurveTo(x + s * 0.3, y - s * 0.5, x + s * 0.3, y); ctx.fill();
+    }
+  }
   function drawBuilding(b, owner, sx, sy, alpha = 1) {
-    const im = b.built && bart.meta && bart.img[b.type + '_' + (owner > 1 ? 0 : owner)];
-    if (!im) return blit(buildingSprite(b, W.players[owner].color), sx, sy, false, alpha);
-    const m = bart.meta[b.type], k = cam.zoom * 0.5; ctx.globalAlpha = alpha;   // pictures are made at twice the game's tile size, so zooming in stays sharp
-    ctx.drawImage(im, sx - m.cx * k, sy - m.cy * k, m.w * k, m.h * k); ctx.globalAlpha = 1;
+    if (b.built || b.type === 'farm' || b.progress === undefined) {
+      if (b.built && bimg(wallKey(b), owner, sx, sy, alpha)) return;
+      return blit(buildingSprite(b, W.players[owner].color), sx, sy, false, alpha);
+    }
+    // going up: the site first, then the building rises inside its scaffold
+    const key = wallKey(b), site = 'site_' + Math.min(4, b.size);
+    if (!bimg(site, owner, sx, sy, alpha) || !bart.meta[key]) return blit(buildingSprite(b, W.players[owner].color), sx, sy, false, alpha);
+    if (b.progress > 0.15) bimg(key, owner, sx, sy, alpha, Math.min(1, (b.progress - 0.15) / 0.85));
   }
   /* Figures from the art engine: styles/fantasy_realm/units.py -> tools/build_units.py -> art/u_<key>_<player>.png.
      A sheet has 8 rows (headings, 45 degrees apart, row 0 = the game's +x) and columns idle | walk | strike. */
@@ -209,8 +238,19 @@ const Render = (() => {
   function shadow(sx, sy, rx, a) {   // light from the upper left on screen: the shadow lies a little down and right
     ctx.fillStyle = `rgba(8,10,6,${a})`; ctx.beginPath(); ctx.ellipse(sx + rx * 0.22, sy + rx * 0.06, rx, rx * 0.46, 0, 0, 7); ctx.fill();
   }
+  const TOOL = { stone: '_pick', iron: '_pick', crystal: '_pick', build: '_hammer', farm: '_hoe' };
+  function load(res, x, y, k) {   // what a peasant carries, on the back: logs, a sack, a block, ore, a shard
+    ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
+    if (res === 'wood') { for (let i = 0; i < 3; i++) { ctx.fillStyle = i === 1 ? '#8a5a30' : '#6e4524'; ctx.fillRect(x - 6 * k, y - (4 - i * 2.6) * k, 12 * k, 2.4 * k); ctx.strokeRect(x - 6 * k, y - (4 - i * 2.6) * k, 12 * k, 2.4 * k); } ctx.fillStyle = '#d9b27a'; ctx.beginPath(); ctx.arc(x + 6 * k, y - 0.2 * k, 1.3 * k, 0, 7); ctx.fill(); return; }
+    if (res === 'food') { ctx.fillStyle = '#c9b58a'; ctx.beginPath(); ctx.ellipse(x, y, 5 * k, 5.6 * k, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#8a2a20'; ctx.beginPath(); ctx.arc(x, y - 5.4 * k, 1.8 * k, 0, 7); ctx.fill(); return; }
+    const col = res === 'stone' ? ['#9a968e', '#c4c0b6'] : res === 'iron' ? ['#4a5568', '#8b9bb4'] : ['#3ac4e8', '#c8f6ff'];
+    ctx.fillStyle = col[0]; ctx.beginPath();
+    if (res === 'crystal') { ctx.moveTo(x, y - 8 * k); ctx.lineTo(x + 4 * k, y); ctx.lineTo(x, y + 4 * k); ctx.lineTo(x - 4 * k, y); }
+    else { ctx.moveTo(x - 5 * k, y - 3 * k); ctx.lineTo(x + 3 * k, y - 5 * k); ctx.lineTo(x + 6 * k, y + 2 * k); ctx.lineTo(x - 3 * k, y + 4 * k); }
+    ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = col[1]; ctx.fillRect(x - 1.5 * k, y - 2.5 * k, 2.6 * k, 2.2 * k);
+  }
   function drawUnit(e, sx, sy) {
-    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type, A = unitArt(key, e.owner);
+    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type === 'villager' ? 'villager' + (TOOL[e.job] || '') : e.type, A = unitArt(key, e.owner) || unitArt(e.type, e.owner);
     if (!A) return false;
     const M = uart.meta, [U, im] = A, [cw, ch] = U.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
     let col = 0;
@@ -220,10 +260,9 @@ const Render = (() => {
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
     const k = cam.zoom * (U.draw || M.draw || 0.575);
-    if (!e.carcass) shadow(sx, sy, e.r * 34 * cam.zoom + 3, 0.34);
+    if (!e.carcass) shadow(sx, sy, e.r * 38 * cam.zoom + 3, 0.46);
     ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - U.origin[0] * k, sy - U.origin[1] * k, cw * k, ch * k);
-    if (e.carry && e.carry.amt >= 1) { ctx.fillStyle = DATA.RES_INFO[e.carry.res].color; ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(sx - 7 * cam.zoom, sy - 20 * cam.zoom, 3.2 * cam.zoom, 0, 7); ctx.fill(); ctx.stroke(); }
+    if (e.carry && e.carry.amt >= 1) load(e.carry.res, sx - Math.sign(Math.cos(e.facing) - Math.sin(e.facing) || 1) * 8 * cam.zoom, sy - 27 * cam.zoom, cam.zoom);
     if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 48 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
     return true;
   }
@@ -464,6 +503,8 @@ const Render = (() => {
     // fog memory: other players' buildings as last seen
     for (const g of P.seen.values()) if (!W.seesRect(P, g) && g.x > x0 - 3 && g.x < x1 + 3 && g.y > y0 - 3 && g.y < y1 + 3)
       list.push({ d: g.x + g.y + (g.D.walk ? -g.size : 0), e: g, ghost: true });
+    for (const f of W.fx) if (f.kind === 'rubble' && f.x > x0 - 4 && f.x < x1 + 4 && f.y > y0 - 4 && f.y < y1 + 4 && P.vis[Math.floor(f.y) * Wd + Math.floor(f.x)])
+      list.push({ d: f.x + f.y - f.size, f: () => { const [sx, sy] = toScreen(f.x, f.y, W.h(f.x, f.y)); bimg('rubble_' + Math.min(4, f.size), 0, sx, sy, Math.min(1, (f.life - f.t) / 8)); } });
     for (const f of W.fx) if (f.kind === 'corpse' && f.x > x0 - 3 && f.x < x1 + 3 && f.y > y0 - 3 && f.y < y1 + 3 && P.vis[Math.floor(f.y) * Wd + Math.floor(f.x)])
       list.push({ d: f.x + f.y - 0.5, f: () => { const [sx, sy] = toScreen(f.x, f.y, W.h(f.x, f.y)); drawCorpse(f, sx, sy); } });
     list.sort((a, b) => a.d - b.d);
@@ -481,8 +522,8 @@ const Render = (() => {
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
-        if (e.built && e.type !== 'farm') shadow(sx + e.size * 5 * k, sy + (fz - z) * EL * k + e.size * 2 * k, e.size * TW * 0.42 * k, 0.26);
-        drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k);
+        if (e.built && e.type !== 'farm' && !WALLS[e.type]) shadow(sx + e.size * 5 * k, sy + (fz - z) * EL * k + e.size * 2 * k, e.size * TW * 0.44 * k, 0.36);
+        drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k); flames(e, sx, sy + (fz - z) * EL * k);
       } else if (e.kind === 'artifact') {
         const s = artifactSprite(); blit(s, sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
         ctx.fillStyle = 'rgba(255,220,120,0.18)'; ctx.beginPath(); ctx.arc(sx, sy - 22 * k, 14 * k, 0, 7); ctx.fill();
