@@ -88,6 +88,27 @@ trees, ores and any other missing passes."
   wall-walk, string course, buttress and arrow loops; corner turrets with loops, a watch fire and a pennant in the
   owner's colour. **Diagonal runs** have their own pieces (`_d1`, `_d2`) for Palisade and Stone Wall.
 
-Still off: a diagonal wall on a slope steps at each tile; gates have no diagonal piece; farms do not show how
-much food is left; cut trees leave no stump; the site floor reads as a deck; the 16 buildings are blockout-level
-(no windows, beams or roof texture); grazing animals have no head-down idle.
+## Sixth pass (Nov 17): building detail, then the small fixes
+User: "Building pass first, then immediately do smaller fixes above".
+- **Detail helpers** on `Block` (buildings.py), all on the two faces the camera sees: `framing` (half-timbering: dark
+  beams, daub panels, corner braces), `windows` (frame, lit amber pane, mullion, sill, shutters), `quoins` (pale
+  dressed corner stones), `doorway` (jambs, lintel, open leaf, threshold), `gable_end` (daub triangle, king post,
+  collar, barge boards), `finial` (a crystal on the peak). Every part still carries its reason; `findings()` empty.
+- **Materials** (tools/build_buildings.py): roofs are slates in staggered courses, each a shade of its own; stone is
+  coursed masonry with staggered joints; thatch is combed in laps; yards are trodden earth, not planks. New pack
+  materials: `beam`, `plaster`, `window` (glows), `soil`, `crop`.
+- **Per building:** Town Hall (half-timbered hall, lit windows, closed gable, quoined undercroft, keep windows,
+  crystal finial and door lanterns), Barracks (framing, windows, shields on the gable, spears in the rack), Watch
+  Tower (quoins, lit window, doorway, signal fire, finial), Cottage (framing, windows, loft window, woodpile,
+  lantern), Mill (stone bands, lit window, millstone), Lumber Camp (chopping block and axe, chips, lantern), Mining
+  Camp (quoins, window, pick, lantern), Blacksmith (quoins, windows, chimney cap with fire glow, ingots, water in
+  the trough), Market (quoins, windows, wares on the stalls, a well), Archery Range (arrow barrel, shooting line),
+  Stable (framing, loft, water, saddle).
+- **Small fixes:** shadows 60% (were 50%); both gates have diagonal pieces; the Farm shows what is left (full, half
+  the rows cut, all stubble); felled trees leave stumps; the building site is dug earth with foundation trenches
+  and a spoil heap; sheep and deer lower their heads to graze; camp landmarks are 1.5x so a tent is bigger than
+  its goblin (checked in the game).
+
+Still off: a diagonal wall on a slope steps at each tile (each piece stands at its own tile's height); a wall
+running straight toward the camera shows mostly its top; windows and framing are only on the two seen faces (the
+camera never turns); no smoke from chimneys; Watchpost and walls got no extra pass this round.

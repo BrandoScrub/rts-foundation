@@ -213,6 +213,7 @@ const Render = (() => {
   /* Wall pieces pick their picture from their neighbours: a straight run along x or y, else the corner piece.
      Any building beside a wall counts, so a wall runs into a tower or a house without a gap. */
   function wallKey(b) {
+    if (b.type === 'farm') { const f = b.food / DATA.FARM.food; return f > 0.6 || b.food === undefined ? 'farm' : f > 0.2 ? 'farm_1' : 'farm_2'; }   // the field empties as it is harvested
     if (!WALLS[b.type] || b.tx === undefined) return b.type;
     const o = (dx, dy) => { const x = b.tx + dx, y = b.ty + dy; if (x < 0 || y < 0 || x >= W.W || y >= W.H) return false; const id = W.occ[y * W.W + x]; return id && id !== b.id; };
     const hx = o(-1, 0) || o(1, 0), hy = o(0, -1) || o(0, 1);
@@ -268,6 +269,7 @@ const Render = (() => {
     else { ctx.moveTo(x - 5 * k, y - 3 * k); ctx.lineTo(x + 3 * k, y - 5 * k); ctx.lineTo(x + 6 * k, y + 2 * k); ctx.lineTo(x - 3 * k, y + 4 * k); }
     ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = col[1]; ctx.fillRect(x - 1.5 * k, y - 2.5 * k, 2.6 * k, 2.2 * k);
   }
+  const GRAZE = { sheep: 1, deer: 1 };
   function unitFrame(e) {   // which sheet and which cell: shared by the figure and its shadow
     const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type === 'villager' ? 'villager' + (TOOL[e.job] || '') : e.type, A = unitArt(key, e.owner) || unitArt(e.type, e.owner);
     if (!A) return null;
@@ -278,6 +280,7 @@ const Render = (() => {
     else if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
+    else if (GRAZE[e.type] && (W.time * 0.13 + e.id * 0.37) % 1 < 0.62) col = C.attack[0] + 1 + Math.floor((W.time + e.id) * 2.5) % (C.attack[1] - 1);   // head down, cropping the grass
     return { U, im, sh: U.shadow && uart.img[(uart.meta.units[key] === U ? key : e.type) + '_s'], col, row, k: cam.zoom * (U.draw || M.draw || 0.575) };
   }
   const cell = (im, F, sx, sy) => { const [cw, ch] = F.U.cell; ctx.drawImage(im, F.col * cw, F.row * ch, cw, ch, sx - F.U.origin[0] * F.k, sy - F.U.origin[1] * F.k, cw * F.k, ch * F.k); };
@@ -506,7 +509,8 @@ const Render = (() => {
     const k = cam.zoom, list = [];
     // static resources
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const i = y * Wd + x, n = W.map.node[i]; if (!n || !P.explored[i]) continue;
+      const i = y * Wd + x, n = W.map.node[i]; if (!P.explored[i]) continue;
+      if (!n) { if (W.map.stump && W.map.stump[i] && !W.occ[i]) { const [sx, sy] = toScreen(x + 0.5, y + 0.5, W.h(x + 0.5, y + 0.5)), key = 'stump_' + Math.floor(hash(x, y) * 2); list.push({ d: x + y, s: () => propShadow(key, sx, sy), f: () => prop(key, sx, sy) }); } continue; }
       const [sx, sy] = toScreen(x + 0.5, y + 0.5, W.h(x + 0.5, y + 0.5));
       if (sx < -80 * k || sx > vw + 80 * k || sy < -40 * k || sy > vh + 130 * k) continue;
       const A = NODE_ART[n], key = A && A[0] + '_' + Math.floor(hash(x, y) * A[1]), ok = A && part.meta && part.img[key];

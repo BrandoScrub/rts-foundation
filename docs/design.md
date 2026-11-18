@@ -80,6 +80,9 @@ comes from in a comment.
 - **One style** (user, fifth note): everything on the map goes through the art engine with one set of materials
   and one light: trees, ore, stone, berries, relics, farms and camp landmarks join the ground, buildings and
   figures. Shadows are cast shadows drawn under everything. Walls are detailed and run on diagonals. No AI yet.
+- **Building detail** (user, sixth note): half-timbering, lit windows, slate and thatch roofs, coursed stone,
+  crystal finials and lanterns on all main buildings; then the small fixes (stronger shadows, diagonal gates, farm
+  stages, stumps, dug building sites, grazing animals, larger camp landmarks).
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.

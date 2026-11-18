@@ -318,7 +318,7 @@ def quad_clips(r, bite=True):
     L, H, W = r.dims['L'], r.dims['H'], r.dims['W']
     walk = r.walk(stride=L * .62, frames=8, duty=.6, lift=H * .16, bob=1.6).poses()
     if hasattr(r, 'walk_extra'): walk = [dict(p, **r.walk_extra(i)) for i, p in enumerate(walk)]
-    atk = [r.pose(root=(dx, 0, dz, 0, p, 0), neck=(0, n, 0)) for dx, dz, p, n in ((0, 0, 0, 0), (-L * .08, 1, -6, -22), (L * .16, -2, 8, 26), (L * .10, -1, 4, 10), (0, 0, 0, 0))] if bite else [r.pose()] * 5
+    atk = [r.pose(root=(dx, 0, dz, 0, p, 0), neck=(0, n, 0)) for dx, dz, p, n in ((0, 0, 0, 0), (-L * .08, 1, -6, -22), (L * .16, -2, 8, 26), (L * .10, -1, 4, 10), (0, 0, 0, 0))] if bite else [r.pose(neck=(0, n, 0), root=(0, 0, -z, 0, p, 0)) for n, z, p in ((0, 0, 0), (38, 1, 3), (56, 2, 5), (48, 2, 4), (58, 2, 5))]      # grazers do not fight: these frames are the head going down to crop grass
     if hasattr(r, 'atk'): atk = [r.pose(**c) for c in r.atk]
     die = []
     for i in range(8):

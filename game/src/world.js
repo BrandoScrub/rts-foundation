@@ -645,7 +645,8 @@ class World {
     const take = rate * dt;
     if (node >= 0) {
       const got = Math.min(take, this.map.amt[node]); this.map.amt[node] -= got; u.carry.amt += got;
-      if (this.map.amt[node] <= 0.001) { this.map.node[node] = 0; this.map.amt[node] = 0; this.nodeGone && this.nodeGone(node); return this.findNext(u, o, node); }
+      if (this.map.amt[node] <= 0.001) { if (this.map.node[node] === 1) (this.map.stump || (this.map.stump = new Uint8Array(this.W * this.H)))[node] = 1;   // picture only: a felled tree leaves its stump
+        this.map.node[node] = 0; this.map.amt[node] = 0; this.nodeGone && this.nodeGone(node); return this.findNext(u, o, node); }
     } else if (isFarm) {
       const got = Math.min(take, src.food); src.food -= got; u.carry.amt += got;
       if (src.food <= 0.001) {

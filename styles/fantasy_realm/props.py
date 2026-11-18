@@ -55,6 +55,17 @@ def pine(seed=0, h=420):
     return J(out).move(C, C, 0)
 
 
+def stump(seed=0):
+    """STUMP. Is: what a felled tree leaves. Reads as: a low pale-topped stub with root flare and a few chips; flat
+    enough to walk over. References: AoE2 leaves stumps where forests are cut, so cleared ground shows its history."""
+    r = _rng(seed + 70); h = r.uniform(22, 32)
+    out = [sh.lathe([(30, 0), (20, 8), (18, h)], 'bark', 7), sh.lathe([(17, h), (0, h + 1.5)], 'crop', 7)]
+    for i in range(3):
+        a = r.uniform(0, 6.28); d = r.uniform(34, 52)
+        out.append(sh.block(-7, 7, -3, 3, 0, 3, 'crop').rz(r.uniform(0, 90)).move(d * math.cos(a), d * math.sin(a), 0))
+    return J(out).move(C, C, 0)
+
+
 def stone_pile(seed=0):
     """STONE. Is: an outcrop of pale building stone. Reads as: big pale angular blocks, the lightest thing on the
     ground, some already split square by quarrymen. References: AoE2 stone mine (pale grey against grass)."""
@@ -163,15 +174,22 @@ def ogre_lair(k=1.0):
     return g if k == 1.0 else g.move(-c, -c, 0).scaled(k).move(c, c, 0)
 
 
+def _big(g, k=1.5):
+    """Camp landmarks are scaled up like the figures are (figures are oversized for visibility): a tent has to be
+    bigger than the goblin that sleeps in it."""
+    return g.move(-160, -160, 0).scaled(k).move(160, 160, 0)
+
+
 # key -> (builder, footprint)
 T1, T2 = (160, 160), (320, 320)
 CATALOG = {
     'tree_0': (lambda: oak(0), T1), 'tree_1': (lambda: oak(1, 300), T1), 'tree_2': (lambda: oak(2, 350, glow=True), T1),
     'tree_3': (lambda: pine(0), T1), 'tree_4': (lambda: pine(1, 380), T1), 'tree_5': (lambda: pine(2, 450), T1),
+    'stump_0': (lambda: stump(0), T1), 'stump_1': (lambda: stump(1), T1),
     'stone_0': (lambda: stone_pile(0), T1), 'stone_1': (lambda: stone_pile(1), T1), 'stone_2': (lambda: stone_pile(2), T1),
     'iron_0': (lambda: iron_pile(0), T1), 'iron_1': (lambda: iron_pile(1), T1), 'iron_2': (lambda: iron_pile(2), T1),
     'crystal_0': (lambda: crystal_pile(0), T1), 'crystal_1': (lambda: crystal_pile(1), T1), 'crystal_2': (lambda: crystal_pile(2), T1),
     'berry_0': (lambda: berry_bush(0), T1), 'berry_1': (lambda: berry_bush(1), T1),
     'relic': (relic, T1),
-    'camp_wolf_den': (wolf_den, T2), 'camp_goblin_post': (goblin_post, T2), 'camp_ogre_lair': (ogre_lair, T2), 'camp_ogre_hold': (lambda: ogre_lair(1.25), T2),
+    'camp_wolf_den': (lambda: _big(wolf_den()), T2), 'camp_goblin_post': (lambda: _big(goblin_post()), T2), 'camp_ogre_lair': (lambda: _big(ogre_lair()), T2), 'camp_ogre_hold': (lambda: _big(ogre_lair(1.25)), T2),
 }

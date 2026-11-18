@@ -24,7 +24,21 @@ def materials(st, team_rgb):
         rgb, kind = P[base]
         if base == 'roof': rgb, kind = list(t * 0.52 + 16), 'wood'       # roofs: the player colour, dark and muted (slate with a tint)
         if base == 'team': rgb, kind = list(t * 0.82 + 8), 'plain'
-        return Material(procedural(rgb, kind, seed=sum(map(ord, base))).astype(np.float32), 'tile', 48 / 128, base in ('ember', 'glow', 'bane', 'relic'))
+        tex = procedural(rgb, kind, seed=sum(map(ord, base))).astype(np.float32)
+        r = np.random.default_rng(sum(map(ord, base)))
+        if base == 'roof':                       # slates: courses with staggered joints, each slate a shade of its own
+            n = tex.shape[0]; shade = np.kron(r.normal(1, .07, (n // 8, n // 12)), np.ones((8, 12)))
+            for j in range(n // 8): shade[j * 8:(j + 1) * 8] = np.roll(shade[j * 8:(j + 1) * 8], (j % 2) * 6, axis=1)
+            tex = tex * shade[..., None]; tex[::8] *= .62
+            for j in range(n // 8): tex[j * 8:(j + 1) * 8, ((j % 2) * 6)::12] *= .72
+        elif base in ('stone', 'quarry'):        # coursed masonry: dark joints, staggered, a few stones lighter or darker
+            n = tex.shape[0]; shade = np.kron(r.normal(1, .06, (n // 12, n // 24)), np.ones((12, 24)))
+            for j in range(n // 12): shade[j * 12:(j + 1) * 12] = np.roll(shade[j * 12:(j + 1) * 12], (j % 2) * 12, axis=1)
+            tex = tex * shade[..., None]; tex[::12] *= .74
+            for j in range(n // 12): tex[j * 12:(j + 1) * 12, ((j % 2) * 12)::24] *= .8
+        elif base == 'thatch':                   # combed straw: long streaks, and darker bands where the layers lap
+            n = tex.shape[0]; tex = tex * (1 + r.normal(0, .07, (1, n)))[..., None]; tex[::16] *= .7
+        return Material(np.clip(tex, 0, 1).astype(np.float32), 'tile', 48 / 128, base in ('ember', 'glow', 'bane', 'relic', 'window'))
     return Materials(fallback=fb)
 
 
