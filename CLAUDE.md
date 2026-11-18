@@ -23,6 +23,9 @@ value beside the number in `game/src/data.js`.
   changes the world directly, and the simulation uses only `world.rand`, never `Math.random`, so games stay
   deterministic and replayable.
 - Ground tiles: recipes in `styles/fantasy_realm/terrain.json`, rendered by `python3 tools/build_ground.py`.
+- Buildings: geometry in `styles/fantasy_realm/blockouts/buildings.py` (every part needs a reason; `findings()` must be
+  empty), rendered by `python3 tools/build_buildings.py` into `game/art/b_<key>_<player>.png`. State of the art and
+  what is still off: `docs/art-briefs.md`.
 - This game's art content (its style pack) lives in `styles/fantasy_realm/`, outside the engine. Any new building, unit
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 

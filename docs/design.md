@@ -26,7 +26,7 @@ comes from in a comment.
 | Ore generation (Nov 17) | Iron and crystal each generate exactly like AoE2 gold: a 7-tile and two 4-tile mines by every Town Hall, scattered 3-tile piles, 800 a tile, gold mining rate, 100 of each to start. |
 | Camp ore (Nov 17) | Kept as bonus veins on top of the AoE2 layout; camps still drop artifacts. |
 | Gold prices (Nov 17) | Units pay **iron** where AoE2 charges gold; technologies pay **crystal**. The Market trades in iron. |
-| Art (Nov 17) | Start artkit briefs and grey blockouts now, after the Feudal mechanics. |
+| Art (Nov 17) | Start artkit briefs and grey blockouts now, after the Feudal mechanics. Then "focus on art": all 16 buildings are designed as blockouts (brief and a reason per part), rendered through artkit in player colours and drawn in the game (`tools/build_buildings.py`). Units are still code-drawn. See `docs/art-briefs.md`. |
 | Art | Gameplay first with placeholder sprites drawn in code; real art follows artkit's DESIGN_METHOD (briefs, then grey blockouts for approval). |
 
 ## How AoE2 was followed (tier 1 = Dark Age)

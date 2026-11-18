@@ -13,7 +13,7 @@ const Render = (() => {
   function init(world, cv) {
     W = world; canvas = cv;
     ctx = (typeof GLCanvas !== 'undefined' && !/[?&]gl=0/.test(location.search)) ? GLCanvas.create(canvas) : canvas.getContext('2d');
-    resize(); loadGround();
+    resize(); loadGround(); loadBuildings();
   }
   function resize() {
     dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -184,6 +184,19 @@ const Render = (() => {
       poly(g, [up(left), up(top), rl], shade(roof, 0.7));
       poly(g, [up(top), up(right), rr, rl], shade(roof, 1.15));
     } else poly(g, [up(top), up(right), up(bottom), up(left)], shade(roof, 1.1));
+  }
+  /* Buildings from the art engine: styles/fantasy_realm/blockouts -> tools/build_buildings.py -> art/b_<key>_<player>.png.
+     Until a picture has loaded (and for foundations and farms) the code-drawn stand-in below is used. */
+  const bart = { meta: null, img: {} };
+  function loadBuildings() {
+    fetch('art/buildings.json').then(r => r.json()).then(j => { bart.meta = j.buildings;
+      for (const k in j.buildings) for (const p of j.players) { const im = new Image(); im.onload = () => { bart.img[k + '_' + p] = im; }; im.src = `art/b_${k}_${p}.png`; } }).catch(() => { });
+  }
+  function drawBuilding(b, owner, sx, sy, alpha = 1) {
+    const im = b.built && bart.meta && bart.img[b.type + '_' + (owner > 1 ? 0 : owner)];
+    if (!im) return blit(buildingSprite(b, W.players[owner].color), sx, sy, false, alpha);
+    const m = bart.meta[b.type], k = cam.zoom * 0.5; ctx.globalAlpha = alpha;   // pictures are made at twice the game's tile size, so zooming in stays sharp
+    ctx.drawImage(im, sx - m.cx * k, sy - m.cy * k, m.w * k, m.h * k); ctx.globalAlpha = 1;
   }
   function buildingSprite(b, team) {
     const s = b.size, t = b.type, stage = b.built ? 'done' : (b.progress < 0.5 ? 'f0' : 'f1');
@@ -421,7 +434,7 @@ const Render = (() => {
       const e = it.e, team = W.players[e.owner].color;
       const ex = e.kind === 'unit' && e.px !== undefined ? e.px + (e.x - e.px) * alpha : e.x, ey = e.kind === 'unit' && e.py !== undefined ? e.py + (e.y - e.py) * alpha : e.y;   // between ticks
       const z = W.h(ex, ey), [sx, sy] = toScreen(ex, ey, z);
-      if (it.ghost) { blit(buildingSprite(e, team), sx, sy); continue; }
+      if (it.ghost) { drawBuilding(e, e.owner, sx, sy); continue; }
       if (selSet.has(e.id) || ui.hoverId === e.id) {
         const r = e.kind === 'building' ? e.size * 0.75 : e.r * 1.6;
         ctx.strokeStyle = e.owner === 0 ? 'rgba(255,255,255,0.9)' : e.owner === 1 ? 'rgba(255,80,60,0.9)' : 'rgba(255,220,80,0.9)';
@@ -429,7 +442,7 @@ const Render = (() => {
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
-        blit(buildingSprite(e, team), sx, sy + (fz - z) * EL * k);
+        drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k);
       } else if (e.kind === 'artifact') {
         const s = artifactSprite(); blit(s, sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
         ctx.fillStyle = 'rgba(255,220,120,0.18)'; ctx.beginPath(); ctx.arc(sx, sy - 22 * k, 14 * k, 0, 7); ctx.fill();
@@ -489,7 +502,7 @@ const Render = (() => {
       const pts = [[gh.tx, gh.ty], [gh.tx + s, gh.ty], [gh.tx + s, gh.ty + s], [gh.tx, gh.ty + s]].map(([x, y]) => toScreen(x, y, W.h(x, y)));
       ctx.fillStyle = ok ? 'rgba(80,255,120,0.28)' : 'rgba(255,60,60,0.35)'; ctx.beginPath(); ctx.moveTo(...pts[0]); for (const p of pts.slice(1)) ctx.lineTo(...p); ctx.closePath(); ctx.fill();
       const [sx, sy] = toScreen(gh.tx + s / 2, gh.ty + s / 2, W.h(gh.tx + s / 2, gh.ty + s / 2));
-      blit(buildingSprite({ type: gh.type, size: s, built: true, food: DATA.FARM.food }, W.players[0].color), sx, sy, false, 0.55);
+      drawBuilding({ type: gh.type, size: s, built: true, food: DATA.FARM.food }, 0, sx, sy, 0.55);
     }
     if (ui.box) { const [a, b, c, d] = ui.box; ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1; ctx.strokeRect(Math.min(a, c), Math.min(b, d), Math.abs(c - a), Math.abs(d - b));
       ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(Math.min(a, c), Math.min(b, d), Math.abs(c - a), Math.abs(d - b)); }

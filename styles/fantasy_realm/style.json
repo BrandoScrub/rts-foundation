@@ -1,9 +1,123 @@
 {
-  "name": "Fantasy Realm",
-  "about": "RTS Foundation's style pack: a bright storybook fantasy realm (Warcraft III's colour, AoE2's readability). Only the ground is made so far; buildings and units wait for briefs and blockouts (artkit/DESIGN_METHOD.md).",
-  "terrain": "terrain.json",
-  "tile_units": 128,
-  "tile_px": 128,
-  "game": { "tile_px": 64 },
-  "ground": [92, 132, 58]
+ "name": "Fantasy Realm",
+ "about": "RTS Foundation's style pack: a bright storybook fantasy realm (Warcraft III's colour, AoE2's readability). Ground recipes in terrain.json; building blockouts in blockouts/ (masses and material colours only, no detail yet).",
+ "terrain": "terrain.json",
+ "tile_units": 128,
+ "tile_px": 128,
+ "game": {
+  "tile_px": 64,
+  "building_px_per_out": 0.5
+ },
+ "ground": [
+  92,
+  132,
+  58
+ ],
+ "procedural": {
+  "stone": [
+   [
+    176,
+    172,
+    160
+   ],
+   "rock"
+  ],
+  "timber": [
+   [
+    150,
+    112,
+    72
+   ],
+   "wood"
+  ],
+  "thatch": [
+   [
+    196,
+    168,
+    96
+   ],
+   "canvas"
+  ],
+  "roof": [
+   [
+    150,
+    84,
+    60
+   ],
+   "wood"
+  ],
+  "canvas": [
+   [
+    226,
+    214,
+    186
+   ],
+   "canvas"
+  ],
+  "earth": [
+   [
+    134,
+    108,
+    72
+   ],
+   "dust"
+  ],
+  "dark": [
+   [
+    44,
+    36,
+    30
+   ],
+   "plain"
+  ],
+  "iron": [
+   [
+    104,
+    112,
+    126
+   ],
+   "rock"
+  ],
+  "crystal": [
+   [
+    96,
+    216,
+    240
+   ],
+   "plain"
+  ],
+  "ember": [
+   [
+    255,
+    150,
+    50
+   ],
+   "plain"
+  ],
+  "team": [
+   [
+    150,
+    84,
+    60
+   ],
+   "plain"
+  ]
+ },
+ "team_colors": {
+  "0": [
+   59,
+   111,
+   224
+  ],
+  "1": [
+   216,
+   64,
+   47
+  ]
+ },
+ "proportions": {
+  "storey": 110,
+  "figure": 100,
+  "door": 96
+ }
 }
