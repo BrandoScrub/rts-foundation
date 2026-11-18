@@ -68,9 +68,12 @@ comes from in a comment.
 - **Figures stay oversized for visibility** (about twice what the doors imply).
 - **Fantasy, not medieval** (user, second note): each race gets its own build and an exaggerated signature, and
   the realm's crystal glows on weapons and shields.
-- Built as artkit jointed figures (`styles/fantasy_realm/units.py`, `tools/build_units.py`), 8 headings, idle, walk
-  and attack, in both player colours: Peasant, Militia, Man-at-Arms, Dwarf Pikeman, Elf Archer, Halfling Slinger;
-  neutral: Goblin Raider, Ogre Brute. Still code-drawn: Wolf Rider, wolves, sheep, deer, boar.
+- **Push farther** (user, third note): bigger weapons, more glow, stranger outlines; the wild glows magenta
+  where the realm glows cyan. The Wolf Rider is a halfling on a tame dire wolf.
+- Built as artkit figures (`styles/fantasy_realm/units.py`, `tools/build_units.py`), 8 headings; idle, walk, attack
+  and death; in both player colours: Peasant, Militia, Man-at-Arms, Dwarf Pikeman, Elf Archer, Halfling Slinger,
+  Wolf Rider; neutral: Goblin Raider, Ogre Brute, Dire Wolf, Boar, Deer, Sheep. The fallen lie 14 s and fade
+  (AoE2 leaves decaying bodies); hunted animals stay as the carcass. Soft shadows under units and buildings.
 
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.

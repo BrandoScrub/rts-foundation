@@ -205,22 +205,35 @@ const Render = (() => {
     fetch('art/units.json').then(r => r.json()).then(j => { uart.meta = j;
       for (const k in j.units) for (const p of j.units[k].players) { const im = new Image(); im.onload = () => { uart.img[k + '_' + p] = im; }; im.src = `art/u_${k}_${p}.png`; } }).catch(() => { });
   }
+  function unitArt(key, owner) { const U = uart.meta && uart.meta.units[key]; if (!U) return null; const im = uart.img[key + '_' + owner] || uart.img[key + '_' + U.players[0]]; return im ? [U, im] : null; }
+  function shadow(sx, sy, rx, a) {   // light from the upper left on screen: the shadow lies a little down and right
+    ctx.fillStyle = `rgba(8,10,6,${a})`; ctx.beginPath(); ctx.ellipse(sx + rx * 0.22, sy + rx * 0.06, rx, rx * 0.46, 0, 0, 7); ctx.fill();
+  }
   function drawUnit(e, sx, sy) {
-    if (!uart.meta || e.carcass) return false;
-    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type, im = uart.img[key + '_' + e.owner];
-    if (!im) return false;
-    const M = uart.meta, U = M.units[key], [cw, ch] = U.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
+    const key = e.type === 'militia' && W.tech(e.owner, 'man_at_arms') ? 'militia_maa' : e.type, A = unitArt(key, e.owner);
+    if (!A) return false;
+    const M = uart.meta, [U, im] = A, [cw, ch] = U.cell, C = M.clips, row = ((Math.round(e.facing * 4 / Math.PI) % 8) + 8) % 8;
     let col = 0;
     const sw = e.swingT !== undefined ? W.time - e.swingT : 9;
-    if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
+    if (e.carcass) col = C.die[0] + Math.min(C.die[1] - 1, Math.floor((W.time - (e.dieT || 0)) * C.die[2]));
+    else if (sw < C.attack[1] / C.attack[2]) col = C.attack[0] + Math.min(C.attack[1] - 1, Math.floor(sw * C.attack[2]));
     else if (e.moving) col = C.walk[0] + Math.floor(e.walkT * C.walk[2] * 1.3) % C.walk[1];
     else if (e.atWork) col = C.attack[0] + Math.floor((W.time + e.id * 0.37) * 7) % C.attack[1];   // chopping, mining, building
-    const k = cam.zoom * M.draw;
+    const k = cam.zoom * (U.draw || M.draw || 0.575);
+    if (!e.carcass) shadow(sx, sy, e.r * 34 * cam.zoom + 3, 0.34);
     ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - U.origin[0] * k, sy - U.origin[1] * k, cw * k, ch * k);
     if (e.carry && e.carry.amt >= 1) { ctx.fillStyle = DATA.RES_INFO[e.carry.res].color; ctx.strokeStyle = '#1a120a'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(sx - 7 * cam.zoom, sy - 20 * cam.zoom, 3.2 * cam.zoom, 0, 7); ctx.fill(); ctx.stroke(); }
     if (e.artifact) { ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(sx, sy - 48 * cam.zoom, 4 * cam.zoom, 0, 7); ctx.fill(); }
     return true;
+  }
+  function drawCorpse(f, sx, sy) {   // the death clip, then the last frame fading out
+    const A = unitArt(f.maa ? 'militia_maa' : f.key, f.owner); if (!A) return;
+    const M = uart.meta, [U, im] = A, [cw, ch] = U.cell, C = M.clips, row = ((Math.round(f.facing * 4 / Math.PI) % 8) + 8) % 8;
+    const col = C.die[0] + Math.min(C.die[1] - 1, Math.floor(f.t * C.die[2])), k = cam.zoom * (U.draw || 0.575);
+    ctx.globalAlpha = Math.min(1, (f.life - f.t) / 4);
+    ctx.drawImage(im, col * cw, row * ch, cw, ch, sx - U.origin[0] * k, sy - U.origin[1] * k, cw * k, ch * k);
+    ctx.globalAlpha = 1;
   }
   function buildingSprite(b, team) {
     const s = b.size, t = b.type, stage = b.built ? 'done' : (b.progress < 0.5 ? 'f0' : 'f1');
@@ -451,6 +464,8 @@ const Render = (() => {
     // fog memory: other players' buildings as last seen
     for (const g of P.seen.values()) if (!W.seesRect(P, g) && g.x > x0 - 3 && g.x < x1 + 3 && g.y > y0 - 3 && g.y < y1 + 3)
       list.push({ d: g.x + g.y + (g.D.walk ? -g.size : 0), e: g, ghost: true });
+    for (const f of W.fx) if (f.kind === 'corpse' && f.x > x0 - 3 && f.x < x1 + 3 && f.y > y0 - 3 && f.y < y1 + 3 && P.vis[Math.floor(f.y) * Wd + Math.floor(f.x)])
+      list.push({ d: f.x + f.y - 0.5, f: () => { const [sx, sy] = toScreen(f.x, f.y, W.h(f.x, f.y)); drawCorpse(f, sx, sy); } });
     list.sort((a, b) => a.d - b.d);
     const selSet = sel.set;
     for (const it of list) {
@@ -466,6 +481,7 @@ const Render = (() => {
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
+        if (e.built && e.type !== 'farm') shadow(sx + e.size * 5 * k, sy + (fz - z) * EL * k + e.size * 2 * k, e.size * TW * 0.42 * k, 0.26);
         drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k);
       } else if (e.kind === 'artifact') {
         const s = artifactSprite(); blit(s, sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
@@ -479,7 +495,7 @@ const Render = (() => {
       }
       // health bar
       if (e.kind !== 'artifact' && !e.carcass && (selSet.has(e.id) || ui.hoverId === e.id || (e.hp < e.maxHp && e.kind === 'unit' && e.hitT && W.time - e.hitT < 4))) {
-        const top = e.kind === 'building' ? sy - (e.size * 16 + 40) * k : sy - (e.type === 'ogre' ? 60 : 38) * k, bw = (e.kind === 'building' ? 40 : 22) * k;
+        const top = e.kind === 'building' ? sy - (e.size * 16 + 40) * k : sy - ({ ogre: 62, scout: 58, spearman: 46 }[e.type] || (e.D.food ? 26 : 40)) * k, bw = (e.kind === 'building' ? 40 : 22) * k;
         ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - bw / 2 - 1, top - 1, bw + 2, 5);
         ctx.fillStyle = e.owner === 0 ? '#5fd35f' : e.owner === 1 ? '#e04a3a' : '#e8c440'; ctx.fillRect(sx - bw / 2, top, bw * Math.max(0, e.hp / e.maxHp), 3);
         if (e.kind === 'building' && !e.built) { ctx.fillStyle = '#6fb0ff'; ctx.fillRect(sx - bw / 2, top + 4, bw * e.progress, 2); }

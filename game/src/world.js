@@ -553,8 +553,9 @@ class World {
   }
   kill(t, src) {
     if (t.kind === 'unit' && t.D.food && !t.carcass) {   // hunted animals leave a carcass to gather from
-      t.carcass = true; t.food = t.D.food; t.order = null; t.path = null; t.owner = 2; t.hp = 1; return;
+      t.carcass = true; t.dieT = this.time; t.food = t.D.food; t.order = null; t.path = null; t.owner = 2; t.hp = 1; return;
     }
+    if (t.kind === 'unit' && !t.carcass && !t.garrisoned) this.fx.push({ kind: 'corpse', key: t.type, maa: t.type === 'militia' && this.tech(t.owner, 'man_at_arms'), owner: t.owner, x: t.x, y: t.y, facing: t.facing, t: 0, life: 14 });   // a picture only: the fallen lie a while, then fade
     this.remove(t);
     if (t.kind === 'unit' && t.owner < 2) this.recount(t.owner);
   }
