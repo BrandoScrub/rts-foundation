@@ -32,6 +32,8 @@ value beside the number in `game/src/data.js`.
   tools/build_props.py` into `game/art/p_<key>.png`. Cast shadows (`*_s.png`) come from the pack's "shadow" section and
   are written by all three build tools; the game draws them first. Nothing on the map is drawn in code except shore
   fish, fire and carried loads: new map art goes through the engine so everything keeps one style.
+- HUD: AoE2's layout (see Interface in `docs/design.md`). Buttons are pictures from `game/art/icons.png`; after changing
+  unit, building or prop art run `python3 tools/build_icons.py`. A new command needs an icon key and a grid slot.
 - This game's art content (its style pack) lives in `styles/fantasy_realm/`, outside the engine. Any new building, unit
   or prop follows `artkit/DESIGN_METHOD.md`: a brief, references, then a grey blockout shown to the user before detail.
 

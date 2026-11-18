@@ -239,6 +239,13 @@ const Render = (() => {
       ctx.fillStyle = 'rgba(255,225,120,0.95)'; ctx.beginPath(); ctx.moveTo(x - s * 0.3, y); ctx.quadraticCurveTo(x - s * 0.3, y - s * 0.5, x, y - s * 1.1); ctx.quadraticCurveTo(x + s * 0.3, y - s * 0.5, x + s * 0.3, y); ctx.fill();
     }
   }
+  function smoke(b, sx, sy) {   // chimneys smoke where people live and work (positions from the building's own model)
+    const m = bart.meta && bart.meta[b.type]; if (!m || !m.smoke || !b.built) return;
+    const k = cam.zoom, t = performance.now() / 1000;
+    for (const [px, py] of m.smoke) { const x0 = sx + (px - m.cx) * 0.5 * k, y0 = sy + (py - m.cy) * 0.5 * k;
+      for (let j = 0; j < 5; j++) { const a = (t * 0.22 + j / 5 + b.id * 0.137) % 1, r = (2.5 + a * 9) * k;
+        ctx.fillStyle = `rgba(170,165,160,${0.34 * (1 - a) * Math.min(1, a * 6)})`; ctx.beginPath(); ctx.arc(x0 + (a * 16 + Math.sin(a * 7 + j) * 3) * k, y0 - a * 46 * k, r, 0, 7); ctx.fill(); } }
+  }
   function drawBuilding(b, owner, sx, sy, alpha = 1) {
     if (b.built || b.progress === undefined) {
       if (b.built && bimg(wallKey(b), owner, sx, sy, alpha)) return;
@@ -561,7 +568,7 @@ const Render = (() => {
       }
       if (e.kind === 'building') {
         const fz = W.h(e.x, e.y);
-        drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k); flames(e, sx, sy + (fz - z) * EL * k);
+        drawBuilding(e, e.owner, sx, sy + (fz - z) * EL * k); smoke(e, sx, sy + (fz - z) * EL * k); flames(e, sx, sy + (fz - z) * EL * k);
       } else if (e.kind === 'artifact') {
         if (!prop('relic', sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k)) blit(artifactSprite(), sx, sy + Math.sin(W.time * 3 + e.id) * 2 * k);
         ctx.fillStyle = 'rgba(255,220,120,0.18)'; ctx.beginPath(); ctx.arc(sx, sy - 22 * k, 14 * k, 0, 7); ctx.fill();
@@ -655,6 +662,8 @@ const Render = (() => {
     for (const e of W.ents) {
       if (e.dead || e.garrisoned) continue; const i = Math.floor(e.y) * Wd + Math.floor(e.x);
       if (e.owner !== 0 && (e.kind === 'building' ? !W.seesRect(P, e) : !P.vis[i])) continue;
+      const mode = (typeof UI !== 'undefined' && UI.st.miniMode) || 0, eco = e.kind === 'building' ? e.D.menu === 'eco' || e.type === 'town_hall' : e.type === 'villager' || !!e.D.food;   // AoE2 mini-map modes
+      if (mode && e.owner !== 2 && (mode === 1) !== eco) continue;
       if (e.kind === 'building') dot(e.tx, e.ty, e.size, pc[e.owner]);
       else if (e.kind === 'artifact') dot(Math.floor(e.x) - 1, Math.floor(e.y) - 1, 3, [255, 255, 255]);
       else if (!e.carcass) dot(Math.floor(e.x), Math.floor(e.y), 2, e.owner === 2 && e.D.creep ? [230, 60, 230] : pc[e.owner]);

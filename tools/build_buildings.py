@@ -65,6 +65,9 @@ def main():
             im, m = picture(g, st, footprint=fp, scale=0.4, mats=materials(st, rgb))
             im.save(os.path.join(OUT, f'b_{key}_{p}.png'))
         meta[key] = {'w': im.size[0], 'h': im.size[1], 'cx': m['centre'][0], 'cy': m['centre'][1], 'parts': len(b.why)}
+        if getattr(b, 'smoke', None):                       # chimney tops in picture pixels, for the game's smoke
+            from artkit.core.space import Camera
+            meta[key]['smoke'] = [[round(m['origin'][0] + float(Camera.ISO.screen(np.array(q, float))[0]) * 0.4, 1), round(m['origin'][1] + float(Camera.ISO.screen(np.array(q, float))[1]) * 0.4, 1)] for q in b.smoke]
         s = shadow_meta(g, rules, fp, m, os.path.join(OUT, f'b_{key}_s.png'))
         if s: meta[key]['s'] = s
         print(key, im.size, m['centre'])

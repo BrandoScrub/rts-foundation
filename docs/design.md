@@ -84,6 +84,30 @@ comes from in a comment.
   crystal finials and lanterns on all main buildings; then the small fixes (stronger shadows, diagonal gates, farm
   stages, stumps, dug building sites, grazing animals, larger camp landmarks).
 
+## Interface (user, Nov 17: "the UI and menus in the exact same format as Age of Empires 2")
+Laid out as AoE2 Definitive Edition's HUD (source: the official Learn to Play pages, ageofempires.com/learn-to-play):
+- **Top left, the resource bar:** wood, food, iron (where AoE2 has gold), stone, crystal; under each the number of
+  peasants gathering it; then population; then the idle-peasant button, shown only when someone is idle.
+- **Top centre:** the current age with its emblem. **Top right, the menu bar:** Technology Tree (F2), Controls and
+  settings (F1), Menu (F10: Return to Game, Pause, Speed, Technology Tree, Controls, Restart, Resign). AoE2's
+  Objectives, Chat and Diplomacy buttons are left out: there is nothing behind them yet.
+- **Under the bar, top left:** game time and speed.
+- **Bottom left, the command panel:** always 5 x 3 picture buttons on Q W E R T / A S D F G / Z X C V B; empty slots
+  are empty frames. Military: the four stances along the top (the active one lit), Attack-move, Stop, Patrol,
+  Garrison in the middle, the four formations along the bottom, Delete bottom right. Peasants: Build, Build
+  military; inside a build page the other page and Back sit bottom right. Buildings: units on the top row,
+  technologies on the second, Town Bell / All Clear / Ungarrison on the third. A button you cannot afford is tinted
+  red; one you cannot use yet is grey.
+- **The extended tooltip** appears in one fixed place above the command panel: name, hotkey, cost, time, text.
+- **Bottom centre, the selection panel:** portrait with the hit-point bar under it; name; owner; attack, melee
+  armour, pierce armour, range, sight, speed as icons; the production queue as pictures with progress; several
+  units as a grid of portraits with their own bars.
+- **Bottom right, the mini-map** with its buttons beside it: mini-map mode (everything / economy / military) and
+  idle military.
+- Every icon is cut from the game's own art (`tools/build_icons.py` -> `game/art/icons.png`).
+- Not done: a main menu and game-setup screens before the match; save and load; score panel; Objectives, Chat,
+  Diplomacy.
+
 ## Feudal Age and AoE2 systems (built Nov 17)
 - **Damage:** AoE2's formula with attack and armour classes; buildings have melee/pierce armour.
 - **Counters:** Dwarf Pikeman (Spearman, +15 vs cavalry), Elf Archer (Archer), Halfling Slinger (Skirmisher, +3 vs
